@@ -1,0 +1,30 @@
+{
+  "name": "rbs_crew_sn",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cheikh-Nakamoto/RBS_Crew_SN.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Cheikh-Nakamoto/RBS_Crew_SN/issues"
+  },
+  "homepage": "https://github.com/Cheikh-Nakamoto/RBS_Crew_SN#readme",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "turbo": "^2.8.21",
+    "typescript": "^6.0.2"
+  }
+}

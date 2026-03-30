@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: rbs_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  nestjs-api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      DATABASE_URL: postgres://root:password@postgres:5432/rbs_db
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: my-secret
+      STRIPE_SECRET_KEY: sk_test_...
+
+  nextjs-web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "3001:3000"
+    depends_on:
+      - nestjs-api
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - nextjs-web
+      - nestjs-api
+
+volumes:
+  pgdata:

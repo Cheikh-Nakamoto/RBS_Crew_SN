@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String?
+  lastName  String?
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  wpId        Int?     @unique // Original WooCommerce ID for mapping
+  sku         String?  @unique
+  price       Decimal  @db.Decimal(10, 2)
+  stock       Int      @default(0)
+  translations ProductTranslation[]
+  categories   Category[]
+  images      Media[]
+  orderItems  OrderItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ProductTranslation {
+  id          String  @id @default(uuid())
+  productId   String
+  product     Product @relation(fields: [productId], references: [id])
+  language    String  // 'fr', 'en', 'de', 'es', 'it'
+  name        String
+  description String  @db.Text
+  slug        String
+
+  @@unique([productId, language])
+  @@unique([language, slug])
+}
+
+model Category {
+  id           String   @id @default(uuid())
+  wpId         Int?     @unique
+  translations CategoryTranslation[]
+  products     Product[]
+}
+
+model CategoryTranslation {
+  id         String   @id @default(uuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  language   String
+  name       String
+  slug       String
+
+  @@unique([categoryId, language])
+}
+
+model Order {
+  id         String      @id @default(uuid())
+  userId     String?
+  user       User?       @relation(fields: [userId], references: [id])
+  status     String      // PENDING, PAID, SHIPPED, etc.
+  total      Decimal     @db.Decimal(10, 2)
+  items      OrderItem[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+}
+
+model Page {
+  id           String   @id @default(uuid())
+  wpId         Int?     @unique
+  translations PageTranslation[]
+}
+
+model PageTranslation {
+  id       String @id @default(uuid())
+  pageId   String
+  page     Page   @relation(fields: [pageId], references: [id])
+  language String
+  title    String
+  content  String @db.Text // Raw content/data needed for the new design
+  slug     String
+
+  @@unique([pageId, language])
+  @@unique([language, slug])
+}
+
+model Media {
+  id        String   @id @default(uuid())
+  url       String
+  altText   String?
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+}
