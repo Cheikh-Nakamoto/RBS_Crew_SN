@@ -1,58 +1,83 @@
-version: '3.8'
-
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: rbs_db
+      POSTGRES_USER: ${POSTGRES_USER:-rbs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-rbs_db}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rbs} -d ${POSTGRES_DB:-rbs_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   nestjs-api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "4000:4000"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      DATABASE_URL: postgres://root:password@postgres:5432/rbs_db
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rbs}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-rbs_db}
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: my-secret
-      STRIPE_SECRET_KEY: sk_test_...
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-jwt-refresh-change-me}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
+      API_PORT: 4000
+      NODE_ENV: ${NODE_ENV:-development}
 
   nextjs-web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
     ports:
-      - "3001:3000"
+      - "3000:3000"
     depends_on:
       - nestjs-api
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost/api
+      NODE_ENV: ${NODE_ENV:-development}
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.25-alpine
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./infra/nginx/redirects:/etc/nginx/redirects:ro
     depends_on:
       - nextjs-web
       - nestjs-api
 
 volumes:
   pgdata:
+  redisdata:

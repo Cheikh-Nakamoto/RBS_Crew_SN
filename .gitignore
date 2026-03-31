@@ -140,3 +140,5 @@ apps/api/prisma/*.db-journal
 
 # Migration scripts
 migration-scripts/node_modules
+data/raw/
+data/transformed/

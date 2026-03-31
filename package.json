@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test"
   },
   "repository": {
     "type": "git",
@@ -14,6 +17,7 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "packageManager": "npm@11.6.2",
   "bugs": {
     "url": "https://github.com/Cheikh-Nakamoto/RBS_Crew_SN/issues"
   },
@@ -25,6 +29,6 @@
   "devDependencies": {
     "@types/node": "^25.5.0",
     "turbo": "^2.8.21",
-    "typescript": "^6.0.2"
+    "typescript": "^5.7.3"
   }
 }
