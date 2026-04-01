@@ -1,8 +1,6 @@
 import axios from 'axios';
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
 import * as dotenv from 'dotenv';
+import { saveJson, downloadImage, stripHtml, delay } from './utils';
 dotenv.config();
 
 // FIX #1 : WC_KEY/WC_SECRET → WC_CONSUMER_KEY/WC_CONSUMER_SECRET
@@ -14,13 +12,6 @@ if (!WC_KEY || !WC_SECRET) {
   console.error('❌ WC_CONSUMER_KEY ou WC_CONSUMER_SECRET manquants dans .env');
   process.exit(1);
 }
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL || 'postgresql://rbs:password@localhost:5432/rbs_db' });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
-
-function delay(ms: number) { return new Promise(r => setTimeout(r, ms)); }
-function stripHtml(h: string) { return (h || '').replace(/<[^>]*>?/gm, '').trim(); }
 
 // FIX #4 : Pagination (WooCommerce = 10/page par défaut, max 100)
 async function fetchAllProducts(): Promise<any[]> {
@@ -44,126 +35,86 @@ async function fetchAllProducts(): Promise<any[]> {
   return all;
 }
 
-// FIX #5 : Migration des images vers Media
-async function upsertMedia(img: any): Promise<string | null> {
-  if (!img?.id) return null;
-  const existing = await prisma.media.findUnique({ where: { wpId: img.id } });
-  if (existing) return existing.id;
-  const created = await prisma.media.create({
-    data: {
-      filename : img.name || img.slug || 'image',
-      mimeType : img.mime_type || 'image/jpeg',
-      size     : img.media_details?.filesize || 0,
-      url      : img.src || img.source_url || '',
-      altText  : img.alt || null,
-      wpId     : img.id,
-    },
-  });
-  return created.id;
+async function getLocalImage(img: any): Promise<{ path: string, alt: string, originalUrl: string } | null> {
+  if (!img?.id || !img.src) return null;
+  const url = img.src || img.source_url;
+  const name = img.name || img.slug || `product-${img.id}`;
+  
+  const localImagePath = await downloadImage(url, name);
+  if (localImagePath) {
+    return {
+      path: localImagePath,
+      alt: img.alt || name,
+      originalUrl: url
+    };
+  }
+  return null;
 }
 
 async function migrateProducts() {
-  console.log('🔄 Démarrage extraction WooCommerce...');
+  console.log('🔄 Démarrage extraction WooCommerce vers JSON...');
   try {
     const wpProducts = await fetchAllProducts();
     console.log(`📦 ${wpProducts.length} produit(s) trouvés.`);
+    
+    const productsData = [];
 
     for (const wpProd of wpProducts) {
-      // FIX #2 : wcId (pas wpId) | FIX #3 : slug obligatoire
-      const product = await prisma.product.upsert({
-        where : { wcId: wpProd.id },
-        update: {},
-        create: {
-          wcId          : wpProd.id,
-          slug          : wpProd.slug,
-          sku           : wpProd.sku || null,
-          price         : parseFloat(wpProd.price)         || 0,
-          compareAtPrice: parseFloat(wpProd.regular_price) || undefined,
-          stock         : wpProd.stock_quantity            ?? 0,
-          manageStock   : wpProd.manage_stock              ?? true,
-          status        : 'PUBLISHED',
-        },
-      });
-
-      // Image principale + galerie
-      const featuredImg = wpProd.images?.[0];
-      if (featuredImg?.id) {
-        const mediaId = await upsertMedia(featuredImg);
-        if (mediaId) {
-          await prisma.product.update({
-            where: { id: product.id },
-            data : { featuredImageId: mediaId },
-          });
-          for (let i = 1; i < (wpProd.images?.length || 0); i++) {
-            const gId = await upsertMedia(wpProd.images[i]);
-            if (gId) {
-              await prisma.productImage.upsert({
-                where : { productId_mediaId: { productId: product.id, mediaId: gId } },
-                update: {},
-                create: { productId: product.id, mediaId: gId, position: i },
-              });
-            }
-          }
-        }
+      // Image principale
+      let featuredImage = null;
+      if (wpProd.images?.[0]) {
+        featuredImage = await getLocalImage(wpProd.images[0]);
       }
-
-      // FIX #2 : "locale" (enum) pas "language" (string)
-      await prisma.productTranslation.upsert({
-        where : { productId_locale: { productId: product.id, locale: 'fr' } },
-        update: {
-          name            : wpProd.name,
-          description     : stripHtml(wpProd.description),
-          shortDescription: stripHtml(wpProd.short_description),
-        },
-        create: {
-          productId       : product.id,
-          locale          : 'fr',
-          name            : wpProd.name,
-          description     : stripHtml(wpProd.description),
-          shortDescription: stripHtml(wpProd.short_description),
-          slug            : wpProd.slug,
-          metaTitle       : wpProd.name,
-          metaDescription : stripHtml(wpProd.short_description),
-        },
-      });
+      
+      // Images de la galerie
+      const gallery = [];
+      for (let i = 1; i < (wpProd.images?.length || 0); i++) {
+        const item = await getLocalImage(wpProd.images[i]);
+        if (item) gallery.push({ ...item, position: i });
+      }
 
       // Catégories
-      for (const cat of (wpProd.categories || [])) {
-        let category = await prisma.category.findUnique({ where: { wpId: cat.id } });
-        if (!category) {
-          category = await prisma.category.create({ data: { slug: cat.slug, wpId: cat.id } });
-          await prisma.categoryTranslation.create({
-            data: { categoryId: category.id, locale: 'fr', name: cat.name },
-          });
-        }
-        await prisma.productCategory.upsert({
-          where : { productId_categoryId: { productId: product.id, categoryId: category.id } },
-          update: {},
-          create: { productId: product.id, categoryId: category.id },
-        });
-      }
+      const categories = (wpProd.categories || []).map((cat: any) => ({
+        wpId: cat.id,
+        slug: cat.slug,
+        name: cat.name
+      }));
 
       // Tags
-      for (const t of (wpProd.tags || [])) {
-        let tag = await prisma.tag.findUnique({ where: { wpId: t.id } });
-        if (!tag) {
-          tag = await prisma.tag.create({ data: { slug: t.slug, wpId: t.id } });
-          await prisma.tagTranslation.create({ data: { tagId: tag.id, locale: 'fr', name: t.name } });
-        }
-        await prisma.productTag.upsert({
-          where : { productId_tagId: { productId: product.id, tagId: tag.id } },
-          update: {},
-          create: { productId: product.id, tagId: tag.id },
-        });
-      }
+      const tags = (wpProd.tags || []).map((t: any) => ({
+        wpId: t.id,
+        slug: t.slug,
+        name: t.name
+      }));
 
-      console.log(`✅ "${wpProd.name}" migré (wcId: ${wpProd.id})`);
+      productsData.push({
+        wcId: wpProd.id,
+        slug: wpProd.slug,
+        sku: wpProd.sku || null,
+        price: parseFloat(wpProd.price) || 0,
+        compareAtPrice: wpProd.regular_price ? parseFloat(wpProd.regular_price) : null,
+        stock: wpProd.stock_quantity ?? 0,
+        manageStock: wpProd.manage_stock ?? true,
+        status: 'PUBLISHED',
+        name: wpProd.name,
+        description: stripHtml(wpProd.description),
+        shortDescription: stripHtml(wpProd.short_description),
+        featuredImage,
+        gallery,
+        categories,
+        tags
+      });
+
+      console.log(`✅ "${wpProd.name}" extrait (wcId: ${wpProd.id})`);
       await delay(400);
     }
+    
+    saveJson('products.json', productsData);
+    console.log(`\n🏁 ${productsData.length} produits extraits.`);
+
   } catch (err: any) {
     console.error('❌ Erreur:', err?.response?.data || err.message);
   } finally {
-    await prisma.$disconnect();
     console.log('🏁 extract-products terminé.');
   }
 }

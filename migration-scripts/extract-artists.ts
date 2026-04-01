@@ -1,21 +1,12 @@
 import axios from 'axios';
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
 import * as dotenv from 'dotenv';
+import { saveJson, downloadImage, stripHtml, delay } from './utils';
 dotenv.config();
 
 const API_URL = process.env.WP_BASE_URL || 'https://rbsakademya.com/wp-json';
 const WP_USER = process.env.WP_USER as string;
 const WP_PASS = process.env.WP_APP_PASSWORD as string;
 const wpAuth  = { username: WP_USER, password: WP_PASS };
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL || 'postgresql://rbs:password@localhost:5432/rbs_db' });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
-
-function delay(ms: number) { return new Promise(r => setTimeout(r, ms)); }
-function stripHtml(h: string) { return (h || '').replace(/<[^>]*>?/gm, '').trim(); }
 
 const ARTIST_SLUGS = [
   'mad-zoo','diablos','xalima','nohine','akonga','beau-graff',
@@ -38,29 +29,39 @@ async function fetchPageBySlug(slug: string): Promise<any | null> {
   } catch { return null; }
 }
 
-async function upsertMediaFromId(mediaId: number, fallbackSlug: string): Promise<string | null> {
+async function getMediaData(mediaId: number): Promise<{ url: string, alt: string, mime: string } | null> {
   if (!mediaId || mediaId === 0) return null;
-  const existing = await prisma.media.findUnique({ where: { wpId: mediaId } });
-  if (existing) return existing.id;
   try {
     const { data } = await axios.get(`${API_URL}/wp/v2/media/${mediaId}`, { auth: wpAuth });
-    const created = await prisma.media.create({
-      data: {
-        wpId    : mediaId,
-        filename: data.slug || fallbackSlug,
-        mimeType: data.mime_type || 'image/jpeg',
-        size    : data.media_details?.filesize || 0,
-        url     : data.source_url || '',
-        altText : data.alt_text || fallbackSlug,
-      },
-    });
-    return created.id;
+    return {
+      url: data.source_url || '',
+      alt: data.alt_text || '',
+      mime: data.mime_type || 'image/jpeg',
+    };
   } catch { return null; }
 }
 
 async function migrateArtists() {
-  console.log('🎨 Extraction artistes RBS Crew...');
+  console.log('🎨 Extraction artistes RBS Crew vers JSON...');
   let success = 0, skipped = 0;
+  const artistsData = [];
+
+  // Parse avatars from parent page "rbs-crew"
+  const avatarMap: Record<string, string> = {};
+  const parentPage = await fetchPageBySlug('rbs-crew');
+  if (parentPage?.content?.rendered) {
+    const blurbs = parentPage.content.rendered.match(/\[et_pb_blurb[^\]]*\]/gi) || [];
+    for (const blurb of blurbs) {
+      const urlMatch = blurb.match(/url=[\s"'\u00BB]*(https?:\/\/[^\s"']+)[\s"']/i);
+      const imgMatch = blurb.match(/image=[\s"'\u00BB]*(https?:\/\/[^\s"']+\.(?:jpg|png|jpeg|webp))[\s"']/i);
+      if (urlMatch && imgMatch) {
+        const cleanUrlMatch = urlMatch[1].match(/rbsakademya\.com\/(?:rbs-crew\/)?([^\/]+)\/?/);
+        if (cleanUrlMatch) {
+          avatarMap[cleanUrlMatch[1]] = imgMatch[1];
+        }
+      }
+    }
+  }
 
   for (const slug of ARTIST_SLUGS) {
     const wpPage = await fetchPageBySlug(slug);
@@ -71,29 +72,72 @@ async function migrateArtists() {
       continue;
     }
 
-    const featuredImageId = await upsertMediaFromId(wpPage.featured_media, slug);
     const name = stripHtml(wpPage.title?.rendered || slug);
-    const bio  = stripHtml(wpPage.content?.rendered || '');
+    let localImagePath = null;
+    let altText = slug;
+    
+    // Fallback: search for all images embedded in Divi content
+    const rawContent = wpPage.content?.rendered || '';
+    const matches = rawContent.match(/https?:\/\/[^"'\s\u00A0\u00BB]+\.(?:jpg|jpeg|png|webp|gif)/gi);
+    const embeddedImageUrls: string[] = matches ? Array.from(new Set(matches)) : [];
+    
+    // Clean the bio from Divi shortcodes [et_pb_...]
+    const cleanBioText = rawContent.replace(/\[\/?et_pb_[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim();
+    // Use utils stripHtml to remove remaining tags
+    const bio = stripHtml(cleanBioText);
+    
+    // Try to get featured media from native WP meta
+    const media = await getMediaData(wpPage.featured_media);
+    if (media && media.url) {
+      localImagePath = await downloadImage(media.url, `artist-${slug}`);
+      if (media.alt) altText = media.alt;
+    } else {
+      if (embeddedImageUrls.length > 0) {
+        // use the first image as featured image fallback
+        localImagePath = await downloadImage(embeddedImageUrls[0], `artist-${slug}`);
+      }
+    }
 
-    const artist = await prisma.artist.upsert({
-      where : { slug },
-      update: { featuredImageId, wpId: wpPage.id },
-      create: { slug, country: 'SN', featuredImageId, wpId: wpPage.id, status: 'PUBLISHED' },
+    let localAvatarPath = null;
+    if (avatarMap[slug]) {
+      localAvatarPath = await downloadImage(avatarMap[slug], `artist-avatar-${slug}`);
+    }
+
+    const artworks = [];
+    for (let i = 0; i < embeddedImageUrls.length; i++) {
+      const url = embeddedImageUrls[i];
+      const artworkPath = await downloadImage(url, `artist-artwork-${slug}-${i+1}`);
+      if (artworkPath) {
+        artworks.push({ path: artworkPath, originalUrl: url });
+      }
+    }
+
+    artistsData.push({
+      wpId: wpPage.id,
+      slug,
+      name,
+      bio,
+      country: 'SN',
+      status: 'PUBLISHED',
+      avatar: localAvatarPath ? {
+        path: localAvatarPath,
+        originalUrl: avatarMap[slug]
+      } : null, // Modifié: remplit automatiquement
+      artworks: artworks, // Downloaded embedded images
+      featuredImage: localImagePath ? {
+        path: localImagePath,
+        alt: altText,
+        originalUrl: media?.url || (localImagePath ? localImagePath : null)
+      } : null
     });
 
-    await prisma.artistTranslation.upsert({
-      where : { artistId_locale: { artistId: artist.id, locale: 'fr' } },
-      update: { name, bio },
-      create: { artistId: artist.id, locale: 'fr', name, bio },
-    });
-
-    console.log(`✅ "${name}"`);
+    console.log(`✅ "${name}" extrait`);
     success++;
     await delay(400);
   }
 
-  console.log(`\n🏁 ${success} artistes migrés, ${skipped} ignorés.`);
-  await prisma.$disconnect();
+  saveJson('artists.json', artistsData);
+  console.log(`\n🏁 ${success} artistes extraits, ${skipped} ignorés.`);
 }
 
 migrateArtists();

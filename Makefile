@@ -57,8 +57,19 @@ db-reset: ## Reset database and re-run all migrations
 
 # ── Migration from WordPress ─────────────────
 
-migrate-products: ## Extract products from WooCommerce and seed into PostgreSQL
-	cd migration-scripts && npx ts-node extract-products.ts
+migrate-extract: ## Extraire toutes les données de WordPress vers JSON
+	cd migration-scripts && npm run all
+
+migrate-upload: ## Envoyer toutes les images locales vers Cloudflare S3
+	cd migration-scripts && npm run upload-s3
+
+migrate-db-push: ## Mettre à jour la structure de la base de données
+	cd migration-scripts && npx prisma db push --schema=../apps/api/prisma/schema.prisma
+
+migrate-import: ## Injecter les fichiers JSON dans PostgreSQL (avec URLs Cloudflare strictes)
+	cd migration-scripts && npx tsx import-db.ts
+
+migrate-full: migrate-extract migrate-upload migrate-db-push migrate-import ## Exécuter l'intégralité du pipeline de migration
 
 # ── Health Checks ────────────────────────────
 

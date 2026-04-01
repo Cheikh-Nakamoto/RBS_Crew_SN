@@ -61,10 +61,12 @@ model Media {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  productFeatured Product[]      @relation("ProductFeaturedImage")
+  productFeatured Product[]       @relation("ProductFeaturedImage")
   productGallery  ProductImage[]
-  projectFeatured Project[]      @relation("ProjectFeaturedImage")
-  artistFeatured  Artist[]       @relation("ArtistFeaturedImage")
+  projectFeatured Project[]       @relation("ProjectFeaturedImage")
+  artistFeatured  Artist[]        @relation("ArtistFeaturedImage")
+  artistAvatar    Artist[]        @relation("ArtistAvatarImage")
+  artistArtworks  ArtistArtwork[]
 }
 
 // ─────────────────────────────────────────────
@@ -79,8 +81,8 @@ model Category {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  parent       Category?              @relation("CategoryTree", fields: [parentId], references: [id])
-  children     Category[]             @relation("CategoryTree")
+  parent       Category?             @relation("CategoryTree", fields: [parentId], references: [id])
+  children     Category[]            @relation("CategoryTree")
   products     ProductCategory[]
   translations CategoryTranslation[]
 }
@@ -137,7 +139,7 @@ model Product {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  featuredImage Media?              @relation("ProductFeaturedImage", fields: [featuredImageId], references: [id])
+  featuredImage Media?               @relation("ProductFeaturedImage", fields: [featuredImageId], references: [id])
   images        ProductImage[]
   translations  ProductTranslation[]
   categories    ProductCategory[]
@@ -286,9 +288,9 @@ model Order {
   stripePaymentIntentId String?       @unique
   currency              String        @default("XOF")
   subtotal              Decimal       @db.Decimal(10, 2)
-  taxAmount             Decimal       @db.Decimal(10, 2) @default(0)
-  shippingAmount        Decimal       @db.Decimal(10, 2) @default(0)
-  discountAmount        Decimal       @db.Decimal(10, 2) @default(0)
+  taxAmount             Decimal       @default(0) @db.Decimal(10, 2)
+  shippingAmount        Decimal       @default(0) @db.Decimal(10, 2)
+  discountAmount        Decimal       @default(0) @db.Decimal(10, 2)
   total                 Decimal       @db.Decimal(10, 2)
   shippingAddressId     String?
   billingAddressId      String?
@@ -298,9 +300,9 @@ model Order {
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
-  user            User?     @relation(fields: [userId], references: [id])
-  shippingAddress Address?  @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
-  billingAddress  Address?  @relation("BillingAddress", fields: [billingAddressId], references: [id])
+  user            User?       @relation(fields: [userId], references: [id])
+  shippingAddress Address?    @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddress  Address?    @relation("BillingAddress", fields: [billingAddressId], references: [id])
   items           OrderItem[]
 }
 
@@ -340,12 +342,12 @@ model Page {
 }
 
 model PageTranslation {
-  id              String @id @default(uuid())
+  id              String  @id @default(uuid())
   pageId          String
   locale          Locale
   title           String
   slug            String
-  content         String @db.Text
+  content         String  @db.Text
   excerpt         String?
   metaTitle       String?
   metaDescription String?
@@ -374,11 +376,11 @@ model Service {
 }
 
 model ServiceTranslation {
-  id              String @id @default(uuid())
+  id              String  @id @default(uuid())
   serviceId       String
   locale          Locale
   title           String
-  description     String @db.Text
+  description     String  @db.Text
   metaTitle       String?
   metaDescription String?
 
@@ -430,13 +432,16 @@ model Artist {
   city            String?
   country         String?
   featuredImageId String?
+  avatarId        String?
   status          ProductStatus @default(PUBLISHED)
   wpId            Int?          @unique
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
   featuredImage Media?              @relation("ArtistFeaturedImage", fields: [featuredImageId], references: [id])
+  avatar        Media?              @relation("ArtistAvatarImage", fields: [avatarId], references: [id])
   translations  ArtistTranslation[]
+  artworks      ArtistArtwork[]
 }
 
 model ArtistTranslation {
@@ -450,6 +455,18 @@ model ArtistTranslation {
 
   @@unique([artistId, locale])
   @@index([locale])
+}
+
+model ArtistArtwork {
+  id       String @id @default(uuid())
+  artistId String
+  mediaId  String
+  position Int    @default(0)
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  media  Media  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([artistId, mediaId])
 }
 
 // ─────────────────────────────────────────────

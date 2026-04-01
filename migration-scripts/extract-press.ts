@@ -1,13 +1,7 @@
 console.log("HELLO START");
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
 import * as dotenv from 'dotenv';
+import { saveJson } from './utils';
 dotenv.config();
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL || 'postgresql://rbs:password@localhost:5432/rbs_db' });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 
 const PRESS_MENTIONS = [
   { title: "[L'Œil du digital] : Mur-mures urbains, la parole au RBS Crew (1/3)", source: 'Le Soleil',       sourceUrl: 'https://lesoleil.sn/actualites/arts-et-culture/loeil-du-digital-mur-mures-urbains-la-parole-au-rbs-crew-1-3/', excerpt: 'À la Cité Aliou Sow de Guédiawaye, se cache un îlot de bien-être pour les artistes.', date: new Date('2025-07-01') },
@@ -25,13 +19,15 @@ const PRESS_MENTIONS = [
 ];
 
 async function migratePress() {
-  console.log('📰 Migration revue de presse...');
-  for (const mention of PRESS_MENTIONS) {
-    await prisma.pressMention.create({ data: mention });
-    console.log(`✅ "${mention.title.substring(0, 55)}…"`);
-  }
-  console.log(`\n🏁 ${PRESS_MENTIONS.length} articles insérés.`);
-  await prisma.$disconnect();
+  console.log('📰 Extraction revue de presse vers JSON...');
+  
+  const mentionsToExport = PRESS_MENTIONS.map(m => ({
+    ...m,
+    date: m.date.toISOString(),
+  }));
+
+  saveJson('press.json', mentionsToExport);
+  console.log(`\n🏁 ${PRESS_MENTIONS.length} articles extraits.`);
 }
 
 migratePress().catch(e => { console.error('FATAL ERROR:', e); process.exit(1); });

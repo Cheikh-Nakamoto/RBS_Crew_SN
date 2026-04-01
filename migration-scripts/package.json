@@ -10,13 +10,15 @@
     "projects": "tsx extract-projects.ts",
     "festival": "tsx extract-festival.ts",
     "press": "tsx extract-press.ts",
-    "all": "tsx run-all.ts"
+    "all": "tsx run-all.ts",
+    "upload-s3": "tsx upload-s3.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1021.0",
     "@prisma/adapter-pg": "^7.6.0",
     "@prisma/client": "^7.6.0",
     "@types/node": "^25.5.0",

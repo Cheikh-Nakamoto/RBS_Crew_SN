@@ -1,12 +1,6 @@
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
 import * as dotenv from 'dotenv';
+import { saveJson } from './utils';
 dotenv.config();
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL || 'postgresql://rbs:password@localhost:5432/rbs_db' });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 
 const EDITIONS = [
   { edition: 1, year: 2014, city: 'Thiès',     slug: 'last-wall-1st-edition', themeName: 'Edition One',       summary: "C'est en Décembre 2014 que tout a commencé. Le collectif s'est donné pour défi de faire une session de jam en dehors de Dakar, dans l'esprit de la culture HIP-HOP et de la self-détermination." },
@@ -21,26 +15,11 @@ const EDITIONS = [
 ];
 
 async function migrateFestival() {
-  console.log('🎪 Migration Last Wall Tour Festival...');
+  console.log('🎪 Extraction Last Wall Tour Festival vers JSON...');
 
-  for (const ed of EDITIONS) {
-    const festival = await prisma.festivalEdition.upsert({
-      where : { slug: ed.slug },
-      update: { editionNumber: ed.edition, year: ed.year, city: ed.city },
-      create: { slug: ed.slug, editionNumber: ed.edition, year: ed.year, city: ed.city, country: 'SN', status: 'PUBLISHED' },
-    });
-
-    await prisma.festivalTranslation.upsert({
-      where : { festivalEditionId_locale: { festivalEditionId: festival.id, locale: 'fr' } },
-      update: { themeName: ed.themeName, summary: ed.summary },
-      create: { festivalEditionId: festival.id, locale: 'fr', themeName: ed.themeName, summary: ed.summary },
-    });
-
-    console.log(`✅ Édition ${ed.edition} (${ed.year}) — "${ed.themeName}"`);
-  }
+  saveJson('festival.json', EDITIONS);
 
   console.log('\n🏁 Festival terminé.');
-  await prisma.$disconnect();
 }
 
 migrateFestival();
