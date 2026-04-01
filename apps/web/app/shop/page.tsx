@@ -40,6 +40,7 @@ export default async function ShopPage({ searchParams }: Props) {
     fetchError = true;
   }
 
+  console.log(data);
   const products = data?.data ?? [];
   const meta = data?.meta;
 

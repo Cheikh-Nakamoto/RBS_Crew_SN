@@ -13,6 +13,7 @@ interface ArtistItem {
   city?: string;
   country?: string;
   featuredImage?: { url: string; altText?: string };
+  avatar?: { url: string; altText?: string };
   translations: Array<{ locale: string; name: string; bio?: string }>;
 }
 
@@ -57,11 +58,11 @@ export default async function CrewPage() {
               >
                 {/* Square portrait */}
                 <div className="relative aspect-square rounded-2xl overflow-hidden bg-white/5 border border-white/8 group-hover:border-[oklch(0.72_0.19_48/40%)] transition-all duration-300 card-hover mb-3">
-                  {artist.featuredImage ? (
+                  {artist.avatar || artist.featuredImage ? (
                     <>
                       <Image
-                        src={artist.featuredImage.url}
-                        alt={artist.featuredImage.altText ?? t?.name ?? ''}
+                        src={(artist.avatar || artist.featuredImage)!.url}
+                        alt={(artist.avatar || artist.featuredImage)!.altText ?? t?.name ?? ''}
                         fill
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         className="object-cover transition-transform duration-500 group-hover:scale-110"

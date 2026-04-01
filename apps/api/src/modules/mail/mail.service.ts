@@ -27,7 +27,7 @@ export class MailService {
     total: number;
     currency: string;
   }) {
-    const amount = (order.total / 100).toFixed(2);
+    const amount = order.total.toFixed(0);
     await this.send({
       to: order.userEmail,
       subject: `Confirmation de commande #${order.id.slice(0, 8).toUpperCase()}`,

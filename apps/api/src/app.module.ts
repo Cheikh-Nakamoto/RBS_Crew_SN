@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './modules/health/health.module';
@@ -28,6 +28,8 @@ import { PressModule } from './modules/press/press.module';
 import { QuotesModule } from './modules/quotes/quotes.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { PagesModule } from './modules/pages/pages.module';
+import { ServicesModule } from './modules/services/services.module';
 
 @Module({
   imports: [
@@ -52,11 +54,14 @@ import { PaymentsModule } from './modules/payments/payments.module';
     QuotesModule,
     OrdersModule,
     PaymentsModule,
+    PagesModule,
+    ServicesModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],

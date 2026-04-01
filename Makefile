@@ -29,7 +29,7 @@ logs-web: ## Follow Next.js web logs
 
 # ── Build & Quality ─────────────────────────
 
-build: ## Build all packages
+build: install ## Build all packages
 	npx turbo build
 
 lint: ## Run linters across all packages
@@ -64,7 +64,7 @@ migrate-upload: ## Envoyer toutes les images locales vers Cloudflare S3
 	cd migration-scripts && npm run upload-s3
 
 migrate-db-push: ## Mettre à jour la structure de la base de données
-	cd migration-scripts && npx prisma db push --schema=../apps/api/prisma/schema.prisma
+	cd apps/api && npx prisma db push --schema=prisma/schema.prisma
 
 migrate-import: ## Injecter les fichiers JSON dans PostgreSQL (avec URLs Cloudflare strictes)
 	cd migration-scripts && npx tsx import-db.ts

@@ -14,6 +14,16 @@ export class CreateArtistDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsUUID()
+  avatarId?: string;
+
+  @ApiPropertyOptional({ type: [String], description: 'Media IDs for the artist artworks gallery' })
+  @IsOptional()
+  @IsString({ each: true })
+  artworkIds?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   city?: string;
 
@@ -26,4 +36,6 @@ export class CreateArtistDto {
   translations: Record<string, { name: string; bio?: string }>;
 }
 
-export class UpdateArtistDto extends CreateArtistDto {}
+import { PartialType } from '@nestjs/swagger';
+
+export class UpdateArtistDto extends PartialType(CreateArtistDto) {}

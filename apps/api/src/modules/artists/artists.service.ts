@@ -30,6 +30,11 @@ export class ArtistsService {
         include: {
           translations: { where: { locale: locale as PrismaLocale } },
           featuredImage: true,
+          avatar: true,
+          artworks: {
+            include: { media: true },
+            orderBy: { position: 'asc' },
+          },
         },
         orderBy: { createdAt: 'asc' },
       }),
@@ -47,6 +52,11 @@ export class ArtistsService {
       include: {
         translations: { where: { locale: locale as PrismaLocale } },
         featuredImage: true,
+        avatar: true,
+        artworks: {
+          include: { media: true },
+          orderBy: { position: 'asc' },
+        },
       },
     });
     if (!artist) throw new NotFoundException('Artist not found');
@@ -58,6 +68,7 @@ export class ArtistsService {
       data: {
         slug: dto.slug,
         featuredImageId: dto.featuredImageId,
+        avatarId: dto.avatarId,
         city: dto.city,
         country: dto.country,
         translations: {
@@ -67,8 +78,13 @@ export class ArtistsService {
             bio: t.bio,
           })),
         },
+        artworks: dto.artworkIds
+          ? {
+              create: dto.artworkIds.map((mediaId, position) => ({ mediaId, position })),
+            }
+          : undefined,
       },
-      include: { translations: true },
+      include: { translations: true, avatar: true, artworks: { include: { media: true } } },
     });
     await this.clearCache();
     return artist;
@@ -83,6 +99,7 @@ export class ArtistsService {
       data: {
         slug: dto.slug,
         featuredImageId: dto.featuredImageId,
+        avatarId: dto.avatarId,
         city: dto.city,
         country: dto.country,
         translations: dto.translations
@@ -95,8 +112,14 @@ export class ArtistsService {
               })),
             }
           : undefined,
+        artworks: dto.artworkIds
+          ? {
+              deleteMany: {},
+              create: dto.artworkIds.map((mediaId, position) => ({ mediaId, position })),
+            }
+          : undefined,
       },
-      include: { translations: true },
+      include: { translations: true, avatar: true, artworks: { include: { media: true } } },
     });
     await this.clearCache();
     return artist;

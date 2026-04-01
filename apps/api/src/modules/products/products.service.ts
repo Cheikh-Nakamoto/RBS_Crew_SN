@@ -10,10 +10,18 @@ import { CreateProductDto, CreateVariantDto } from './dto/create-product.dto';
 
 const productInclude = (locale: PrismaLocale) => ({
   translations: { where: { locale } },
-  images: { orderBy: { position: 'asc' as const } },
+  featuredImage: true,
+  images: { orderBy: { position: 'asc' as const }, include: { media: true } },
   categories: { include: { category: { include: { translations: { where: { locale } } } } } },
   tags: { include: { tag: { include: { translations: { where: { locale } } } } } },
 });
+
+function mapProduct(product: any) {
+  return {
+    ...product,
+    images: product.images.map((pi: any) => pi.media),
+  };
+}
 
 @Injectable()
 export class ProductsService {
@@ -69,7 +77,7 @@ export class ProductsService {
       this.prisma.product.count({ where }),
     ]);
 
-    const result = paginate(products, total, filter);
+    const result = paginate(products.map(mapProduct), total, filter);
     await this.cache.set(cacheKey, result);
     return result;
   }
@@ -85,7 +93,7 @@ export class ProductsService {
       },
     });
     if (!translation) throw new NotFoundException('Product not found');
-    return translation.product;
+    return mapProduct(translation.product);
   }
 
   async create(dto: CreateProductDto) {

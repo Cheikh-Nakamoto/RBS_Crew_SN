@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { MapPin, ArrowLeft } from 'lucide-react';
+import { SectionHeader } from '@/components/ui/section-header';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -14,7 +15,9 @@ interface ArtistDetail {
   city?: string;
   country?: string;
   featuredImage?: { url: string; altText?: string };
+  avatar?: { url: string; altText?: string };
   translations: Array<{ locale: string; name: string; bio?: string }>;
+  artworks?: Array<{ position: number; media: { url: string; altText?: string; mimeType: string; filename: string } }>;
 }
 
 export default async function ArtistPage({ params }: Props) {
@@ -44,18 +47,18 @@ export default async function ArtistPage({ params }: Props) {
 
       <div className="grid md:grid-cols-[320px_1fr] gap-12 items-start">
         {/* Portrait */}
-        {artist.featuredImage && (
-          <div className="relative w-full aspect-square rounded-3xl overflow-hidden border border-white/10 bg-white/5 shadow-2xl shadow-black/40 flex-shrink-0">
+        {(artist.avatar || artist.featuredImage) && (
+          <div className="relative w-full aspect-square md:aspect-[3/4] rounded-3xl overflow-hidden border border-white/10 bg-white/5 shadow-2xl shadow-black/40 flex-shrink-0 group">
             <Image
-              src={artist.featuredImage.url}
+              src={(artist.avatar || artist.featuredImage)!.url}
               alt={t?.name ?? ''}
               fill
-              sizes="100vw"
-              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 320px"
+              className="object-cover transition-transform duration-700 group-hover:scale-105"
               priority
             />
             {/* Gradient overlay at bottom */}
-            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
           </div>
         )}
 
@@ -79,7 +82,7 @@ export default async function ArtistPage({ params }: Props) {
 
           {t?.bio ? (
             <div
-              className="prose prose-invert max-w-none text-white/60 leading-relaxed text-base"
+              className="prose prose-invert prose-p:leading-relaxed prose-a:text-[oklch(0.72_0.19_48)] hover:prose-a:text-white max-w-none text-white/60 text-lg font-light tracking-wide"
               dangerouslySetInnerHTML={{ __html: t.bio }}
             />
           ) : (
@@ -87,6 +90,43 @@ export default async function ArtistPage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {/* Artworks Gallery */}
+      {artist.artworks && artist.artworks.length > 0 && (
+        <div className="mt-24 pt-16 border-t border-white/5">
+          <SectionHeader
+            eyebrow="Portfolio"
+            title="Galerie & Œuvres"
+            subtitle={`Découvrez les créations artistiques de ${t?.name}.`}
+            className="mb-12"
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {artist.artworks.map((artwork, idx) => (
+              <div 
+                key={artwork.media.url} 
+                className="relative group overflow-hidden rounded-2xl bg-white/5 border border-white/5 hover:border-[oklch(0.72_0.19_48/40%)] transition-all duration-300 aspect-square shadow-lg"
+                style={{ animationDelay: `${idx * 100}ms` }}
+              >
+                <Image
+                  src={artwork.media.url}
+                  alt={artwork.media.altText || `Artwork ${idx + 1}`}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                  className="object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+                
+                {/* Immersive Hover Layer */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#09090b]/90 via-[#09090b]/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-end pb-8">
+                  <span className="text-white/90 font-display text-lg tracking-wide translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                    Agrandir
+                  </span>
+                  <div className="w-8 h-px bg-[oklch(0.72_0.19_48)] mt-3 opacity-0 group-hover:opacity-100 transition-all duration-700 delay-100 scale-x-0 group-hover:scale-x-100" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

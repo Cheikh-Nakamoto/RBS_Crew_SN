@@ -1,8 +1,13 @@
-import { PrismaClient, Locale, ProductStatus } from '@prisma/client';
+// @ts-ignore : Bypass TS resolution for monorepo workspace hoisting limitations
+import { PrismaClient, Locale, ProductStatus } from '../node_modules/.prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as dotenv from 'dotenv';
+dotenv.config({ path: path.resolve(__dirname, '../apps/api/.env') });
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg(process.env.DATABASE_URL as string);
+const prisma = new PrismaClient({ adapter });
 const EXTRACT_DIR = path.resolve(__dirname, '../data/raw');
 
 /**
@@ -169,8 +174,8 @@ async function importFestival() {
   for (const f of items) {
     const festRecord = await prisma.festivalEdition.upsert({
       where: { slug: f.slug },
-      update: { editionNumber: f.editionNumber, year: f.year, city: f.city, country: 'SN', wpId: f.wpId, status: ProductStatus.PUBLISHED },
-      create: { slug: f.slug, editionNumber: f.editionNumber, year: f.year, city: f.city, country: 'SN', wpId: f.wpId, status: ProductStatus.PUBLISHED }
+      update: { editionNumber: f.edition, year: f.year, city: f.city, country: 'SN', wpId: f.wpId, status: ProductStatus.PUBLISHED },
+      create: { slug: f.slug, editionNumber: f.edition, year: f.year, city: f.city, country: 'SN', wpId: f.wpId, status: ProductStatus.PUBLISHED }
     });
 
     await prisma.festivalTranslation.upsert({
