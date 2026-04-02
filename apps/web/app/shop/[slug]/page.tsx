@@ -42,10 +42,10 @@ export default async function ProductPage({ params }: Props) {
         <div className="space-y-4">
           {/* Main image */}
           <div className="relative aspect-square rounded-2xl overflow-hidden bg-white/4 border border-white/8">
-            {product.featuredImage ? (
+            {product.featuredImageUrl ? (
               <Image
-                src={product.featuredImage.url}
-                alt={product.featuredImage.altText ?? translation?.name ?? ''}
+                src={product.featuredImageUrl}
+                alt={translation?.name ?? ''}
                 fill
                 sizes="(max-width: 768px) 100vw, 50vw"
                 className="object-cover"
@@ -72,7 +72,7 @@ export default async function ProductPage({ params }: Props) {
                   key={img.id}
                   className="relative aspect-square rounded-xl overflow-hidden bg-white/4 border border-white/8 hover:border-[oklch(0.72_0.19_48/40%)] transition-colors duration-200 cursor-pointer"
                 >
-                  <Image src={img.url} alt={img.altText ?? ''} fill sizes="150px" className="object-cover" />
+                  <Image src={img.imageUrl} alt={translation?.name ?? ''} fill sizes="150px" className="object-cover" />
                 </div>
               ))}
             </div>

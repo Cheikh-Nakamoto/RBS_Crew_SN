@@ -112,6 +112,9 @@ async function migrateArtists() {
       }
     }
 
+    const igMatch = rawContent.match(/https?:\/\/(?:www\.)?instagram\.com\/([^"'\s\u00A0\u00BB\/]+)/i);
+    const instagramUrl = igMatch ? `https://instagram.com/${igMatch[1]}` : null;
+
     artistsData.push({
       wpId: wpPage.id,
       slug,
@@ -119,6 +122,7 @@ async function migrateArtists() {
       bio,
       country: 'SN',
       status: 'PUBLISHED',
+      instagramUrl,
       avatar: localAvatarPath ? {
         path: localAvatarPath,
         originalUrl: avatarMap[slug]

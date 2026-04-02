@@ -10,18 +10,10 @@ import { CreateProductDto, CreateVariantDto } from './dto/create-product.dto';
 
 const productInclude = (locale: PrismaLocale) => ({
   translations: { where: { locale } },
-  featuredImage: true,
-  images: { orderBy: { position: 'asc' as const }, include: { media: true } },
+  images: { orderBy: { position: 'asc' as const } },
   categories: { include: { category: { include: { translations: { where: { locale } } } } } },
   tags: { include: { tag: { include: { translations: { where: { locale } } } } } },
 });
-
-function mapProduct(product: any) {
-  return {
-    ...product,
-    images: product.images.map((pi: any) => pi.media),
-  };
-}
 
 @Injectable()
 export class ProductsService {
@@ -77,7 +69,7 @@ export class ProductsService {
       this.prisma.product.count({ where }),
     ]);
 
-    const result = paginate(products.map(mapProduct), total, filter);
+    const result = paginate(products, total, filter);
     await this.cache.set(cacheKey, result);
     return result;
   }
@@ -93,7 +85,7 @@ export class ProductsService {
       },
     });
     if (!translation) throw new NotFoundException('Product not found');
-    return mapProduct(translation.product);
+    return translation.product;
   }
 
   async create(dto: CreateProductDto) {
@@ -105,6 +97,7 @@ export class ProductsService {
         compareAtPrice: dto.compareAtPrice,
         stock: dto.stock ?? 0,
         status: (dto.status as 'DRAFT' | 'PUBLISHED' | 'ARCHIVED') ?? 'DRAFT',
+        featuredImageUrl: dto.featuredImageUrl,
         translations: {
           create: Object.entries(dto.translations).map(([locale, t]) => ({
             locale: locale as PrismaLocale,
@@ -140,6 +133,7 @@ export class ProductsService {
         price: dto.price,
         compareAtPrice: dto.compareAtPrice,
         stock: dto.stock,
+        featuredImageUrl: dto.featuredImageUrl,
         status: dto.status as 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' | undefined,
         translations: dto.translations
           ? {

@@ -10,71 +10,33 @@ const adapter = new PrismaPg(process.env.DATABASE_URL as string);
 const prisma = new PrismaClient({ adapter });
 const EXTRACT_DIR = path.resolve(__dirname, '../data/raw');
 
-/**
- * 💡 RÈGLE CRITIQUE : Retourne NULL (ignore la création du Média)
- * SI ET SEULEMENT SI le script Cloudflare n'a pas traité l'image (`cloudUrl` absent).
- * Résultat : Seules les URLs Cloudflare S3 seront insérées dans la base de données.
- */
-async function getOrCreateMedia(imageObj: any): Promise<string | null> {
-  if (!imageObj || !imageObj.cloudUrl) return null;
-
-  try {
-    const url = imageObj.cloudUrl;
-    // On cherche si l'image existe déjà via son URL exacte Cloudflare
-    const existing = await prisma.media.findFirst({ where: { url } });
-    if (existing) return existing.id;
-
-    // Déduit filename et mimetype du lien cloud
-    const filename = path.basename(new URL(url).pathname);
-    const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
-    let mimeType = 'image/jpeg';
-    if (ext === 'png') mimeType = 'image/png';
-    else if (ext === 'webp') mimeType = 'image/webp';
-    else if (ext === 'gif') mimeType = 'image/gif';
-
-    const media = await prisma.media.create({
-      data: {
-        url,
-        filename,
-        mimeType,
-        size: 0, // Inconnu localement, mis à 0 par défaut
-        altText: imageObj.alt || imageObj.name || filename,
-      }
-    });
-    return media.id;
-  } catch (err) {
-    console.error(`❌ Erreur Media creation: ${err}`);
-    return null;
-  }
-}
-
 async function importArtists() {
   const filePath = path.join(EXTRACT_DIR, 'artists.json');
   if (!fs.existsSync(filePath)) return;
-  console.log('🌟 Importation Artisites...');
+  console.log('🌟 Importation Artistes...');
   
   const artists = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
   for (const a of artists) {
-    // Media Links
-    const featuredImageId = await getOrCreateMedia(a.featuredImage);
-    const avatarId = await getOrCreateMedia(a.avatar);
+    const featuredImageUrl = a.featuredImage?.cloudUrl ?? null;
+    const avatarUrl = a.avatar?.cloudUrl ?? null;
     
-    // Upsert Artist
     const artistRecord = await prisma.artist.upsert({
       where: { slug: a.slug },
       update: {
         wpId: a.wpId,
         country: a.country || 'SN',
-        featuredImageId,
-        avatarId, // Nouveau champ ajouté !
+        featuredImageUrl,
+        avatarUrl,
+        instagramUrl: a.instagramUrl,
         status: ProductStatus.PUBLISHED,
       },
       create: {
         slug: a.slug,
         wpId: a.wpId,
         country: a.country || 'SN',
-        featuredImageId,
-        avatarId, // Nouveau champ ajouté !
+        featuredImageUrl,
+        avatarUrl,
+        instagramUrl: a.instagramUrl,
         status: ProductStatus.PUBLISHED,
       }
     });
@@ -86,17 +48,16 @@ async function importArtists() {
       create: { artistId: artistRecord.id, locale: Locale.fr, name: a.name, bio: a.bio }
     });
 
-    // Artworks logic
+    // Artworks — directly store the R2 URL
     if (a.artworks && Array.isArray(a.artworks)) {
-      // Clear existants pour éviter duplication
       await prisma.artistArtwork.deleteMany({ where: { artistId: artistRecord.id } });
       
       let position = 0;
       for (const artwork of a.artworks) {
-        const mediaId = await getOrCreateMedia(artwork);
-        if (mediaId) {
+        const imageUrl = artwork?.cloudUrl;
+        if (imageUrl) {
           await prisma.artistArtwork.create({
-            data: { artistId: artistRecord.id, mediaId, position }
+            data: { artistId: artistRecord.id, imageUrl, position }
           });
           position++;
         }
@@ -113,7 +74,7 @@ async function importProjects() {
 
   const projects = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
   for (const p of projects) {
-    const featuredImageId = await getOrCreateMedia(p.featuredImage);
+    const featuredImageUrl = p.featuredImage?.cloudUrl ?? null;
     
     let completedAt = null;
     if (p.date) completedAt = new Date(p.date);
@@ -121,13 +82,13 @@ async function importProjects() {
     const projectRecord = await prisma.project.upsert({
       where: { slug: p.slug },
       update: {
-        featuredImageId,
+        featuredImageUrl,
         completedAt,
         status: ProductStatus.PUBLISHED,
       },
       create: {
         slug: p.slug,
-        featuredImageId,
+        featuredImageUrl,
         completedAt,
         status: ProductStatus.PUBLISHED,
       }
@@ -187,18 +148,77 @@ async function importFestival() {
   }
 }
 
+async function importProducts() {
+  const filePath = path.join(EXTRACT_DIR, 'products.json');
+  if (!fs.existsSync(filePath)) return;
+  console.log('🌟 Importation Produits...');
+
+  const products = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  for (const p of products) {
+    const featuredImageUrl = p.featuredImage?.cloudUrl ?? null;
+    let slugStr = p.slug;
+    if (!slugStr || slugStr === '') {
+      slugStr = `product-${p.wcId}`;
+    }
+
+    const prodRecord = await prisma.product.upsert({
+      where: { wcId: p.wcId },
+      update: {
+        slug: slugStr,
+        sku: p.sku || null,
+        price: p.price,
+        compareAtPrice: p.compareAtPrice,
+        stock: p.stock,
+        manageStock: p.manageStock,
+        status: ProductStatus.PUBLISHED,
+        featuredImageUrl: featuredImageUrl,
+      },
+      create: {
+        slug: slugStr,
+        wcId: p.wcId,
+        sku: p.sku || null,
+        price: p.price,
+        compareAtPrice: p.compareAtPrice,
+        stock: p.stock,
+        manageStock: p.manageStock,
+        status: ProductStatus.PUBLISHED,
+        featuredImageUrl: featuredImageUrl,
+      }
+    });
+
+    await prisma.productTranslation.upsert({
+      where: { productId_locale: { productId: prodRecord.id, locale: Locale.fr } },
+      update: { name: p.name, description: p.description, shortDescription: p.shortDescription, slug: slugStr },
+      create: { productId: prodRecord.id, locale: Locale.fr, name: p.name, description: p.description, shortDescription: p.shortDescription, slug: slugStr }
+    });
+
+    // Gallery
+    if (p.gallery && Array.isArray(p.gallery)) {
+      await prisma.productImage.deleteMany({ where: { productId: prodRecord.id } });
+      
+      for (const img of p.gallery) {
+        if (img?.cloudUrl) {
+          await prisma.productImage.create({
+            data: { productId: prodRecord.id, imageUrl: img.cloudUrl, position: img.position || 0 }
+          });
+        }
+      }
+    }
+  }
+  console.log('✅ Importation des produits et de leurs images terminée !');
+}
+
 async function main() {
   console.log('🚀 Début de la migration des fichiers JSON vers PostgreSQL...');
   
-  // Suppression manuelle de la presse pour éviter les doublons successifs vu qu'il n'y a pas d'upsert slug dessus
   await prisma.pressMention.deleteMany({});
   
   await importArtists();
+  await importProducts();
   await importProjects();
   await importFestival();
   await importPress();
   
-  // Products a son propre script ou sera intégré si demandé
   console.log('\n🎉 Base de données peuplée avec succès ! (Uniquement avec des liens Cloudflare)');
 }
 

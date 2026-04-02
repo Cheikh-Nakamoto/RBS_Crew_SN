@@ -1,3 +1,5 @@
+'use client';
+
 import { AlertTriangle, RefreshCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

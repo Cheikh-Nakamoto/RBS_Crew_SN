@@ -52,6 +52,12 @@ export interface ProductTranslation {
   metaDescription?: string;
 }
 
+export interface ProductImage {
+  id: string;
+  imageUrl: string;
+  position: number;
+}
+
 export interface Product {
   id: string;
   slug: string;
@@ -60,8 +66,8 @@ export interface Product {
   compareAtPrice?: number;
   stock: number;
   status: ProductStatus;
-  featuredImage?: Media;
-  images: Media[];
+  featuredImageUrl?: string;
+  images: ProductImage[];
   translations: ProductTranslation[];
   categories: CategorySummary[];
   tags: TagSummary[];
@@ -73,7 +79,7 @@ export interface ProductSummary {
   price: number;
   compareAtPrice?: number;
   status: ProductStatus;
-  featuredImage?: Media;
+  featuredImageUrl?: string;
   name: string;
   shortDescription?: string;
 }
@@ -98,16 +104,6 @@ export interface TagSummary {
   id: string;
   slug: string;
   name: string;
-}
-
-// ── Media ────────────────────────────────────
-
-export interface Media {
-  id: string;
-  url: string;
-  altText?: string;
-  filename: string;
-  mimeType: string;
 }
 
 // ── Order ────────────────────────────────────
@@ -197,7 +193,7 @@ export interface Project {
   content?: string;
   clientName?: string;
   completedAt?: string;
-  featuredImage?: Media;
+  featuredImageUrl?: string;
   metaTitle?: string;
   metaDescription?: string;
 }

@@ -11,7 +11,7 @@ interface ProjectItem {
   id: string;
   slug: string;
   clientName?: string;
-  featuredImage?: { url: string; altText?: string };
+  featuredImageUrl?: string;
   translations: Array<{ locale: string; title: string; summary?: string }>;
 }
 
@@ -19,7 +19,7 @@ interface ProductItem {
   id: string;
   slug: string;
   price: number;
-  featuredImage?: { url: string; altText?: string };
+  featuredImageUrl?: string;
   translations: Array<{ locale: string; name: string; slug: string }>;
 }
 
@@ -28,7 +28,7 @@ interface ArtistItem {
   slug: string;
   city?: string;
   country?: string;
-  featuredImage?: { url: string; altText?: string };
+  featuredImageUrl?: string;
   translations: Array<{ locale: string; name: string }>;
 }
 
@@ -224,9 +224,9 @@ export default async function HomePage() {
                       className="group relative aspect-square rounded-xl overflow-hidden bg-white/5 border border-white/8 hover:border-[oklch(0.72_0.19_48/40%)] transition-all duration-300"
                       style={{ animationDelay: `${i * 80}ms` }}
                     >
-                      {artist.featuredImage ? (
+                      {artist.featuredImageUrl ? (
                         <Image
-                          src={artist.featuredImage.url}
+                          src={artist.featuredImageUrl}
                           alt={t?.name ?? ''}
                           fill
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 20vw"
@@ -281,11 +281,11 @@ export default async function HomePage() {
                     className="group bg-white/4 rounded-2xl overflow-hidden border border-white/8 hover:border-[oklch(0.72_0.19_48/35%)] transition-all duration-300 card-hover"
                     style={{ animationDelay: `${i * 100}ms` }}
                   >
-                    {project.featuredImage ? (
+                    {project.featuredImageUrl ? (
                       <div className="relative aspect-video overflow-hidden">
                         <Image
-                          src={project.featuredImage.url}
-                          alt={project.featuredImage.altText ?? t?.title ?? ''}
+                          src={project.featuredImageUrl}
+                          alt={t?.title ?? ''}
                           fill
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                           className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -351,11 +351,11 @@ export default async function HomePage() {
                     className="group bg-white/4 rounded-2xl overflow-hidden border border-white/8 hover:border-[oklch(0.72_0.19_48/40%)] transition-all duration-300 card-hover"
                     style={{ animationDelay: `${i * 80}ms` }}
                   >
-                    {product.featuredImage ? (
+                    {product.featuredImageUrl ? (
                       <div className="relative aspect-square overflow-hidden">
                         <Image
-                          src={product.featuredImage.url}
-                          alt={product.featuredImage.altText ?? t?.name ?? ''}
+                          src={product.featuredImageUrl}
+                          alt={t?.name ?? ''}
                           fill
                           sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                           className="object-cover transition-transform duration-500 group-hover:scale-110"

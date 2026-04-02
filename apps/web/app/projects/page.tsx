@@ -10,7 +10,7 @@ interface ProjectItem {
   slug: string;
   clientName?: string;
   completedAt?: string;
-  featuredImage?: { url: string; altText?: string };
+  featuredImageUrl?: string;
   translations: Array<{ locale: string; title: string; summary?: string }>;
 }
 
@@ -19,11 +19,13 @@ export const metadata = { title: 'Projets' };
 export default async function ProjectsPage() {
   let projects: ProjectItem[] = [];
   let fetchError = false;
-
+console.log('Fetching projects data...');
   try {
+    console.log('Making API request to /projects with Accept-Language: fr');
     const data = await api
       .get('projects', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } })
       .json<ApiResponse<ProjectItem[]>>();
+    console.log('Fetched projects:', data);
     projects = data.data;
   } catch {
     fetchError = true;
@@ -54,15 +56,15 @@ export default async function ProjectsPage() {
                 className={`group break-inside-avoid bg-white/4 rounded-2xl overflow-hidden border border-white/8 hover:border-[oklch(0.72_0.19_48/40%)] transition-all duration-300 card-hover`}
                 style={{ animationDelay: `${i * 60}ms` }}
               >
-                {project.featuredImage ? (
+                {project.featuredImageUrl ? (
                   <div
                     className={`relative overflow-hidden ${
                       isLarge ? 'aspect-[4/3]' : 'aspect-video'
                     }`}
                   >
                     <Image
-                      src={project.featuredImage.url}
-                      alt={project.featuredImage.altText ?? t?.title ?? ''}
+                      src={project.featuredImageUrl}
+                      alt={t?.title ?? ''}
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover transition-transform duration-700 group-hover:scale-105"

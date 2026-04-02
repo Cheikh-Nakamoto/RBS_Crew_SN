@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as dotenv from 'dotenv';
-import { saveJson, downloadImage, stripHtml, delay } from './utils';
+import { saveJson, downloadImage, stripHtml, cleanWordPressContent, delay } from './utils';
 dotenv.config();
 
 const API_URL = process.env.WP_BASE_URL || 'https://rbsakademya.com/wp-json';
@@ -64,7 +64,7 @@ async function migrateProjects() {
     const completedAt     = wpPage.date ? new Date(wpPage.date).toISOString() : null;
     const title           = stripHtml(wpPage.title?.rendered || slug);
     const summary         = stripHtml(wpPage.excerpt?.rendered || '');
-    const content         = wpPage.content?.rendered || '';
+    const content         = cleanWordPressContent(wpPage.content?.rendered || '');
 
     let localImagePath = null;
     let altText = slug;

@@ -47,29 +47,6 @@ enum ProductStatus {
 }
 
 // ─────────────────────────────────────────────
-// MEDIA
-// ─────────────────────────────────────────────
-
-model Media {
-  id        String   @id @default(uuid())
-  filename  String
-  mimeType  String
-  size      Int
-  url       String
-  altText   String?
-  wpId      Int?     @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  productFeatured Product[]       @relation("ProductFeaturedImage")
-  productGallery  ProductImage[]
-  projectFeatured Project[]       @relation("ProjectFeaturedImage")
-  artistFeatured  Artist[]        @relation("ArtistFeaturedImage")
-  artistAvatar    Artist[]        @relation("ArtistAvatarImage")
-  artistArtworks  ArtistArtwork[]
-}
-
-// ─────────────────────────────────────────────
 // CATEGORIES & TAGS
 // ─────────────────────────────────────────────
 
@@ -126,27 +103,26 @@ model TagTranslation {
 // ─────────────────────────────────────────────
 
 model Product {
-  id              String        @id @default(uuid())
-  slug            String        @unique
-  sku             String?       @unique
-  price           Decimal       @db.Decimal(10, 2)
-  compareAtPrice  Decimal?      @db.Decimal(10, 2)
-  stock           Int           @default(0)
-  manageStock     Boolean       @default(true)
-  status          ProductStatus @default(DRAFT)
-  featuredImageId String?
-  wcId            Int?          @unique
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id               String        @id @default(uuid())
+  slug             String        @unique
+  sku              String?       @unique
+  price            Decimal       @db.Decimal(10, 2)
+  compareAtPrice   Decimal?      @db.Decimal(10, 2)
+  stock            Int           @default(0)
+  manageStock      Boolean       @default(true)
+  status           ProductStatus @default(DRAFT)
+  featuredImageUrl String?
+  wcId             Int?          @unique
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  featuredImage Media?               @relation("ProductFeaturedImage", fields: [featuredImageId], references: [id])
-  images        ProductImage[]
-  translations  ProductTranslation[]
-  categories    ProductCategory[]
-  tags          ProductTag[]
-  orderItems    OrderItem[]
-  attributes    ProductAttribute[]
-  variants      ProductVariant[]
+  images       ProductImage[]
+  translations ProductTranslation[]
+  categories   ProductCategory[]
+  tags         ProductTag[]
+  orderItems   OrderItem[]
+  attributes   ProductAttribute[]
+  variants     ProductVariant[]
 }
 
 model ProductTranslation {
@@ -170,13 +146,12 @@ model ProductTranslation {
 model ProductImage {
   id        String @id @default(uuid())
   productId String
-  mediaId   String
+  imageUrl  String
   position  Int    @default(0)
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  media   Media   @relation(fields: [mediaId], references: [id])
 
-  @@unique([productId, mediaId])
+  @@unique([productId, imageUrl])
 }
 
 model ProductCategory {
@@ -394,17 +369,16 @@ model ServiceTranslation {
 // ─────────────────────────────────────────────
 
 model Project {
-  id              String        @id @default(uuid())
-  slug            String        @unique
-  featuredImageId String?
-  completedAt     DateTime?
-  clientName      String?
-  status          ProductStatus @default(PUBLISHED)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id               String        @id @default(uuid())
+  slug             String        @unique
+  featuredImageUrl String?
+  completedAt      DateTime?
+  clientName       String?
+  status           ProductStatus @default(PUBLISHED)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  featuredImage Media?               @relation("ProjectFeaturedImage", fields: [featuredImageId], references: [id])
-  translations  ProjectTranslation[]
+  translations ProjectTranslation[]
 }
 
 model ProjectTranslation {
@@ -427,21 +401,20 @@ model ProjectTranslation {
 // ─────────────────────────────────────────────
 
 model Artist {
-  id              String        @id @default(uuid())
-  slug            String        @unique
-  city            String?
-  country         String?
-  featuredImageId String?
-  avatarId        String?
-  status          ProductStatus @default(PUBLISHED)
-  wpId            Int?          @unique
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id               String        @id @default(uuid())
+  slug             String        @unique
+  city             String?
+  country          String?
+  featuredImageUrl String?
+  avatarUrl        String?
+  instagramUrl     String?
+  status           ProductStatus @default(PUBLISHED)
+  wpId             Int?          @unique
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  featuredImage Media?              @relation("ArtistFeaturedImage", fields: [featuredImageId], references: [id])
-  avatar        Media?              @relation("ArtistAvatarImage", fields: [avatarId], references: [id])
-  translations  ArtistTranslation[]
-  artworks      ArtistArtwork[]
+  translations ArtistTranslation[]
+  artworks     ArtistArtwork[]
 }
 
 model ArtistTranslation {
@@ -460,13 +433,12 @@ model ArtistTranslation {
 model ArtistArtwork {
   id       String @id @default(uuid())
   artistId String
-  mediaId  String
+  imageUrl String
   position Int    @default(0)
 
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  media  Media  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
-  @@unique([artistId, mediaId])
+  @@unique([artistId, imageUrl])
 }
 
 // ─────────────────────────────────────────────

@@ -29,12 +29,7 @@ export class ArtistsService {
         take: limit,
         include: {
           translations: { where: { locale: locale as PrismaLocale } },
-          featuredImage: true,
-          avatar: true,
-          artworks: {
-            include: { media: true },
-            orderBy: { position: 'asc' },
-          },
+          artworks: { orderBy: { position: 'asc' } },
         },
         orderBy: { createdAt: 'asc' },
       }),
@@ -51,12 +46,7 @@ export class ArtistsService {
       where: { slug },
       include: {
         translations: { where: { locale: locale as PrismaLocale } },
-        featuredImage: true,
-        avatar: true,
-        artworks: {
-          include: { media: true },
-          orderBy: { position: 'asc' },
-        },
+        artworks: { orderBy: { position: 'asc' } },
       },
     });
     if (!artist) throw new NotFoundException('Artist not found');
@@ -67,8 +57,8 @@ export class ArtistsService {
     const artist = await this.prisma.artist.create({
       data: {
         slug: dto.slug,
-        featuredImageId: dto.featuredImageId,
-        avatarId: dto.avatarId,
+        featuredImageUrl: dto.featuredImageUrl,
+        avatarUrl: dto.avatarUrl,
         city: dto.city,
         country: dto.country,
         translations: {
@@ -78,13 +68,13 @@ export class ArtistsService {
             bio: t.bio,
           })),
         },
-        artworks: dto.artworkIds
+        artworks: dto.artworkUrls
           ? {
-              create: dto.artworkIds.map((mediaId, position) => ({ mediaId, position })),
+              create: dto.artworkUrls.map((imageUrl, position) => ({ imageUrl, position })),
             }
           : undefined,
       },
-      include: { translations: true, avatar: true, artworks: { include: { media: true } } },
+      include: { translations: true, artworks: true },
     });
     await this.clearCache();
     return artist;
@@ -98,8 +88,8 @@ export class ArtistsService {
       where: { id },
       data: {
         slug: dto.slug,
-        featuredImageId: dto.featuredImageId,
-        avatarId: dto.avatarId,
+        featuredImageUrl: dto.featuredImageUrl,
+        avatarUrl: dto.avatarUrl,
         city: dto.city,
         country: dto.country,
         translations: dto.translations
@@ -112,14 +102,14 @@ export class ArtistsService {
               })),
             }
           : undefined,
-        artworks: dto.artworkIds
+        artworks: dto.artworkUrls
           ? {
               deleteMany: {},
-              create: dto.artworkIds.map((mediaId, position) => ({ mediaId, position })),
+              create: dto.artworkUrls.map((imageUrl, position) => ({ imageUrl, position })),
             }
           : undefined,
       },
-      include: { translations: true, avatar: true, artworks: { include: { media: true } } },
+      include: { translations: true, artworks: true },
     });
     await this.clearCache();
     return artist;

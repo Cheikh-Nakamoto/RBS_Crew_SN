@@ -18,7 +18,6 @@ import { RedisCacheModule } from './modules/cache/redis-cache.module';
 import { MailModule } from './modules/mail/mail.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
-import { MediaModule } from './modules/media/media.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { ProductsModule } from './modules/products/products.module';
 import { ArtistsModule } from './modules/artists/artists.module';
@@ -30,10 +29,11 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { PagesModule } from './modules/pages/pages.module';
 import { ServicesModule } from './modules/services/services.module';
+import jwtConfig from './common/config/jwt.config';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true , load: [jwtConfig],}),
     ThrottlerModule.forRoot([
       { name: 'short', ttl: 1000, limit: 10 },
       { name: 'medium', ttl: 60000, limit: 100 },
@@ -44,7 +44,6 @@ import { ServicesModule } from './modules/services/services.module';
     MailModule,
     AuthModule,
     UsersModule,
-    MediaModule,
     CategoriesModule,
     ProductsModule,
     ArtistsModule,
@@ -56,6 +55,7 @@ import { ServicesModule } from './modules/services/services.module';
     PaymentsModule,
     PagesModule,
     ServicesModule,
+    
   ],
   controllers: [AppController],
   providers: [

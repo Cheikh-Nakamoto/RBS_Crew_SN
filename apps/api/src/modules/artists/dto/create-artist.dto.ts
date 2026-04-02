@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUrl } from 'class-validator';
+import { PartialType } from '@nestjs/swagger';
 
 export class CreateArtistDto {
   @ApiProperty()
@@ -7,20 +8,20 @@ export class CreateArtistDto {
   @IsNotEmpty()
   slug: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Direct Cloudflare R2 URL for the featured image' })
   @IsOptional()
-  @IsUUID()
-  featuredImageId?: string;
+  @IsUrl()
+  featuredImageUrl?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Direct Cloudflare R2 URL for the avatar/portrait' })
   @IsOptional()
-  @IsUUID()
-  avatarId?: string;
+  @IsUrl()
+  avatarUrl?: string;
 
-  @ApiPropertyOptional({ type: [String], description: 'Media IDs for the artist artworks gallery' })
+  @ApiPropertyOptional({ type: [String], description: 'Ordered list of Cloudflare R2 URLs for artworks gallery' })
   @IsOptional()
   @IsString({ each: true })
-  artworkIds?: string[];
+  artworkUrls?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -35,7 +36,5 @@ export class CreateArtistDto {
   @ApiProperty({ description: 'Translations: { fr: { name, bio }, en: {...} }' })
   translations: Record<string, { name: string; bio?: string }>;
 }
-
-import { PartialType } from '@nestjs/swagger';
 
 export class UpdateArtistDto extends PartialType(CreateArtistDto) {}

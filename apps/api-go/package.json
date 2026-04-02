@@ -1,0 +1,11 @@
+{
+  "name": "api-go",
+  "private": true,
+  "scripts": {
+    "generate": "sqlc generate && swag init -g cmd/api/main.go -o docs --parseDependency",
+    "build": "CGO_ENABLED=0 go build -ldflags=\"-s -w\" -o dist/api-go ./cmd/api",
+    "dev": "go run ./cmd/api",
+    "test": "go test -race -cover ./...",
+    "lint": "golangci-lint run ./..."
+  }
+}

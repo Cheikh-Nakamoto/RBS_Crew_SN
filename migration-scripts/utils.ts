@@ -52,8 +52,61 @@ export async function downloadImage(url: string, filename: string): Promise<stri
   }
 }
 
-export function stripHtml(h: string) { 
-  return (h || '').replace(/<[^>]*>?/gm, '').trim().replace(/\n/g, ' '); 
+export function decodeHTMLEntities(text: string): string {
+  if (!text) return '';
+  const entities: { [key: string]: string } = {
+    '&#8211;': '–',
+    '&#8212;': '—',
+    '&#8216;': '‘',
+    '&#8217;': '’',
+    '&#8220;': '“',
+    '&#8221;': '”',
+    '&#8230;': '...',
+    '&nbsp;': ' ',
+    '&amp;': '&',
+    '&#038;': '&',
+    '&quot;': '"',
+    '&#039;': "'",
+    '&#x27;': "'",
+    '&#x2F;': '/',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&Prime;': '"',
+    '&rsquo;': "’",
+    '&lsquo;': "‘",
+    '&ldquo;': "“",
+    '&rdquo;': "”",
+    '&hellip;': "...",
+    '&ndash;': "–",
+    '&mdash;': "—"
+  };
+  return text.replace(/&#?\w+;/g, match => entities[match] || match);
+}
+
+export function cleanWordPressContent(content: string): string {
+  if (!content) return '';
+  let cleaned = content;
+  
+  // 1. Decode basic entities first
+  cleaned = decodeHTMLEntities(cleaned);
+
+  // 2. Fix weird french quotes used by Divi/wptexturize
+  cleaned = cleaned.replace(/ »/g, '"').replace(/« /g, '"');
+
+  // 3. Remove all Divi and WordPress shortcodes like [et_pb_text ...] or [/et_pb_text]
+  cleaned = cleaned.replace(/\[\/?et_pb_[^\]]+\]/g, '');
+  
+  // 4. Clean up leftover shortcode closing brackets if any
+  cleaned = cleaned.replace(/\[\/?et_pb_[^\]]+$/g, '');
+
+  return cleaned.trim();
+}
+
+export function stripHtml(h: string): string { 
+  if (!h) return '';
+  let noHtm = h.replace(/<[^>]*>?/gm, '').trim().replace(/\n/g, ' '); 
+  noHtm = decodeHTMLEntities(noHtm);
+  return cleanWordPressContent(noHtm);
 }
 
 export function delay(ms: number) { 

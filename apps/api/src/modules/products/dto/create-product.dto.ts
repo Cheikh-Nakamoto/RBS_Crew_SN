@@ -61,6 +61,11 @@ export class CreateProductDto {
   @ApiPropertyOptional({ description: 'Tag IDs to assign' })
   @IsOptional()
   tagIds?: string[];
+
+  @ApiPropertyOptional({ description: 'Direct Cloudflare R2 URL for the featured image' })
+  @IsOptional()
+  @IsString()
+  featuredImageUrl?: string;
 }
 
 export class UpdateProductDto extends CreateProductDto {}

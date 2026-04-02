@@ -2,7 +2,7 @@ import { api } from '@/lib/api';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { MapPin, ArrowLeft } from 'lucide-react';
+import { MapPin, ArrowLeft, Instagram } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 
 interface Props {
@@ -14,10 +14,11 @@ interface ArtistDetail {
   slug: string;
   city?: string;
   country?: string;
-  featuredImage?: { url: string; altText?: string };
-  avatar?: { url: string; altText?: string };
+  featuredImageUrl?: string;
+  avatarUrl?: string;
+  instagramUrl?: string;
   translations: Array<{ locale: string; name: string; bio?: string }>;
-  artworks?: Array<{ position: number; media: { url: string; altText?: string; mimeType: string; filename: string } }>;
+  artworks?: Array<{ position: number; imageUrl: string }>;
 }
 
 export default async function ArtistPage({ params }: Props) {
@@ -33,6 +34,7 @@ export default async function ArtistPage({ params }: Props) {
   }
 
   const t = artist.translations.find((x) => x.locale === 'fr') ?? artist.translations[0];
+  const portraitUrl = artist.avatarUrl || artist.featuredImageUrl;
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12">
@@ -47,17 +49,16 @@ export default async function ArtistPage({ params }: Props) {
 
       <div className="grid md:grid-cols-[320px_1fr] gap-12 items-start">
         {/* Portrait */}
-        {(artist.avatar || artist.featuredImage) && (
+        {portraitUrl && (
           <div className="relative w-full aspect-square md:aspect-[3/4] rounded-3xl overflow-hidden border border-white/10 bg-white/5 shadow-2xl shadow-black/40 flex-shrink-0 group">
             <Image
-              src={(artist.avatar || artist.featuredImage)!.url}
+              src={portraitUrl}
               alt={t?.name ?? ''}
               fill
               sizes="(max-width: 768px) 100vw, 320px"
               className="object-cover transition-transform duration-700 group-hover:scale-105"
               priority
             />
-            {/* Gradient overlay at bottom */}
             <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
           </div>
         )}
@@ -69,12 +70,25 @@ export default async function ArtistPage({ params }: Props) {
             <h1 className="font-display text-5xl sm:text-6xl text-white leading-tight mt-3">
               {t?.name}
             </h1>
-            {artist.city && (
-              <p className="flex items-center gap-2 text-white/45 mt-3">
-                <MapPin className="w-4 h-4 text-[oklch(0.72_0.19_48)]" />
-                {artist.city}{artist.country ? `, ${artist.country}` : ''}
-              </p>
-            )}
+            <div className="flex flex-wrap items-center gap-4 mt-4">
+              {artist.city && (
+                <p className="flex items-center gap-2 text-white/45">
+                  <MapPin className="w-4 h-4 text-[oklch(0.72_0.19_48)]" />
+                  {artist.city}{artist.country ? `, ${artist.country}` : ''}
+                </p>
+              )}
+              {artist.instagramUrl && (
+                <a
+                  href={artist.instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-white shadow-xl bg-gradient-to-r hover:to-[oklch(0.72_0.19_48)] hover:from-[oklch(0.60_0.25_345)] from-white/10 to-white/5 px-4 py-2 rounded-full border border-white/10 transition-all duration-300 hover:scale-105 group"
+                >
+                  <Instagram className="w-4 h-4 text-[oklch(0.60_0.25_345)] group-hover:text-white transition-colors" />
+                  Instagram
+                </a>
+              )}
+            </div>
           </div>
 
           {/* Decorative accent line */}
@@ -102,20 +116,18 @@ export default async function ArtistPage({ params }: Props) {
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {artist.artworks.map((artwork, idx) => (
-              <div 
-                key={artwork.media.url} 
+              <div
+                key={artwork.imageUrl}
                 className="relative group overflow-hidden rounded-2xl bg-white/5 border border-white/5 hover:border-[oklch(0.72_0.19_48/40%)] transition-all duration-300 aspect-square shadow-lg"
                 style={{ animationDelay: `${idx * 100}ms` }}
               >
                 <Image
-                  src={artwork.media.url}
-                  alt={artwork.media.altText || `Artwork ${idx + 1}`}
+                  src={artwork.imageUrl}
+                  alt={`Artwork ${idx + 1}`}
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                   className="object-cover transition-transform duration-700 group-hover:scale-110"
                 />
-                
-                {/* Immersive Hover Layer */}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#09090b]/90 via-[#09090b]/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-end pb-8">
                   <span className="text-white/90 font-display text-lg tracking-wide translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
                     Agrandir

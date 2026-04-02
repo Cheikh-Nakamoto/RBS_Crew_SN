@@ -9,8 +9,8 @@ export class CreateProjectDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUUID()
-  featuredImageId?: string;
+  @IsString()
+  featuredImageUrl?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

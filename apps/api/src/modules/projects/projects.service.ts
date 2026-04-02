@@ -20,7 +20,6 @@ export class ProjectsService {
         take: limit,
         include: {
           translations: { where: { locale: locale as PrismaLocale } },
-          featuredImage: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -34,7 +33,6 @@ export class ProjectsService {
       where: { slug },
       include: {
         translations: { where: { locale: locale as PrismaLocale } },
-        featuredImage: true,
       },
     });
     if (!project) throw new NotFoundException('Project not found');
@@ -45,7 +43,7 @@ export class ProjectsService {
     return this.prisma.project.create({
       data: {
         slug: dto.slug,
-        featuredImageId: dto.featuredImageId,
+        featuredImageUrl: dto.featuredImageUrl,
         clientName: dto.clientName,
         completedAt: dto.completedAt ? new Date(dto.completedAt) : undefined,
         translations: {
@@ -68,7 +66,7 @@ export class ProjectsService {
       where: { id },
       data: {
         slug: dto.slug,
-        featuredImageId: dto.featuredImageId,
+        featuredImageUrl: dto.featuredImageUrl,
         clientName: dto.clientName,
         completedAt: dto.completedAt ? new Date(dto.completedAt) : undefined,
         translations: dto.translations

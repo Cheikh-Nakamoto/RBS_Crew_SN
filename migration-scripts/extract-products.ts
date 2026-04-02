@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as dotenv from 'dotenv';
-import { saveJson, downloadImage, stripHtml, delay } from './utils';
+import { saveJson, downloadImage, stripHtml, cleanWordPressContent, delay } from './utils';
 dotenv.config();
 
 // FIX #1 : WC_KEY/WC_SECRET → WC_CONSUMER_KEY/WC_CONSUMER_SECRET
@@ -96,7 +96,7 @@ async function migrateProducts() {
         stock: wpProd.stock_quantity ?? 0,
         manageStock: wpProd.manage_stock ?? true,
         status: 'PUBLISHED',
-        name: wpProd.name,
+        name: cleanWordPressContent(wpProd.name),
         description: stripHtml(wpProd.description),
         shortDescription: stripHtml(wpProd.short_description),
         featuredImage,

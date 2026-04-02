@@ -40,8 +40,8 @@ export default async function ShopPage({ searchParams }: Props) {
     fetchError = true;
   }
 
-  console.log(data);
   const products = data?.data ?? [];
+  console.log("fetching data product",data)
   const meta = data?.meta;
 
   return (
@@ -98,10 +98,10 @@ export default async function ShopPage({ searchParams }: Props) {
                 <Card className="bg-white/4 border-white/8 group-hover:border-[oklch(0.72_0.19_48/40%)] transition-all duration-300 card-hover h-full rounded-2xl overflow-hidden p-0">
                   {/* Image */}
                   <div className="relative aspect-square overflow-hidden bg-white/4">
-                    {product.featuredImage ? (
+                    {product.featuredImageUrl ? (
                       <Image
-                        src={product.featuredImage.url}
-                        alt={product.featuredImage.altText ?? translation?.name ?? ''}
+                        src={product.featuredImageUrl}
+                        alt={translation?.name ?? ''}
                         fill
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
