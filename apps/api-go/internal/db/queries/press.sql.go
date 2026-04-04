@@ -12,19 +12,20 @@ import (
 )
 
 const createPressMention = `-- name: CreatePressMention :one
-INSERT INTO "PressMention" ("id", "title", "source", "sourceUrl", "logoUrl", "excerpt", "date", "createdAt")
-VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-RETURNING id, title, source, "sourceUrl", "logoUrl", excerpt, date, "createdAt"
+INSERT INTO "PressMention" ("id", "title", "source", "sourceUrl", "logoUrl", "featuredImageUrl", "excerpt", "date", "createdAt")
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+RETURNING id, title, source, "sourceUrl", "logoUrl", excerpt, date, "createdAt", "featuredImageUrl"
 `
 
 type CreatePressMentionParams struct {
-	ID        string           `json:"id"`
-	Title     string           `json:"title"`
-	Source    string           `json:"source"`
-	SourceUrl string           `json:"sourceUrl"`
-	LogoUrl   *string          `json:"logoUrl"`
-	Excerpt   *string          `json:"excerpt"`
-	Date      pgtype.Timestamp `json:"date"`
+	ID               string           `json:"id"`
+	Title            string           `json:"title"`
+	Source           string           `json:"source"`
+	SourceUrl        string           `json:"sourceUrl"`
+	LogoUrl          *string          `json:"logoUrl"`
+	FeaturedImageUrl *string          `json:"featuredImageUrl"`
+	Excerpt          *string          `json:"excerpt"`
+	Date             pgtype.Timestamp `json:"date"`
 }
 
 func (q *Queries) CreatePressMention(ctx context.Context, arg CreatePressMentionParams) (PressMention, error) {
@@ -34,6 +35,7 @@ func (q *Queries) CreatePressMention(ctx context.Context, arg CreatePressMention
 		arg.Source,
 		arg.SourceUrl,
 		arg.LogoUrl,
+		arg.FeaturedImageUrl,
 		arg.Excerpt,
 		arg.Date,
 	)
@@ -47,6 +49,7 @@ func (q *Queries) CreatePressMention(ctx context.Context, arg CreatePressMention
 		&i.Excerpt,
 		&i.Date,
 		&i.CreatedAt,
+		&i.FeaturedImageUrl,
 	)
 	return i, err
 }
@@ -61,7 +64,7 @@ func (q *Queries) DeletePressMention(ctx context.Context, id string) error {
 }
 
 const getPressMentionByID = `-- name: GetPressMentionByID :one
-SELECT id, title, source, "sourceUrl", "logoUrl", excerpt, date, "createdAt" FROM "PressMention" WHERE "id" = $1
+SELECT id, title, source, "sourceUrl", "logoUrl", excerpt, date, "createdAt", "featuredImageUrl" FROM "PressMention" WHERE "id" = $1
 `
 
 func (q *Queries) GetPressMentionByID(ctx context.Context, id string) (PressMention, error) {
@@ -76,12 +79,13 @@ func (q *Queries) GetPressMentionByID(ctx context.Context, id string) (PressMent
 		&i.Excerpt,
 		&i.Date,
 		&i.CreatedAt,
+		&i.FeaturedImageUrl,
 	)
 	return i, err
 }
 
 const listPressMentions = `-- name: ListPressMentions :many
-SELECT id, title, source, "sourceUrl", "logoUrl", excerpt, date, "createdAt", COUNT(*) OVER() AS total_count
+SELECT id, title, source, "sourceUrl", "logoUrl", excerpt, date, "createdAt", "featuredImageUrl", COUNT(*) OVER() AS total_count
 FROM "PressMention"
 ORDER BY "date" DESC NULLS LAST, "createdAt" DESC
 LIMIT $1 OFFSET $2
@@ -93,15 +97,16 @@ type ListPressMentionsParams struct {
 }
 
 type ListPressMentionsRow struct {
-	ID         string           `json:"id"`
-	Title      string           `json:"title"`
-	Source     string           `json:"source"`
-	SourceUrl  string           `json:"sourceUrl"`
-	LogoUrl    *string          `json:"logoUrl"`
-	Excerpt    *string          `json:"excerpt"`
-	Date       pgtype.Timestamp `json:"date"`
-	CreatedAt  pgtype.Timestamp `json:"createdAt"`
-	TotalCount int64            `json:"total_count"`
+	ID               string           `json:"id"`
+	Title            string           `json:"title"`
+	Source           string           `json:"source"`
+	SourceUrl        string           `json:"sourceUrl"`
+	LogoUrl          *string          `json:"logoUrl"`
+	Excerpt          *string          `json:"excerpt"`
+	Date             pgtype.Timestamp `json:"date"`
+	CreatedAt        pgtype.Timestamp `json:"createdAt"`
+	FeaturedImageUrl *string          `json:"featuredImageUrl"`
+	TotalCount       int64            `json:"total_count"`
 }
 
 func (q *Queries) ListPressMentions(ctx context.Context, arg ListPressMentionsParams) ([]ListPressMentionsRow, error) {
@@ -122,6 +127,7 @@ func (q *Queries) ListPressMentions(ctx context.Context, arg ListPressMentionsPa
 			&i.Excerpt,
 			&i.Date,
 			&i.CreatedAt,
+			&i.FeaturedImageUrl,
 			&i.TotalCount,
 		); err != nil {
 			return nil, err
@@ -140,20 +146,22 @@ SET "title" = COALESCE($2, "title"),
     "source" = COALESCE($3, "source"),
     "sourceUrl" = COALESCE($4, "sourceUrl"),
     "logoUrl" = $5,
-    "excerpt" = $6,
-    "date" = $7
+    "featuredImageUrl" = $6,
+    "excerpt" = $7,
+    "date" = $8
 WHERE "id" = $1
-RETURNING id, title, source, "sourceUrl", "logoUrl", excerpt, date, "createdAt"
+RETURNING id, title, source, "sourceUrl", "logoUrl", excerpt, date, "createdAt", "featuredImageUrl"
 `
 
 type UpdatePressMentionParams struct {
-	ID        string           `json:"id"`
-	Title     *string          `json:"title"`
-	Source    *string          `json:"source"`
-	SourceUrl *string          `json:"source_url"`
-	LogoUrl   *string          `json:"logo_url"`
-	Excerpt   *string          `json:"excerpt"`
-	Date      pgtype.Timestamp `json:"date"`
+	ID               string           `json:"id"`
+	Title            *string          `json:"title"`
+	Source           *string          `json:"source"`
+	SourceUrl        *string          `json:"source_url"`
+	LogoUrl          *string          `json:"logo_url"`
+	FeaturedImageUrl *string          `json:"featured_image_url"`
+	Excerpt          *string          `json:"excerpt"`
+	Date             pgtype.Timestamp `json:"date"`
 }
 
 func (q *Queries) UpdatePressMention(ctx context.Context, arg UpdatePressMentionParams) (PressMention, error) {
@@ -163,6 +171,7 @@ func (q *Queries) UpdatePressMention(ctx context.Context, arg UpdatePressMention
 		arg.Source,
 		arg.SourceUrl,
 		arg.LogoUrl,
+		arg.FeaturedImageUrl,
 		arg.Excerpt,
 		arg.Date,
 	)
@@ -176,6 +185,7 @@ func (q *Queries) UpdatePressMention(ctx context.Context, arg UpdatePressMention
 		&i.Excerpt,
 		&i.Date,
 		&i.CreatedAt,
+		&i.FeaturedImageUrl,
 	)
 	return i, err
 }

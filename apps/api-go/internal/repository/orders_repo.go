@@ -23,6 +23,35 @@ func (r *OrdersRepository) WithTx(tx pgx.Tx) *db.Queries {
 	return r.q.WithTx(tx)
 }
 
+func (r *OrdersRepository) GetOrderByStripeSession(ctx context.Context, stripeID string) (*db.Order, error) {
+	row, err := r.q.GetOrderByStripeSession(ctx, &stripeID)
+	if err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
+func (r *OrdersRepository) UpdateOrderPaymentStatus(ctx context.Context, id string, paymentStatus db.PaymentStatus, status *db.OrderStatus, stripeID *string) (*db.Order, error) {
+	params := db.UpdateOrderPaymentStatusParams{
+		ID:      id,
+		Column2: paymentStatus,
+	}
+	
+	if status != nil {
+		params.Status = db.NullOrderStatus{OrderStatus: *status, Valid: true}
+	}
+	
+	if stripeID != nil {
+		params.StripePaymentIntentId = stripeID
+	}
+	
+	row, err := r.q.UpdateOrderPaymentStatus(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
 func (r *OrdersRepository) List(ctx context.Context, limit, offset int32) ([]db.ListOrdersRow, error) {
 	return r.q.ListOrders(ctx, db.ListOrdersParams{Limit: limit, Offset: offset})
 }

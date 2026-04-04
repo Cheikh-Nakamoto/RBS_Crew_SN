@@ -4,6 +4,7 @@ import (
 	"context"
 
 	db "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db/queries"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -54,4 +55,31 @@ func (r *AuthRepository) GetActiveSessionsByUser(ctx context.Context, userID str
 
 func (r *AuthRepository) DeleteUserSessions(ctx context.Context, userID string) error {
 	return r.q.DeleteUserSessions(ctx, userID)
+}
+
+func (r *AuthRepository) SetPasswordResetToken(ctx context.Context, email string, token *string, expiry pgtype.Timestamp) error {
+	return r.q.SetPasswordResetToken(ctx, db.SetPasswordResetTokenParams{
+		Email:            email,
+		ResetToken:       token,
+		ResetTokenExpiry: expiry,
+	})
+}
+
+func (r *AuthRepository) GetUserByResetToken(ctx context.Context, token *string) (*db.GetUserByResetTokenRow, error) {
+	row, err := r.q.GetUserByResetToken(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
+func (r *AuthRepository) ClearResetToken(ctx context.Context, id, passwordHash string) error {
+	return r.q.ClearResetToken(ctx, db.ClearResetTokenParams{
+		ID:           id,
+		PasswordHash: passwordHash,
+	})
+}
+
+func (r *AuthRepository) SetEmailVerified(ctx context.Context, id string) error {
+	return r.q.SetEmailVerified(ctx, id)
 }

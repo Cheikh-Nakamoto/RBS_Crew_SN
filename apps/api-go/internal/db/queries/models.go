@@ -376,14 +376,15 @@ type PageTranslation struct {
 }
 
 type PressMention struct {
-	ID        string           `json:"id"`
-	Title     string           `json:"title"`
-	Source    string           `json:"source"`
-	SourceUrl string           `json:"sourceUrl"`
-	LogoUrl   *string          `json:"logoUrl"`
-	Excerpt   *string          `json:"excerpt"`
-	Date      pgtype.Timestamp `json:"date"`
-	CreatedAt pgtype.Timestamp `json:"createdAt"`
+	ID               string           `json:"id"`
+	Title            string           `json:"title"`
+	Source           string           `json:"source"`
+	SourceUrl        string           `json:"sourceUrl"`
+	LogoUrl          *string          `json:"logoUrl"`
+	Excerpt          *string          `json:"excerpt"`
+	Date             pgtype.Timestamp `json:"date"`
+	CreatedAt        pgtype.Timestamp `json:"createdAt"`
+	FeaturedImageUrl *string          `json:"featuredImageUrl"`
 }
 
 type Product struct {
@@ -520,18 +521,20 @@ type TagTranslation struct {
 }
 
 type User struct {
-	ID              string           `json:"id"`
-	Email           string           `json:"email"`
-	PasswordHash    string           `json:"passwordHash"`
-	FirstName       *string          `json:"firstName"`
-	LastName        *string          `json:"lastName"`
-	Phone           *string          `json:"phone"`
-	Role            UserRole         `json:"role"`
-	EmailVerified   bool             `json:"emailVerified"`
-	PreferredLocale Locale           `json:"preferredLocale"`
-	WcId            *int32           `json:"wcId"`
-	CreatedAt       pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt       pgtype.Timestamp `json:"updatedAt"`
+	ID               string           `json:"id"`
+	Email            string           `json:"email"`
+	PasswordHash     string           `json:"passwordHash"`
+	FirstName        *string          `json:"firstName"`
+	LastName         *string          `json:"lastName"`
+	Phone            *string          `json:"phone"`
+	Role             UserRole         `json:"role"`
+	EmailVerified    bool             `json:"emailVerified"`
+	PreferredLocale  Locale           `json:"preferredLocale"`
+	WcId             *int32           `json:"wcId"`
+	CreatedAt        pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
+	ResetToken       *string          `json:"resetToken"`
+	ResetTokenExpiry pgtype.Timestamp `json:"resetTokenExpiry"`
 }
 
 type UserSession struct {

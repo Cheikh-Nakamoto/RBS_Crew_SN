@@ -15,6 +15,7 @@ import (
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/handler"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/logger"
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/mail"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/redis"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/repository"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/router"
@@ -73,9 +74,11 @@ func run() error {
 	servicesRepo := repository.NewServicesRepository(pool)
 	quotesRepo := repository.NewQuotesRepository(pool)
 	ordersRepo := repository.NewOrdersRepository(pool)
+	usersRepo := repository.NewUsersRepository(pool)
 
 	// ── Services ─────────────────────────────────────────────────────────────
-	authSvc := service.NewAuthService(authRepo, cfg.JWTSecret, cfg.JWTRefreshSecret)
+	mailSvc := mail.NewMailService(cfg)
+	authSvc := service.NewAuthService(authRepo, mailSvc, cfg.JWTSecret, cfg.JWTRefreshSecret)
 	categoriesSvc := service.NewCategoriesService(categoriesRepo)
 	productsSvc := service.NewProductsService(productsRepo, redisClient)
 	artistsSvc := service.NewArtistsService(artistsRepo, redisClient)
@@ -86,6 +89,8 @@ func run() error {
 	servicesSvc := service.NewServicesService(servicesRepo)
 	quotesSvc := service.NewQuotesService(quotesRepo)
 	ordersSvc := service.NewOrdersService(ordersRepo, productsRepo)
+	usersSvc := service.NewUsersService(usersRepo)
+	paymentsSvc := service.NewPaymentsService(cfg.StripeSecretKey, cfg.StripeWebhookSecret, ordersRepo)
 
 	// ── Handlers ────────────────────────────────────────────────────────────
 	handlers := &router.Handlers{
@@ -101,6 +106,8 @@ func run() error {
 		Services:   handler.NewServicesHandler(servicesSvc),
 		Orders:     handler.NewOrdersHandler(ordersSvc),
 		Quotes:     handler.NewQuotesHandler(quotesSvc),
+		Users:      handler.NewUsersHandler(usersSvc),
+		Payments:   handler.NewPaymentsHandler(paymentsSvc),
 	}
 
 	// ── HTTP Server ──────────────────────────────────────────────────────────

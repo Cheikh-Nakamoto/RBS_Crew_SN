@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/service"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
@@ -136,11 +137,73 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 }
 
 // CheckSession godoc
-// @Summary      Check session (stub)
+// @Summary      Check session
 // @Tags         Auth
 // @Produce      json
 // @Success      200 {object} map[string]interface{}
 // @Router       /auth/session [post]
 func (h *AuthHandler) CheckSession(w http.ResponseWriter, r *http.Request) {
-	types.WriteJSON(w, http.StatusOK, h.svc.CheckSession(r.Context()))
+	header := r.Header.Get("Authorization")
+	tokenStr := strings.TrimPrefix(header, "Bearer ")
+	types.WriteJSON(w, http.StatusOK, h.svc.CheckSession(r.Context(), tokenStr))
+}
+
+// ── Password Reset & Verification ─────────────────────────────────────────────
+
+func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Email string `json:"email" validate:"required,email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		types.WriteError(w, types.BadRequest("Invalid payload"))
+		return
+	}
+	if err := validate.Struct(body); err != nil {
+		types.WriteError(w, types.BadRequest(err.Error()))
+		return
+	}
+	if appErr := h.svc.ForgotPassword(r.Context(), body.Email); appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, map[string]string{"message": "If an account with this email exists, a reset link has been sent."})
+}
+
+func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Token    string `json:"token" validate:"required"`
+		Password string `json:"password" validate:"required,min=8"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		types.WriteError(w, types.BadRequest("Invalid payload"))
+		return
+	}
+	if err := validate.Struct(body); err != nil {
+		types.WriteError(w, types.BadRequest(err.Error()))
+		return
+	}
+	if appErr := h.svc.ResetPassword(r.Context(), body.Token, body.Password); appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, map[string]string{"message": "Password successfully reset. You can now log in."})
+}
+
+func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Token string `json:"token" validate:"required"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		types.WriteError(w, types.BadRequest("Invalid payload"))
+		return
+	}
+	if err := validate.Struct(body); err != nil {
+		types.WriteError(w, types.BadRequest(err.Error()))
+		return
+	}
+	if appErr := h.svc.VerifyEmail(r.Context(), body.Token); appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, map[string]string{"message": "Email successfully verified."})
 }

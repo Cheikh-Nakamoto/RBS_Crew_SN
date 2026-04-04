@@ -11,6 +11,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearResetToken = `-- name: ClearResetToken :exec
+UPDATE "User"
+SET "resetToken" = NULL, "resetTokenExpiry" = NULL, "passwordHash" = $2, "updatedAt" = NOW()
+WHERE "id" = $1
+`
+
+type ClearResetTokenParams struct {
+	ID           string `json:"id"`
+	PasswordHash string `json:"passwordHash"`
+}
+
+func (q *Queries) ClearResetToken(ctx context.Context, arg ClearResetTokenParams) error {
+	_, err := q.db.Exec(ctx, clearResetToken, arg.ID, arg.PasswordHash)
+	return err
+}
+
 const createSession = `-- name: CreateSession :one
 INSERT INTO "UserSession" ("id", "userId", "tokenHash", "expiresAt", "createdAt")
 VALUES ($1, $2, $3, $4, NOW())
@@ -45,7 +61,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (U
 const createUser = `-- name: CreateUser :one
 INSERT INTO "User" ("id", "email", "passwordHash", "firstName", "lastName", "phone", "role", "preferredLocale", "createdAt", "updatedAt", "emailVerified")
 VALUES ($1, $2, $3, $4, $5, $6, 'CUSTOMER'::"UserRole", 'fr'::"Locale", NOW(), NOW(), false)
-RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "createdAt", "updatedAt"
+RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "createdAt", "updatedAt", "resetToken", "resetTokenExpiry"
 `
 
 type CreateUserParams struct {
@@ -80,6 +96,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.WcId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResetToken,
+		&i.ResetTokenExpiry,
 	)
 	return i, err
 }
@@ -125,7 +143,7 @@ func (q *Queries) GetActiveSessionsByUser(ctx context.Context, userid string) ([
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "createdAt", "updatedAt" FROM "User" WHERE "email" = $1
+SELECT id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "createdAt", "updatedAt", "resetToken", "resetTokenExpiry" FROM "User" WHERE "email" = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -144,6 +162,8 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.WcId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResetToken,
+		&i.ResetTokenExpiry,
 	)
 	return i, err
 }
@@ -176,4 +196,55 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, e
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getUserByResetToken = `-- name: GetUserByResetToken :one
+SELECT "id", "email", "resetToken", "resetTokenExpiry", "emailVerified"
+FROM "User" WHERE "resetToken" = $1 AND "resetTokenExpiry" > NOW()
+`
+
+type GetUserByResetTokenRow struct {
+	ID               string           `json:"id"`
+	Email            string           `json:"email"`
+	ResetToken       *string          `json:"resetToken"`
+	ResetTokenExpiry pgtype.Timestamp `json:"resetTokenExpiry"`
+	EmailVerified    bool             `json:"emailVerified"`
+}
+
+func (q *Queries) GetUserByResetToken(ctx context.Context, resettoken *string) (GetUserByResetTokenRow, error) {
+	row := q.db.QueryRow(ctx, getUserByResetToken, resettoken)
+	var i GetUserByResetTokenRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.ResetToken,
+		&i.ResetTokenExpiry,
+		&i.EmailVerified,
+	)
+	return i, err
+}
+
+const setEmailVerified = `-- name: SetEmailVerified :exec
+UPDATE "User" SET "emailVerified" = true, "updatedAt" = NOW() WHERE "id" = $1
+`
+
+func (q *Queries) SetEmailVerified(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, setEmailVerified, id)
+	return err
+}
+
+const setPasswordResetToken = `-- name: SetPasswordResetToken :exec
+UPDATE "User" SET "resetToken" = $2, "resetTokenExpiry" = $3, "updatedAt" = NOW()
+WHERE "email" = $1
+`
+
+type SetPasswordResetTokenParams struct {
+	Email            string           `json:"email"`
+	ResetToken       *string          `json:"resetToken"`
+	ResetTokenExpiry pgtype.Timestamp `json:"resetTokenExpiry"`
+}
+
+func (q *Queries) SetPasswordResetToken(ctx context.Context, arg SetPasswordResetTokenParams) error {
+	_, err := q.db.Exec(ctx, setPasswordResetToken, arg.Email, arg.ResetToken, arg.ResetTokenExpiry)
+	return err
 }

@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -14,6 +15,17 @@ type Config struct {
 	APIPort          string
 	Environment      string
 	CORSOrigin       string
+
+	// SMTP
+	SMTPHost string
+	SMTPPort int
+	SMTPUser string
+	SMTPPass string
+	SMTPFrom string
+
+	// Stripe
+	StripeSecretKey     string
+	StripeWebhookSecret string
 }
 
 func Load() (*Config, error) {
@@ -27,7 +39,22 @@ func Load() (*Config, error) {
 		APIPort:          getEnv("API_PORT", "4000"),
 		Environment:      getEnv("NODE_ENV", "development"),
 		CORSOrigin:       getEnv("CORS_ORIGIN", "http://localhost:3000"),
+		SMTPHost:         getEnv("SMTP_HOST", ""),
+		SMTPPort:         getEnvAsInt("SMTP_PORT", 587),
+		SMTPUser:         getEnv("SMTP_USER", ""),
+		SMTPPass:         getEnv("SMTP_PASS", ""),
+		SMTPFrom:         getEnv("SMTP_FROM", "RBS Crew <noreply@rbscrew.sn>"),
+		StripeSecretKey:     getEnv("STRIPE_SECRET_KEY", ""),
+		StripeWebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET", ""),
 	}, nil
+}
+
+func getEnvAsInt(key string, fallback int) int {
+	valStr := os.Getenv(key)
+	if val, err := strconv.Atoi(valStr); err == nil {
+		return val
+	}
+	return fallback
 }
 
 func getEnv(key, fallback string) string {

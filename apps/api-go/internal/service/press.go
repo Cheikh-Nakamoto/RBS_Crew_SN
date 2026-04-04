@@ -15,11 +15,12 @@ type PressResponse struct {
 	ID        string     `json:"id"`
 	Title     string     `json:"title"`
 	Source    string     `json:"source"`
-	SourceURL string     `json:"sourceUrl"`
-	LogoURL   *string    `json:"logoUrl"`
-	Excerpt   *string    `json:"excerpt"`
-	Date      *time.Time `json:"date"`
-	CreatedAt time.Time  `json:"createdAt"`
+	SourceURL        string     `json:"sourceUrl"`
+	LogoURL          *string    `json:"logoUrl"`
+	FeaturedImageURL *string    `json:"featuredImageUrl"`
+	Excerpt          *string    `json:"excerpt"`
+	Date             *time.Time `json:"date"`
+	CreatedAt        time.Time  `json:"createdAt"`
 }
 
 type PressService struct {
@@ -42,14 +43,15 @@ func (s *PressService) List(ctx context.Context, page, limit int) (*types.Pagina
 			total = int(row.TotalCount)
 		}
 		pmObj := db.PressMention{
-			ID:        row.ID,
-			Title:     row.Title,
-			Source:    row.Source,
-			SourceUrl: row.SourceUrl,
-			LogoUrl:   row.LogoUrl,
-			Excerpt:   row.Excerpt,
-			Date:      row.Date,
-			CreatedAt: row.CreatedAt,
+			ID:               row.ID,
+			Title:            row.Title,
+			Source:           row.Source,
+			SourceUrl:        row.SourceUrl,
+			LogoUrl:          row.LogoUrl,
+			FeaturedImageUrl: row.FeaturedImageUrl,
+			Excerpt:          row.Excerpt,
+			Date:             row.Date,
+			CreatedAt:        row.CreatedAt,
 		}
 		results = append(results, toPressResponse(&pmObj))
 	}
@@ -77,6 +79,7 @@ func toPressResponse(p *db.PressMention) PressResponse {
 	return PressResponse{
 		ID: p.ID, Title: p.Title, Source: p.Source,
 		SourceURL: p.SourceUrl, LogoURL: p.LogoUrl,
-		Excerpt: p.Excerpt, Date: date, CreatedAt: p.CreatedAt.Time,
+		FeaturedImageURL: p.FeaturedImageUrl,
+		Excerpt:          p.Excerpt, Date: date, CreatedAt: p.CreatedAt.Time,
 	}
 }

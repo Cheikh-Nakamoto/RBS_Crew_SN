@@ -9,18 +9,20 @@ import (
 )
 
 type Handlers struct {
-	Health    *handler.HealthHandler
-	Auth      *handler.AuthHandler
+	Health     *handler.HealthHandler
+	Auth       *handler.AuthHandler
 	Categories *handler.CategoriesHandler
-	Products  *handler.ProductsHandler
-	Artists   *handler.ArtistsHandler
-	Projects  *handler.ProjectsHandler
-	Festival  *handler.FestivalHandler
-	Press     *handler.PressHandler
-	Pages     *handler.PagesHandler
-	Services  *handler.ServicesHandler
-	Orders    *handler.OrdersHandler
-	Quotes    *handler.QuotesHandler
+	Products   *handler.ProductsHandler
+	Users      *handler.UsersHandler
+	Artists    *handler.ArtistsHandler
+	Projects   *handler.ProjectsHandler
+	Festival   *handler.FestivalHandler
+	Press      *handler.PressHandler
+	Pages      *handler.PagesHandler
+	Services   *handler.ServicesHandler
+	Orders     *handler.OrdersHandler
+	Quotes     *handler.QuotesHandler
+	Payments   *handler.PaymentsHandler
 }
 
 func NewRouter(cfg *config.Config, h *Handlers) chi.Router {
@@ -46,6 +48,9 @@ func NewRouter(cfg *config.Config, h *Handlers) chi.Router {
 		r.Post("/auth/login", h.Auth.Login)
 		r.Post("/auth/session", h.Auth.CheckSession)
 		r.Post("/auth/refresh", h.Auth.Refresh)
+		r.Post("/auth/forgot-password", h.Auth.ForgotPassword)
+		r.Post("/auth/reset-password", h.Auth.ResetPassword)
+		r.Post("/auth/verify-email", h.Auth.VerifyEmail)
 
 		// Categories & Tags
 		r.Get("/categories", h.Categories.List)
@@ -85,6 +90,9 @@ func NewRouter(cfg *config.Config, h *Handlers) chi.Router {
 			r.Use(middleware.RateLimit(rate.Every(300), 3)) // 1 req/5min burst 3
 			r.Post("/quotes", h.Quotes.Create)
 		})
+
+		// Stripe Webhook — public, exempt from generic middleware rate drops (Stripe handles retries)
+		r.Post("/payments/webhook", h.Payments.Webhook)
 	})
 
 	// ── Authenticated Routes ─────────────────────────────────────────────────
@@ -95,10 +103,22 @@ func NewRouter(cfg *config.Config, h *Handlers) chi.Router {
 		r.Post("/auth/logout", h.Auth.Logout)
 		r.Get("/auth/me", h.Auth.Me)
 
+		// Users — self-service
+		r.Get("/users/me", h.Users.GetMe)
+		r.Put("/users/me", h.Users.UpdateMe)
+		r.Delete("/users/me", h.Users.DeleteMe)
+		r.Get("/users/me/addresses", h.Users.GetAddresses)
+		r.Post("/users/me/addresses", h.Users.AddAddress)
+		r.Put("/users/me/addresses/{id}", h.Users.UpdateAddress)
+		r.Delete("/users/me/addresses/{id}", h.Users.DeleteAddress)
+
 		// Orders — authenticated users
 		r.Post("/orders", h.Orders.Create)
 		r.Get("/orders/my", h.Orders.FindMy)
 		r.Get("/orders/{id}", h.Orders.FindOne)
+
+		// Payments
+		r.Post("/payments/create-checkout", h.Payments.CreateCheckout)
 	})
 
 	// ── Admin Routes ─────────────────────────────────────────────────────────
@@ -113,6 +133,12 @@ func NewRouter(cfg *config.Config, h *Handlers) chi.Router {
 		// Quotes admin
 		r.Get("/admin/quotes", h.Quotes.FindAll)
 		r.Get("/admin/quotes/{id}", h.Quotes.FindOne)
+
+		// Users admin
+		r.Get("/admin/users", h.Users.ListAll)
+		r.Get("/admin/users/{id}", h.Users.GetByID)
+		r.Put("/admin/users/{id}/role", h.Users.UpdateRole)
+		r.Delete("/admin/users/{id}", h.Users.AdminDelete)
 	})
 
 	return r

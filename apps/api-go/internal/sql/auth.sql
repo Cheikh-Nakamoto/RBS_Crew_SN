@@ -21,3 +21,19 @@ WHERE "userId" = $1 AND "expiresAt" > NOW();
 
 -- name: DeleteUserSessions :exec
 DELETE FROM "UserSession" WHERE "userId" = $1;
+
+-- name: SetPasswordResetToken :exec
+UPDATE "User" SET "resetToken" = $2, "resetTokenExpiry" = $3, "updatedAt" = NOW()
+WHERE "email" = $1;
+
+-- name: GetUserByResetToken :one
+SELECT "id", "email", "resetToken", "resetTokenExpiry", "emailVerified"
+FROM "User" WHERE "resetToken" = $1 AND "resetTokenExpiry" > NOW();
+
+-- name: ClearResetToken :exec
+UPDATE "User"
+SET "resetToken" = NULL, "resetTokenExpiry" = NULL, "passwordHash" = $2, "updatedAt" = NOW()
+WHERE "id" = $1;
+
+-- name: SetEmailVerified :exec
+UPDATE "User" SET "emailVerified" = true, "updatedAt" = NOW() WHERE "id" = $1;

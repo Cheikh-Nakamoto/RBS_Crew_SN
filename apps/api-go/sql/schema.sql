@@ -719,3 +719,13 @@ CREATE UNIQUE INDEX "ProductImage_productId_imageUrl_key" ON "ProductImage"("pro
 
 -- AlterTable
 ALTER TABLE "Artist" ADD COLUMN "instagramUrl" TEXT;
+
+-- AlterTable
+ALTER TABLE "PressMention" ADD COLUMN "featuredImageUrl" TEXT;
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN "resetToken" TEXT;
+ALTER TABLE "User" ADD COLUMN "resetTokenExpiry" TIMESTAMP(3);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_resetToken_key" ON "User"("resetToken");

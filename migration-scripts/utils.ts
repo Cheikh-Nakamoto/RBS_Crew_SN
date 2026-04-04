@@ -16,6 +16,11 @@ export function saveJson(filename: string, data: any) {
 
 export async function downloadImage(url: string, filename: string): Promise<string | null> {
   if (!url) return null;
+  const urlLower = url.toLowerCase();
+  if (urlLower.includes('fond-noir') || urlLower.includes('spray')) {
+    console.log(`🧹 Ignoré intentionnellement: ${url}`);
+    return null;
+  }
   
   // Basic sanity check and sanitize filename
   const safeFilename = filename.replace(/[^a-z0-9.-]/gi, '_').toLowerCase();
