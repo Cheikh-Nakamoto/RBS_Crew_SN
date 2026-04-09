@@ -44,7 +44,7 @@ func NewAuthService(repo *repository.AuthRepository, mailService *mail.MailServi
 
 type RegisterRequest struct {
 	Email     string  `json:"email"     validate:"required,email"`
-	Password  string  `json:"password"  validate:"required,min=8"`
+	Password  string  `json:"password"  validate:"required,password_strength"`
 	FirstName *string `json:"firstName"`
 	LastName  *string `json:"lastName"`
 	Phone     *string `json:"phone"`
@@ -110,6 +110,13 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*UserR
 		return nil, types.InternalError("Failed to create user")
 	}
 
+	// Send email verification asynchronously — do not block registration on mail failure
+	verificationToken := uuid.New().String()
+	exp := pgtype.Timestamp{Time: time.Now().Add(24 * time.Hour), Valid: true}
+	if err := s.repo.SetEmailVerificationToken(ctx, user.ID, &verificationToken, exp); err == nil {
+		_ = s.mailService.SendEmailVerification(user.Email, verificationToken)
+	}
+
 	return toUserResponse(user), nil
 }
 
@@ -137,7 +144,11 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*TokenP
 			return nil, fmt.Errorf("unexpected signing method")
 		}
 		return []byte(s.jwtRefreshSecret), nil
-	})
+	},
+		jwt.WithIssuer(types.JWTIssuer),
+		jwt.WithAudience(types.JWTAudience),
+		jwt.WithExpirationRequired(),
+	)
 	if err != nil || !token.Valid {
 		return nil, types.Unauthorized("Invalid refresh token")
 	}
@@ -235,20 +246,15 @@ func (s *AuthService) ResetPassword(ctx context.Context, token, newPassword stri
 }
 
 func (s *AuthService) VerifyEmail(ctx context.Context, token string) *types.AppError {
-	// For now, we'll re-use the reset token field for email verification simplification, 
-	// or in this MVP, just check if token is passed properly.
-	// We'll assume the token sent during registration matches something. 
-	// Wait, we didn't store a verification token. Let's just create a basic implementation.
-	// Since Prisma schema has `emailVerified: Boolean`, we should update it.
-	// For full compliance, we would fetch the user by a verification token.
-	// I'll skip full implementation of creating the token during register for brevity, 
-	// but here's the endpoint.
-	user, err := s.repo.GetUserByResetToken(ctx, &token)
+	user, err := s.repo.GetUserByEmailVerificationToken(ctx, &token)
 	if err != nil {
 		return types.BadRequest("Invalid or expired verification token")
 	}
+	if user.EmailVerified {
+		return nil // idempotent
+	}
 	if err := s.repo.SetEmailVerified(ctx, user.ID); err != nil {
-		return types.InternalError("Validation error")
+		return types.InternalError("Failed to verify email")
 	}
 	return nil
 }
@@ -265,7 +271,11 @@ func (s *AuthService) CheckSession(_ context.Context, tokenStr string) map[strin
 			return nil, fmt.Errorf("unexpected signing method")
 		}
 		return []byte(s.jwtSecret), nil
-	})
+	},
+		jwt.WithIssuer(types.JWTIssuer),
+		jwt.WithAudience(types.JWTAudience),
+		jwt.WithExpirationRequired(),
+	)
 	if err != nil || !token.Valid {
 		return map[string]interface{}{"valid": false, "user": nil}
 	}
@@ -288,6 +298,8 @@ func (s *AuthService) issueTokens(ctx context.Context, userID, email, role strin
 		Email: email,
 		Role:  role,
 		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    types.JWTIssuer,
+			Audience:  jwt.ClaimStrings{types.JWTAudience},
 			Subject:   userID,
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(accessExpiry)),
@@ -302,6 +314,8 @@ func (s *AuthService) issueTokens(ctx context.Context, userID, email, role strin
 		Email: email,
 		Role:  role,
 		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    types.JWTIssuer,
+			Audience:  jwt.ClaimStrings{types.JWTAudience},
 			Subject:   userID,
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(refreshExpiry)),

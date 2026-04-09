@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -26,6 +27,10 @@ type FestivalResponse struct {
 	City          *string               `json:"city"`
 	Country       string                `json:"country"`
 	Status        string                `json:"status"`
+	MainImage     *string               `json:"mainImage"`
+	HeroImage     *string               `json:"heroImage"`
+	Gallery       []string              `json:"gallery"`
+	Typography    []string              `json:"typography"`
 	Translations  []FestivalTranslation `json:"translations"`
 	CreatedAt     time.Time             `json:"createdAt"`
 }
@@ -58,6 +63,10 @@ func (s *FestivalService) List(ctx context.Context, page, limit int) (*types.Pag
 			City:             row.City,
 			Country:          row.Country,
 			Status:           row.Status,
+			MainImage:        row.MainImage,
+			HeroImage:        row.HeroImage,
+			Gallery:          row.Gallery,
+			Typography:       row.Typography,
 			CreatedAt:        row.CreatedAt,
 			UpdatedAt:        row.UpdatedAt,
 		}
@@ -87,10 +96,30 @@ func toFestivalResponse(f *db.FestivalEdition, translations []db.FestivalTransla
 			Summary: t.Summary, Content: t.Content,
 		})
 	}
+	
+	var gallery []string
+	if len(f.Gallery) > 0 {
+		_ = json.Unmarshal(f.Gallery, &gallery)
+	}
+	if gallery == nil {
+		gallery = make([]string, 0)
+	}
+
+	var typography []string
+	if len(f.Typography) > 0 {
+		_ = json.Unmarshal(f.Typography, &typography)
+	}
+	if typography == nil {
+		typography = make([]string, 0)
+	}
+
 	return FestivalResponse{
 		ID: f.ID, Slug: f.Slug, EditionNumber: f.EditionNumber,
 		Year: f.Year, City: f.City, Country: f.Country,
-		Status: string(f.Status), Translations: trans,
+		Status: string(f.Status), 
+		MainImage: f.MainImage, HeroImage: f.HeroImage,
+		Gallery: gallery, Typography: typography,
+		Translations: trans,
 		CreatedAt: f.CreatedAt.Time,
 	}
 }

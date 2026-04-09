@@ -103,6 +103,50 @@ func (ns NullOrderStatus) Value() (driver.Value, error) {
 	return string(ns.OrderStatus), nil
 }
 
+type PaymentMethod string
+
+const (
+	PaymentMethodSTRIPE      PaymentMethod = "STRIPE"
+	PaymentMethodPAYPAL      PaymentMethod = "PAYPAL"
+	PaymentMethodWAVE        PaymentMethod = "WAVE"
+	PaymentMethodORANGEMONEY PaymentMethod = "ORANGE_MONEY"
+)
+
+func (e *PaymentMethod) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PaymentMethod(s)
+	case string:
+		*e = PaymentMethod(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PaymentMethod: %T", src)
+	}
+	return nil
+}
+
+type NullPaymentMethod struct {
+	PaymentMethod PaymentMethod `json:"PaymentMethod"`
+	Valid         bool          `json:"valid"` // Valid is true if PaymentMethod is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPaymentMethod) Scan(value interface{}) error {
+	if value == nil {
+		ns.PaymentMethod, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PaymentMethod.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPaymentMethod) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PaymentMethod), nil
+}
+
 type PaymentStatus string
 
 const (
@@ -303,6 +347,10 @@ type FestivalEdition struct {
 	Country       string           `json:"country"`
 	Status        ProductStatus    `json:"status"`
 	WpId          *int32           `json:"wpId"`
+	MainImage     *string          `json:"mainImage"`
+	HeroImage     *string          `json:"heroImage"`
+	Gallery       []byte           `json:"gallery"`
+	Typography    []byte           `json:"typography"`
 	CreatedAt     pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
 }
@@ -317,26 +365,27 @@ type FestivalTranslation struct {
 }
 
 type Order struct {
-	ID                    string           `json:"id"`
-	OrderNumber           string           `json:"orderNumber"`
-	UserId                *string          `json:"userId"`
-	GuestEmail            *string          `json:"guestEmail"`
-	Status                OrderStatus      `json:"status"`
-	PaymentStatus         PaymentStatus    `json:"paymentStatus"`
-	StripePaymentIntentId *string          `json:"stripePaymentIntentId"`
-	Currency              string           `json:"currency"`
-	Subtotal              decimal.Decimal  `json:"subtotal"`
-	TaxAmount             decimal.Decimal  `json:"taxAmount"`
-	ShippingAmount        decimal.Decimal  `json:"shippingAmount"`
-	DiscountAmount        decimal.Decimal  `json:"discountAmount"`
-	Total                 decimal.Decimal  `json:"total"`
-	ShippingAddressId     *string          `json:"shippingAddressId"`
-	BillingAddressId      *string          `json:"billingAddressId"`
-	Notes                 *string          `json:"notes"`
-	WcId                  *int32           `json:"wcId"`
-	Locale                Locale           `json:"locale"`
-	CreatedAt             pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt             pgtype.Timestamp `json:"updatedAt"`
+	ID                    string            `json:"id"`
+	OrderNumber           string            `json:"orderNumber"`
+	UserId                *string           `json:"userId"`
+	GuestEmail            *string           `json:"guestEmail"`
+	Status                OrderStatus       `json:"status"`
+	PaymentStatus         PaymentStatus     `json:"paymentStatus"`
+	StripePaymentIntentId *string           `json:"stripePaymentIntentId"`
+	Currency              string            `json:"currency"`
+	Subtotal              decimal.Decimal   `json:"subtotal"`
+	TaxAmount             decimal.Decimal   `json:"taxAmount"`
+	ShippingAmount        decimal.Decimal   `json:"shippingAmount"`
+	DiscountAmount        decimal.Decimal   `json:"discountAmount"`
+	Total                 decimal.Decimal   `json:"total"`
+	ShippingAddressId     *string           `json:"shippingAddressId"`
+	BillingAddressId      *string           `json:"billingAddressId"`
+	Notes                 *string           `json:"notes"`
+	WcId                  *int32            `json:"wcId"`
+	Locale                Locale            `json:"locale"`
+	CreatedAt             pgtype.Timestamp  `json:"createdAt"`
+	UpdatedAt             pgtype.Timestamp  `json:"updatedAt"`
+	PaymentMethod         NullPaymentMethod `json:"paymentMethod"`
 }
 
 type OrderItem struct {
@@ -373,6 +422,19 @@ type PageTranslation struct {
 	Excerpt         *string `json:"excerpt"`
 	MetaTitle       *string `json:"metaTitle"`
 	MetaDescription *string `json:"metaDescription"`
+}
+
+type Payment struct {
+	ID         string           `json:"id"`
+	OrderId    string           `json:"orderId"`
+	Method     PaymentMethod    `json:"method"`
+	ExternalId *string          `json:"externalId"`
+	Amount     decimal.Decimal  `json:"amount"`
+	Currency   string           `json:"currency"`
+	Status     PaymentStatus    `json:"status"`
+	Metadata   []byte           `json:"metadata"`
+	CreatedAt  pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt  pgtype.Timestamp `json:"updatedAt"`
 }
 
 type PressMention struct {
@@ -521,20 +583,22 @@ type TagTranslation struct {
 }
 
 type User struct {
-	ID               string           `json:"id"`
-	Email            string           `json:"email"`
-	PasswordHash     string           `json:"passwordHash"`
-	FirstName        *string          `json:"firstName"`
-	LastName         *string          `json:"lastName"`
-	Phone            *string          `json:"phone"`
-	Role             UserRole         `json:"role"`
-	EmailVerified    bool             `json:"emailVerified"`
-	PreferredLocale  Locale           `json:"preferredLocale"`
-	WcId             *int32           `json:"wcId"`
-	CreatedAt        pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
-	ResetToken       *string          `json:"resetToken"`
-	ResetTokenExpiry pgtype.Timestamp `json:"resetTokenExpiry"`
+	ID                           string           `json:"id"`
+	Email                        string           `json:"email"`
+	PasswordHash                 string           `json:"passwordHash"`
+	FirstName                    *string          `json:"firstName"`
+	LastName                     *string          `json:"lastName"`
+	Phone                        *string          `json:"phone"`
+	Role                         UserRole         `json:"role"`
+	EmailVerified                bool             `json:"emailVerified"`
+	PreferredLocale              Locale           `json:"preferredLocale"`
+	WcId                         *int32           `json:"wcId"`
+	CreatedAt                    pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt                    pgtype.Timestamp `json:"updatedAt"`
+	ResetToken                   *string          `json:"resetToken"`
+	ResetTokenExpiry             pgtype.Timestamp `json:"resetTokenExpiry"`
+	EmailVerificationToken       *string          `json:"emailVerificationToken"`
+	EmailVerificationTokenExpiry pgtype.Timestamp `json:"emailVerificationTokenExpiry"`
 }
 
 type UserSession struct {

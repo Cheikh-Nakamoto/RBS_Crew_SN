@@ -80,6 +80,22 @@ func (r *AuthRepository) ClearResetToken(ctx context.Context, id, passwordHash s
 	})
 }
 
+func (r *AuthRepository) SetEmailVerificationToken(ctx context.Context, id string, token *string, expiry pgtype.Timestamp) error {
+	return r.q.SetEmailVerificationToken(ctx, db.SetEmailVerificationTokenParams{
+		ID:                           id,
+		EmailVerificationToken:       token,
+		EmailVerificationTokenExpiry: expiry,
+	})
+}
+
+func (r *AuthRepository) GetUserByEmailVerificationToken(ctx context.Context, token *string) (*db.GetUserByEmailVerificationTokenRow, error) {
+	row, err := r.q.GetUserByEmailVerificationToken(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
 func (r *AuthRepository) SetEmailVerified(ctx context.Context, id string) error {
 	return r.q.SetEmailVerified(ctx, id)
 }

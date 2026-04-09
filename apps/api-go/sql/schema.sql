@@ -534,6 +534,10 @@ CREATE TABLE "FestivalEdition" (
     "country" TEXT NOT NULL DEFAULT 'SN',
     "status" "ProductStatus" NOT NULL DEFAULT 'PUBLISHED',
     "wpId" INTEGER,
+    "mainImage" TEXT,
+    "heroImage" TEXT,
+    "gallery" JSONB,
+    "typography" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -729,3 +733,34 @@ ALTER TABLE "User" ADD COLUMN "resetTokenExpiry" TIMESTAMP(3);
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_resetToken_key" ON "User"("resetToken");
+
+-- VULN-04: Separate email verification token from reset password token
+ALTER TABLE "User" ADD COLUMN "emailVerificationToken" TEXT;
+ALTER TABLE "User" ADD COLUMN "emailVerificationTokenExpiry" TIMESTAMP(3);
+CREATE UNIQUE INDEX "User_emailVerificationToken_key" ON "User"("emailVerificationToken");
+
+-- ── Multi-Payment Provider Support ─────────────────────────────────────────
+CREATE TYPE "PaymentMethod" AS ENUM ('STRIPE', 'PAYPAL', 'WAVE', 'ORANGE_MONEY');
+
+CREATE TABLE "Payment" (
+    "id" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "method" "PaymentMethod" NOT NULL,
+    "externalId" TEXT,
+    "amount" DECIMAL(10,2) NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'XOF',
+    "status" "PaymentStatus" NOT NULL DEFAULT 'UNPAID',
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
+);
+
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_orderId_fkey"
+    FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE;
+
+CREATE INDEX "Payment_orderId_idx" ON "Payment"("orderId");
+CREATE INDEX "Payment_externalId_idx" ON "Payment"("externalId");
+
+ALTER TABLE "Order" ADD COLUMN "paymentMethod" "PaymentMethod";

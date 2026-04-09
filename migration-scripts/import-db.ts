@@ -139,12 +139,23 @@ async function importFestival() {
       create: { slug: f.slug, editionNumber: f.edition, year: f.year, city: f.city, country: 'SN', wpId: f.wpId, status: ProductStatus.PUBLISHED }
     });
 
+    // Use raw SQL to add the dynamic columns missing from the outdated Prisma schema
+    await prisma.$executeRawUnsafe(
+      `UPDATE "FestivalEdition" SET "mainImage"=$1, "heroImage"=$2, "gallery"=$3, "typography"=$4 WHERE "id"=$5`,
+      f.image || null,
+      f.editionHeroImage || null,
+      f.gallery ? JSON.stringify(f.gallery) : null,
+      f.typography ? JSON.stringify(f.typography) : null,
+      festRecord.id
+    );
+
+    // Provide robust fallback for bio to support standard translation schema
     await prisma.festivalTranslation.upsert({
       where: { festivalEditionId_locale: { festivalEditionId: festRecord.id, locale: Locale.fr } },
-      update: { themeName: f.themeName, summary: f.summary, content: f.content },
-      create: { festivalEditionId: festRecord.id, locale: Locale.fr, themeName: f.themeName, summary: f.summary, content: f.content }
+      update: { themeName: f.themeName, summary: f.summary, content: f.bio || f.content },
+      create: { festivalEditionId: festRecord.id, locale: Locale.fr, themeName: f.themeName, summary: f.summary, content: f.bio || f.content }
     });
-    console.log(`✅ Festival inséré: ${f.themeName} (${f.year})`);
+    console.log(`✅ Festival inséré: ${f.themeName} (${f.year}) avec galerie et médias`);
   }
 }
 

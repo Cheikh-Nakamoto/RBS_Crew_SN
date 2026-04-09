@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -13,6 +14,18 @@ import (
 type visitor struct {
 	limiter  *rate.Limiter
 	lastSeen time.Time
+}
+
+// realIP extracts the client IP from RemoteAddr only.
+// X-Real-IP and X-Forwarded-For are NOT trusted here because they can be forged by any client.
+// If a trusted reverse proxy is in use, configure it to overwrite RemoteAddr at the TCP level
+// (e.g. via PROXY protocol) rather than relying on HTTP headers.
+func realIP(req *http.Request) string {
+	host, _, err := net.SplitHostPort(req.RemoteAddr)
+	if err != nil {
+		return req.RemoteAddr
+	}
+	return host
 }
 
 func RateLimit(r rate.Limit, b int) func(http.Handler) http.Handler {
@@ -37,10 +50,7 @@ func RateLimit(r rate.Limit, b int) func(http.Handler) http.Handler {
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			ip := req.Header.Get("X-Real-IP")
-			if ip == "" {
-				ip = req.RemoteAddr
-			}
+			ip := realIP(req)
 
 			mu.Lock()
 			v, exists := visitors[ip]

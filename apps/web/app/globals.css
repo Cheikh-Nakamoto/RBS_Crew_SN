@@ -48,47 +48,52 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* RBS Brand colors */
-  --rbs-orange: oklch(0.72 0.19 48);
-  --rbs-orange-dark: oklch(0.58 0.19 48);
-  --rbs-magenta: oklch(0.60 0.25 345);
-  --rbs-cyan: oklch(0.72 0.15 200);
-  --rbs-yellow: oklch(0.88 0.18 90);
+  /* RBS Brand colors — harmonisé avec le logo (rouge, vert, noir) */
+  --rbs-red: oklch(0.52 0.20 18);        /* Rouge logo — primaire */
+  --rbs-red-light: oklch(0.65 0.18 18);  /* Rouge clair — hover */
+  --rbs-green: oklch(0.45 0.14 145);     /* Vert logo — secondaire */
+  --rbs-green-light: oklch(0.58 0.13 145); /* Vert clair — hover */
+  /* Compatibilité — aliases vers les nouvelles couleurs */
+  --rbs-orange: oklch(0.52 0.20 18);
+  --rbs-orange-dark: oklch(0.40 0.18 18);
+  --rbs-magenta: oklch(0.45 0.14 145);
+  --rbs-cyan: oklch(0.58 0.13 145);
+  --rbs-yellow: oklch(0.65 0.18 18);
 }
 
 :root {
-  --background: oklch(0.08 0.005 240);
-  --foreground: oklch(0.97 0 0);
+  --background: transparent;
+  --foreground: oklch(0.10 0 0);
   --card: oklch(0.11 0.008 240);
   --card-foreground: oklch(0.97 0 0);
   --popover: oklch(0.13 0.008 240);
   --popover-foreground: oklch(0.97 0 0);
-  --primary: oklch(0.72 0.19 48);
-  --primary-foreground: oklch(0.08 0 0);
-  --secondary: oklch(0.16 0.01 240);
+  --primary: oklch(0.52 0.20 18);
+  --primary-foreground: oklch(0.97 0 0);
+  --secondary: oklch(0.16 0.01 145);
   --secondary-foreground: oklch(0.97 0 0);
   --muted: oklch(0.16 0.01 240);
   --muted-foreground: oklch(0.60 0.01 240);
-  --accent: oklch(0.20 0.01 240);
+  --accent: oklch(0.45 0.14 145);
   --accent-foreground: oklch(0.97 0 0);
-  --destructive: oklch(0.65 0.24 27);
+  --destructive: oklch(0.55 0.22 18);
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 10%);
-  --ring: oklch(0.72 0.19 48);
-  --chart-1: oklch(0.72 0.19 48);
-  --chart-2: oklch(0.60 0.25 345);
-  --chart-3: oklch(0.72 0.15 200);
-  --chart-4: oklch(0.88 0.18 90);
-  --chart-5: oklch(0.65 0.20 140);
+  --ring: oklch(0.52 0.20 18);
+  --chart-1: oklch(0.52 0.20 18);
+  --chart-2: oklch(0.45 0.14 145);
+  --chart-3: oklch(0.65 0.18 18);
+  --chart-4: oklch(0.58 0.13 145);
+  --chart-5: oklch(0.40 0.18 18);
   --radius: 0.75rem;
   --sidebar: oklch(0.10 0.008 240);
   --sidebar-foreground: oklch(0.97 0 0);
-  --sidebar-primary: oklch(0.72 0.19 48);
-  --sidebar-primary-foreground: oklch(0.08 0 0);
+  --sidebar-primary: oklch(0.52 0.20 18);
+  --sidebar-primary-foreground: oklch(0.97 0 0);
   --sidebar-accent: oklch(0.16 0.01 240);
   --sidebar-accent-foreground: oklch(0.97 0 0);
   --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.72 0.19 48);
+  --sidebar-ring: oklch(0.52 0.20 18);
 }
 
 /* ─── Keyframe Animations ─────────────────────── */
@@ -134,25 +139,25 @@
 @keyframes glowPulse {
   0%, 100% {
     text-shadow:
-      0 0 8px oklch(0.72 0.19 48 / 60%),
-      0 0 20px oklch(0.72 0.19 48 / 30%);
+      0 0 8px oklch(0.52 0.20 18 / 60%),
+      0 0 20px oklch(0.52 0.20 18 / 30%);
   }
   50% {
     text-shadow:
-      0 0 16px oklch(0.72 0.19 48 / 90%),
-      0 0 40px oklch(0.72 0.19 48 / 50%),
-      0 0 60px oklch(0.60 0.25 345 / 30%);
+      0 0 16px oklch(0.52 0.20 18 / 90%),
+      0 0 40px oklch(0.52 0.20 18 / 50%),
+      0 0 60px oklch(0.45 0.14 145 / 30%);
   }
 }
 
 @keyframes borderGlow {
   0%, 100% {
-    border-color: oklch(0.72 0.19 48 / 40%);
-    box-shadow: 0 0 8px oklch(0.72 0.19 48 / 20%);
+    border-color: oklch(0.52 0.20 18 / 40%);
+    box-shadow: 0 0 8px oklch(0.52 0.20 18 / 20%);
   }
   50% {
-    border-color: oklch(0.72 0.19 48 / 80%);
-    box-shadow: 0 0 20px oklch(0.72 0.19 48 / 40%);
+    border-color: oklch(0.52 0.20 18 / 80%);
+    box-shadow: 0 0 20px oklch(0.52 0.20 18 / 40%);
   }
 }
 
@@ -206,11 +211,13 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    background: linear-gradient(135deg, #000000 0%, #0a0000 40%, #3d0000 70%, #8b0000 100%);
+    background-attachment: fixed;
   }
 
   html {
@@ -223,7 +230,7 @@
   }
 
   ::selection {
-    background: oklch(0.72 0.19 48 / 35%);
+    background: oklch(0.52 0.20 18 / 35%);
     color: white;
   }
 
@@ -231,10 +238,10 @@
     width: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: oklch(0.08 0.005 240);
+    background: #111;
   }
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.72 0.19 48 / 50%);
+    background: oklch(0.52 0.20 18 / 60%);
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
@@ -255,9 +262,9 @@
   .text-gradient {
     background: linear-gradient(
       135deg,
-      oklch(0.72 0.19 48) 0%,
-      oklch(0.60 0.25 345) 50%,
-      oklch(0.72 0.15 200) 100%
+      oklch(0.52 0.20 18) 0%,
+      oklch(0.65 0.18 18) 40%,
+      oklch(0.45 0.14 145) 100%
     );
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -267,9 +274,9 @@
   .text-gradient-orange {
     background: linear-gradient(
       90deg,
-      oklch(0.88 0.18 90) 0%,
-      oklch(0.72 0.19 48) 50%,
-      oklch(0.60 0.25 345) 100%
+      oklch(0.65 0.18 18) 0%,
+      oklch(0.52 0.20 18) 50%,
+      oklch(0.45 0.14 145) 100%
     );
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -281,9 +288,9 @@
     background: linear-gradient(
       90deg,
       oklch(0.97 0 0) 0%,
-      oklch(0.72 0.19 48) 25%,
+      oklch(0.52 0.20 18) 25%,
       oklch(0.97 0 0) 50%,
-      oklch(0.72 0.19 48) 75%,
+      oklch(0.45 0.14 145) 75%,
       oklch(0.97 0 0) 100%
     );
     background-size: 200% auto;
@@ -311,8 +318,8 @@
   /* Glow effects */
   .glow-orange {
     box-shadow:
-      0 0 20px oklch(0.72 0.19 48 / 25%),
-      0 0 40px oklch(0.72 0.19 48 / 10%);
+      0 0 20px oklch(0.52 0.20 18 / 30%),
+      0 0 40px oklch(0.52 0.20 18 / 12%);
   }
 
   .text-glow {
@@ -398,7 +405,7 @@
     opacity: 0.03;
   }
 
-  /* Orange accent line */
+  /* Red accent line */
   .accent-line {
     display: inline-flex;
     align-items: center;
@@ -409,7 +416,7 @@
     display: block;
     width: 2rem;
     height: 2px;
-    background: linear-gradient(90deg, oklch(0.72 0.19 48), oklch(0.60 0.25 345));
+    background: linear-gradient(90deg, oklch(0.52 0.20 18), oklch(0.45 0.14 145));
     flex-shrink: 0;
   }
 
@@ -422,9 +429,9 @@
     font-size: 0.7rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    background: oklch(0.72 0.19 48 / 15%);
-    border: 1px solid oklch(0.72 0.19 48 / 40%);
-    color: oklch(0.72 0.19 48);
+    background: oklch(0.52 0.20 18 / 15%);
+    border: 1px solid oklch(0.52 0.20 18 / 45%);
+    color: oklch(0.75 0.18 18);
     border-radius: 2px;
     transform: skewX(-4deg);
   }
@@ -462,5 +469,51 @@
     color: oklch(1 0 0 / 4%);
     user-select: none;
     letter-spacing: -0.04em;
+  }
+}
+
+/* ─── Adaptive text sur gradient blanc→noir ─── */
+
+/* Sections dans la zone blanche/grise du gradient */
+.section-light-zone h2,
+.section-light-zone h3,
+.section-light-zone p {
+  color: oklch(0.15 0 0);
+}
+.section-light-zone .text-white\/50 {
+  color: oklch(0.35 0 0);
+}
+
+/* ─── Carousel ───────────────────────────────── */
+
+@keyframes scrollLeft {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ─── Stats Slide Animation ──────────────────── */
+
+@keyframes slideFromBottom {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.stats-hidden .stat-card {
+  opacity: 0;
+  transform: translateY(40px);
+}
+
+.stats-visible .stat-card {
+  animation: slideFromBottom 0.6s ease-out var(--delay, 0ms) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stats-visible .stat-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .carousel-track {
+    animation: none !important;
   }
 }

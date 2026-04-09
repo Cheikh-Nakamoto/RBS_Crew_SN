@@ -4,6 +4,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { ErrorState } from '@/components/ui/error-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MapPin } from 'lucide-react';
+import Link from 'next/link';
 
 interface FestivalEditionItem {
   id: string;
@@ -12,7 +13,11 @@ interface FestivalEditionItem {
   year: number;
   city?: string;
   country: string;
-  translations: Array<{ locale: string; themeName: string; summary?: string }>;
+  mainImage?: string;
+  heroImage?: string;
+  gallery?: string[];
+  typography?: string[];
+  translations: Array<{ locale: string; themeName: string; summary?: string; content?: string }>;
 }
 
 export const metadata = { title: 'Festival — Last Wall Tour' };
@@ -71,38 +76,58 @@ export default async function FestivalPage() {
                     <span className="text-xs text-white/30 font-mono">{edition.year}</span>
                   </div>
 
-                  {/* Card */}
-                  <div className="flex-1 bg-white/4 rounded-2xl border border-white/8 hover:border-[oklch(0.72_0.19_48/35%)] transition-all duration-300 p-6 group card-hover">
-                    <div className="flex items-start justify-between mb-3 gap-4">
-                      <div className="flex-1">
-                        {/* Mobile edition tag */}
-                        <div className="sm:hidden mb-2">
-                          <span className="tag-graffiti">Édition {edition.editionNumber}</span>
-                        </div>
-                        <span className="text-xs font-semibold text-[oklch(0.72_0.19_48)] uppercase tracking-widest">
-                          Édition {edition.editionNumber} — {edition.year}
-                        </span>
-                        <h2 className="font-display text-2xl sm:text-3xl text-white mt-2 group-hover:text-[oklch(0.72_0.19_48)] transition-colors duration-300 leading-tight">
-                          {t?.themeName}
-                        </h2>
+                  {/* Card Wrapped in Link */}
+                  <Link
+                    href={`/festival/${edition.slug}`}
+                    className="flex-1 bg-white/4 rounded-2xl border border-white/8 hover:border-[oklch(0.72_0.19_48/35%)] transition-all duration-300 p-0 sm:p-6 group card-hover overflow-hidden flex flex-col sm:flex-row gap-6 cursor-pointer"
+                  >
+                    {/* Optional Main Image Thumbnail */}
+                    {edition.mainImage && (
+                      <div className="w-full sm:w-48 h-48 sm:h-auto flex-shrink-0 relative overflow-hidden bg-white/5 rounded-t-2xl sm:rounded-2xl">
+                        <img 
+                          src={edition.mainImage} 
+                          alt={t?.themeName}
+                          className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
+                        />
                       </div>
-                      {/* Large year */}
-                      <span className="font-display text-5xl text-white/6 flex-shrink-0 leading-none hidden md:block">
-                        {edition.year}
-                      </span>
+                    )}
+                    
+                    <div className="flex-1 p-6 sm:p-0">
+                      <div className="flex items-start justify-between mb-3 gap-4">
+                        <div className="flex-1">
+                          {/* Mobile edition tag */}
+                          <div className="sm:hidden mb-2">
+                            <span className="tag-graffiti">Édition {edition.editionNumber}</span>
+                          </div>
+                          <span className="text-xs font-semibold text-[oklch(0.72_0.19_48)] uppercase tracking-widest">
+                            Édition {edition.editionNumber} — {edition.year}
+                          </span>
+                          <h2 className="font-display text-2xl sm:text-3xl text-white mt-2 group-hover:text-[oklch(0.72_0.19_48)] transition-colors duration-300 leading-tight">
+                            {t?.themeName}
+                          </h2>
+                        </div>
+                        {/* Large year */}
+                        <span className="font-display text-5xl text-white/6 flex-shrink-0 leading-none hidden md:block">
+                          {edition.year}
+                        </span>
+                      </div>
+
+                      {edition.city && (
+                        <p className="flex items-center gap-1.5 text-sm text-white/40 mb-3">
+                          <MapPin className="w-3.5 h-3.5 text-[oklch(0.72_0.19_48)]" />
+                          {edition.city}, {edition.country}
+                        </p>
+                      )}
+
+                      {t?.summary && (
+                        <p className="text-white/50 leading-relaxed text-sm line-clamp-3 mb-4">{t.summary}</p>
+                      )}
+                      
+                      <div className="text-[oklch(0.72_0.19_48)] text-sm font-semibold flex items-center gap-2 group-hover:translate-x-1 transition-transform">
+                        Découvrir la galerie <span className="text-lg">→</span>
+                      </div>
                     </div>
-
-                    {edition.city && (
-                      <p className="flex items-center gap-1.5 text-sm text-white/40 mb-3">
-                        <MapPin className="w-3.5 h-3.5 text-[oklch(0.72_0.19_48)]" />
-                        {edition.city}, {edition.country}
-                      </p>
-                    )}
-
-                    {t?.summary && (
-                      <p className="text-white/50 leading-relaxed text-sm">{t.summary}</p>
-                    )}
-                  </div>
+                  </Link>
                 </div>
               );
             })}

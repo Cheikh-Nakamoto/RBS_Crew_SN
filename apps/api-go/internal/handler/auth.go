@@ -4,13 +4,44 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"unicode"
 
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/service"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 	"github.com/go-playground/validator/v10"
 )
 
-var validate = validator.New()
+var validate = func() *validator.Validate {
+	v := validator.New()
+	// password_strength: min 8 chars, at least 1 uppercase, 1 lowercase, 1 digit, 1 special char
+	_ = v.RegisterValidation("password_strength", func(fl validator.FieldLevel) bool {
+		pwd := fl.Field().String()
+		if len(pwd) < 8 {
+			return false
+		}
+		var hasUpper, hasLower, hasDigit, hasSpecial bool
+		for _, c := range pwd {
+			switch {
+			case unicode.IsUpper(c):
+				hasUpper = true
+			case unicode.IsLower(c):
+				hasLower = true
+			case unicode.IsDigit(c):
+				hasDigit = true
+			case unicode.IsPunct(c) || unicode.IsSymbol(c):
+				hasSpecial = true
+			}
+		}
+		return hasUpper && hasLower && hasDigit && hasSpecial
+	})
+	return v
+}()
+
+// validationError returns a generic message for validation failures
+// to avoid leaking internal field names and rules to the client.
+func validationError() *types.AppError {
+	return types.BadRequest("Invalid or missing required fields")
+}
 
 type AuthHandler struct {
 	svc *service.AuthService
@@ -37,7 +68,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := validate.Struct(req); err != nil {
-		types.WriteError(w, types.BadRequest(err.Error()))
+		types.WriteError(w, validationError())
 		return
 	}
 
@@ -65,7 +96,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := validate.Struct(req); err != nil {
-		types.WriteError(w, types.BadRequest(err.Error()))
+		types.WriteError(w, types.Unauthorized("Invalid credentials"))
 		return
 	}
 

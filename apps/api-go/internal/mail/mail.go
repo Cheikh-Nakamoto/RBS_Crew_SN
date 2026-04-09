@@ -35,7 +35,7 @@ func (s *MailService) SendPasswordReset(to, token string) error {
 }
 
 func (s *MailService) SendEmailVerification(to, token string) error {
-	verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", s.cfg.DatabaseURL, token) // TODO use actual public API URL
+	verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", s.cfg.AppURL, token)
 
 	subject := "Vérifiez votre adresse e-mail - RBS Crew"
 	body := fmt.Sprintf(`

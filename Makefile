@@ -1,16 +1,24 @@
-.PHONY: install dev up down logs logs-api logs-web build lint test clean health \
-       db-migrate db-generate db-seed db-studio db-reset migrate-products
+.PHONY: install dev dev-api dev-web up down logs logs-api logs-web \
+        build build-api build-web lint test clean health \
+        db-sqlc db-docs \
+        migrate-extract migrate-upload migrate-db-push migrate-import migrate-full
 
 # ── Setup ────────────────────────────────────
 
-install: ## Install all workspace dependencies
+install: ## Install Node dependencies (web)
 	npm install
 
 # ── Development ──────────────────────────────
 
-dev: ## Start postgres+redis in Docker, then run API + Web locally with hot-reload
+dev: ## Start postgres+redis in Docker, then run API Go + Web in parallel
 	docker compose up -d postgres redis
-	npx turbo dev
+	$(MAKE) -j2 dev-api dev-web
+
+dev-api: ## Run Go API in dev mode (hot-reload)
+	cd apps/api-go && go run ./cmd/api
+
+dev-web: ## Run Next.js web in dev mode
+	cd apps/web && npm run dev
 
 up: ## Build and start all services in Docker
 	docker compose up -d --build
@@ -21,39 +29,39 @@ down: ## Stop all Docker services
 logs: ## Follow logs for all services
 	docker compose logs -f
 
-logs-api: ## Follow NestJS API logs
+logs-api: ## Follow Go API logs
 	docker compose logs -f nestjs-api
 
 logs-web: ## Follow Next.js web logs
 	docker compose logs -f nextjs-web
 
-# ── Build & Quality ─────────────────────────
+# ── Build ────────────────────────────────────
 
-build: install ## Build all packages
-	npx turbo build
+build: build-api build-web ## Build API Go + Web
 
-lint: ## Run linters across all packages
-	npx turbo lint
+build-api: ## Build Go API binary → apps/api-go/dist/api-go
+	cd apps/api-go && $(MAKE) build
 
-test: ## Run tests across all packages
-	npx turbo test
+build-web: install ## Build Next.js for production
+	cd apps/web && npm run build
 
-# ── Database ─────────────────────────────────
+# ── Code Generation ──────────────────────────
 
-db-migrate: ## Run Prisma migrations (dev)
-	cd apps/api && npx prisma migrate dev
+db-sqlc: ## Regenerate DB queries from SQL (sqlc)
+	cd apps/api-go && sqlc generate
 
-db-generate: ## Regenerate Prisma client
-	cd apps/api && npx prisma generate
+db-docs: ## Regenerate Swagger/OpenAPI docs (swag)
+	cd apps/api-go && swag init -g ./cmd/api/main.go -o docs --parseDependency
 
-db-seed: ## Seed the database
-	cd apps/api && npx prisma db seed
+# ── Quality ──────────────────────────────────
 
-db-studio: ## Open Prisma Studio (DB GUI)
-	cd apps/api && npx prisma studio
+lint: ## Run linters (Go + web)
+	cd apps/api-go && golangci-lint run ./...
+	cd apps/web && npm run lint
 
-db-reset: ## Reset database and re-run all migrations
-	cd apps/api && npx prisma migrate reset
+test: ## Run tests (Go + web)
+	cd apps/api-go && go test -race -cover ./...
+	cd apps/web && npm run test --if-present
 
 # ── Migration from WordPress ─────────────────
 
@@ -63,18 +71,18 @@ migrate-extract: ## Extraire toutes les données de WordPress vers JSON
 migrate-upload: ## Envoyer toutes les images locales vers Cloudflare S3
 	cd migration-scripts && npm run upload-s3
 
-migrate-db-push: ## Mettre à jour la structure de la base de données
-	cd apps/api && npx prisma db push --schema=prisma/schema.prisma
+migrate-db-push: ## Appliquer le schéma SQL sur la base de données
+	psql "$$DATABASE_URL" -f apps/api-go/sql/schema.sql
 
-migrate-import: ## Injecter les fichiers JSON dans PostgreSQL (avec URLs Cloudflare strictes)
+migrate-import: ## Injecter les fichiers JSON dans PostgreSQL
 	cd migration-scripts && npx tsx import-db.ts
 
-migrate-full: migrate-extract migrate-upload migrate-db-push migrate-import ## Exécuter l'intégralité du pipeline de migration
+migrate-full: migrate-extract migrate-upload migrate-db-push migrate-import ## Pipeline complet de migration
 
 # ── Health Checks ────────────────────────────
 
-health: ## Check health of API and nginx
-	@echo "=== API Health ==="
+health: ## Check health of API, nginx and web
+	@echo "=== Go API Health ==="
 	@curl -sf http://localhost:4000/health 2>/dev/null && echo "" || echo "API unreachable"
 	@echo "=== Nginx → API ==="
 	@curl -sf http://localhost/api/health 2>/dev/null && echo "" || echo "Nginx→API unreachable"
@@ -83,9 +91,9 @@ health: ## Check health of API and nginx
 
 # ── Cleanup ──────────────────────────────────
 
-clean: ## Remove node_modules, dist, .next, .turbo
-	rm -rf node_modules apps/*/node_modules packages/*/node_modules
-	rm -rf apps/api/dist apps/web/.next
+clean: ## Remove node_modules, Go dist, .next, .turbo
+	rm -rf node_modules apps/web/node_modules packages/*/node_modules
+	rm -rf apps/api-go/dist apps/web/.next
 	rm -rf .turbo apps/*/.turbo packages/*/.turbo
 
 # ── Help ─────────────────────────────────────

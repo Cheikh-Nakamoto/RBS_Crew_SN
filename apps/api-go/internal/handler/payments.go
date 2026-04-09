@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/payment"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/service"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 )
@@ -39,26 +40,44 @@ func (h *PaymentsHandler) CreateCheckout(w http.ResponseWriter, r *http.Request)
 	types.WriteJSON(w, http.StatusOK, result)
 }
 
+// webhookHandler returns a handler for a specific payment method's webhook.
+func (h *PaymentsHandler) WebhookFor(method payment.Method) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		const MaxBodyBytes = int64(65536)
+		r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
+
+		payload, err := io.ReadAll(r.Body)
+		if err != nil {
+			types.WriteError(w, types.BadRequest("Error reading request body"))
+			return
+		}
+
+		// Collect relevant headers
+		headers := make(map[string]string)
+		for _, key := range []string{
+			// Stripe
+			"Stripe-Signature",
+			// PayPal
+			"PAYPAL-AUTH-ALGO", "PAYPAL-CERT-URL", "PAYPAL-TRANSMISSION-ID",
+			"PAYPAL-TRANSMISSION-SIG", "PAYPAL-TRANSMISSION-TIME",
+			// Wave
+			"Wave-Signature",
+		} {
+			if v := r.Header.Get(key); v != "" {
+				headers[key] = v
+			}
+		}
+
+		if appErr := h.svc.HandleWebhook(r.Context(), method, payload, headers); appErr != nil {
+			types.WriteError(w, appErr)
+			return
+		}
+
+		types.WriteJSON(w, http.StatusOK, map[string]bool{"received": true})
+	}
+}
+
+// Legacy Webhook handler (backward compat for Stripe — used by existing route)
 func (h *PaymentsHandler) Webhook(w http.ResponseWriter, r *http.Request) {
-	const MaxBodyBytes = int64(65536)
-	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
-
-	payload, err := io.ReadAll(r.Body)
-	if err != nil {
-		types.WriteError(w, types.BadRequest("Error reading request body"))
-		return
-	}
-
-	sigHeader := r.Header.Get("Stripe-Signature")
-	if sigHeader == "" {
-		types.WriteError(w, types.BadRequest("Missing stripe signature"))
-		return
-	}
-
-	if appErr := h.svc.HandleWebhook(r.Context(), payload, sigHeader); appErr != nil {
-		types.WriteError(w, appErr)
-		return
-	}
-
-	types.WriteJSON(w, http.StatusOK, map[string]bool{"received": true})
+	h.WebhookFor(payment.MethodStripe)(w, r)
 }

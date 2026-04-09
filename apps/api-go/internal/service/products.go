@@ -211,10 +211,22 @@ func (s *ProductsService) ClearCache(ctx context.Context) {
 }
 
 func (s *ProductsService) assembleProduct(ctx context.Context, p *db.Product, locale string) (ProductResponse, error) {
-	translations, _ := s.repo.GetTranslations(ctx, p.ID)
-	images, _ := s.repo.GetImages(ctx, p.ID)
-	categories, _ := s.repo.GetCategories(ctx, p.ID, locale)
-	tags, _ := s.repo.GetTags(ctx, p.ID, locale)
+	translations, err := s.repo.GetTranslations(ctx, p.ID)
+	if err != nil {
+		slog.Warn("Failed to fetch product translations", "productId", p.ID, "error", err)
+	}
+	images, err := s.repo.GetImages(ctx, p.ID)
+	if err != nil {
+		slog.Warn("Failed to fetch product images", "productId", p.ID, "error", err)
+	}
+	categories, err := s.repo.GetCategories(ctx, p.ID, locale)
+	if err != nil {
+		slog.Warn("Failed to fetch product categories", "productId", p.ID, "error", err)
+	}
+	tags, err := s.repo.GetTags(ctx, p.ID, locale)
+	if err != nil {
+		slog.Warn("Failed to fetch product tags", "productId", p.ID, "error", err)
+	}
 
 	trans := make([]ProductTranslation, 0, len(translations))
 	for _, t := range translations {

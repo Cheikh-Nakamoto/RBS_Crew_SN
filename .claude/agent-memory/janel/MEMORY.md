@@ -1,0 +1,2 @@
+- [Profil Janel](user_janel_profile.md) — QA Engineer sur RBS_Crew_SN, travaille avec Theo (agent QA Senior)
+- [Etat QA api-go](project_api_go_qa_state.md) — Review 2026-04-04 : 0 test, 3 bugs critiques, 9 bugs hauts identifiés

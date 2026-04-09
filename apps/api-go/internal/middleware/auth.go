@@ -26,7 +26,11 @@ func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
 					return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 				}
 				return []byte(jwtSecret), nil
-			})
+			},
+				jwt.WithIssuer(types.JWTIssuer),
+				jwt.WithAudience(types.JWTAudience),
+				jwt.WithExpirationRequired(),
+			)
 
 			if err != nil || !token.Valid {
 				types.WriteError(w, types.Unauthorized("Invalid or expired token"))

@@ -16,6 +16,7 @@ import (
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/handler"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/logger"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/mail"
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/payment"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/redis"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/repository"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/router"
@@ -90,7 +91,28 @@ func run() error {
 	quotesSvc := service.NewQuotesService(quotesRepo)
 	ordersSvc := service.NewOrdersService(ordersRepo, productsRepo)
 	usersSvc := service.NewUsersService(usersRepo)
-	paymentsSvc := service.NewPaymentsService(cfg.StripeSecretKey, cfg.StripeWebhookSecret, ordersRepo)
+
+	// ── Payment providers ────────────────────────────────────────────────────
+	var paymentProviders []payment.Provider
+
+	if cfg.StripeSecretKey != "" {
+		paymentProviders = append(paymentProviders, payment.NewStripeProvider(cfg.StripeSecretKey, cfg.StripeWebhookSecret))
+		slog.Info("Payment provider enabled: Stripe")
+	}
+	if cfg.PayPalClientID != "" && cfg.PayPalClientSecret != "" {
+		paymentProviders = append(paymentProviders, payment.NewPayPalProvider(cfg.PayPalClientID, cfg.PayPalClientSecret, cfg.PayPalSandbox, cfg.PayPalWebhookID))
+		slog.Info("Payment provider enabled: PayPal", "sandbox", cfg.PayPalSandbox)
+	}
+	if cfg.WaveAPIKey != "" {
+		paymentProviders = append(paymentProviders, payment.NewWaveProvider(cfg.WaveAPIKey, cfg.WaveSecretKey))
+		slog.Info("Payment provider enabled: Wave")
+	}
+	if cfg.OrangeMoneyClientID != "" {
+		paymentProviders = append(paymentProviders, payment.NewOrangeMoneyProvider(cfg.OrangeMoneyClientID, cfg.OrangeMoneyClientSecret, cfg.OrangeMoneyMerchantKey))
+		slog.Info("Payment provider enabled: Orange Money")
+	}
+
+	paymentsSvc := service.NewPaymentsService(ordersRepo, paymentProviders...)
 
 	// ── Handlers ────────────────────────────────────────────────────────────
 	handlers := &router.Handlers{

@@ -8,7 +8,7 @@ MAIN_FILE=./cmd/api
 
 # Tools
 SQLC=sqlc
-SWAG=swag
+SWAG=$(shell go env GOPATH)/bin/swag
 GOLANGCI_LINT=golangci-lint
 
 generate:

@@ -73,10 +73,14 @@ func (h *OrdersHandler) FindOne(w http.ResponseWriter, r *http.Request) {
 func (h *OrdersHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var body struct {
-		Status string `json:"status" validate:"required"`
+		Status string `json:"status" validate:"required,oneof=PENDING PROCESSING COMPLETED CANCELLED REFUNDED FAILED"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		types.WriteError(w, types.BadRequest("Invalid payload"))
+		return
+	}
+	if err := validate.Struct(body); err != nil {
+		types.WriteError(w, types.BadRequest("Invalid status: must be one of PENDING, PROCESSING, COMPLETED, CANCELLED, REFUNDED, FAILED"))
 		return
 	}
 	result, err := h.svc.UpdateStatus(r.Context(), id, body.Status)

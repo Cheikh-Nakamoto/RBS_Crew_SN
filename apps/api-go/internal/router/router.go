@@ -4,6 +4,7 @@ import (
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/config"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/handler"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/middleware"
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/payment"
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/time/rate"
 )
@@ -33,23 +34,28 @@ func NewRouter(cfg *config.Config, h *Handlers) chi.Router {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recovery)
 	r.Use(middleware.SecurityHeaders)
+	r.Use(middleware.MaxBodySize)
 	r.Use(middleware.CORS(cfg.CORSOrigin))
 	r.Use(middleware.Locale)
 
 	// ── Public Routes ───────────────────────────────────────────────────────
 	r.Group(func(r chi.Router) {
 		// Global throttle: 60 req/min burst 20 per IP
-		r.Use(middleware.RateLimit(rate.Every(60), 20))
+		r.Use(middleware.RateLimit(rate.Limit(1), 20))
 
 		r.Get("/health", h.Health.Check)
 
-		// Auth
-		r.Post("/auth/register", h.Auth.Register)
-		r.Post("/auth/login", h.Auth.Login)
+		// Auth — sensitive endpoints get a stricter rate limit (5 req/min burst 5)
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RateLimit(rate.Limit(float64(5)/60), 5))
+			r.Post("/auth/register", h.Auth.Register)
+			r.Post("/auth/login", h.Auth.Login)
+			r.Post("/auth/forgot-password", h.Auth.ForgotPassword)
+			r.Post("/auth/reset-password", h.Auth.ResetPassword)
+		})
+
 		r.Post("/auth/session", h.Auth.CheckSession)
 		r.Post("/auth/refresh", h.Auth.Refresh)
-		r.Post("/auth/forgot-password", h.Auth.ForgotPassword)
-		r.Post("/auth/reset-password", h.Auth.ResetPassword)
 		r.Post("/auth/verify-email", h.Auth.VerifyEmail)
 
 		// Categories & Tags
@@ -91,8 +97,12 @@ func NewRouter(cfg *config.Config, h *Handlers) chi.Router {
 			r.Post("/quotes", h.Quotes.Create)
 		})
 
-		// Stripe Webhook — public, exempt from generic middleware rate drops (Stripe handles retries)
-		r.Post("/payments/webhook", h.Payments.Webhook)
+		// Payment webhooks — public, exempt from generic rate limiting
+		r.Post("/payments/webhook", h.Payments.Webhook) // Legacy Stripe
+		r.Post("/payments/webhook/stripe", h.Payments.WebhookFor(payment.MethodStripe))
+		r.Post("/payments/webhook/paypal", h.Payments.WebhookFor(payment.MethodPayPal))
+		r.Post("/payments/webhook/wave", h.Payments.WebhookFor(payment.MethodWave))
+		r.Post("/payments/webhook/orange-money", h.Payments.WebhookFor(payment.MethodOrangeMoney))
 	})
 
 	// ── Authenticated Routes ─────────────────────────────────────────────────

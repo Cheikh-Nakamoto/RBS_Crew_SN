@@ -7,10 +7,91 @@ package db
 
 import (
 	"context"
+
+	decimal "github.com/shopspring/decimal"
 )
 
+const createPayment = `-- name: CreatePayment :one
+INSERT INTO "Payment" ("id", "orderId", "method", "externalId", "amount", "currency", "status", "metadata")
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, "orderId", method, "externalId", amount, currency, status, metadata, "createdAt", "updatedAt"
+`
+
+type CreatePaymentParams struct {
+	ID         string          `json:"id"`
+	OrderId    string          `json:"orderId"`
+	Method     PaymentMethod   `json:"method"`
+	ExternalId *string         `json:"externalId"`
+	Amount     decimal.Decimal `json:"amount"`
+	Currency   string          `json:"currency"`
+	Status     PaymentStatus   `json:"status"`
+	Metadata   []byte          `json:"metadata"`
+}
+
+func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (Payment, error) {
+	row := q.db.QueryRow(ctx, createPayment,
+		arg.ID,
+		arg.OrderId,
+		arg.Method,
+		arg.ExternalId,
+		arg.Amount,
+		arg.Currency,
+		arg.Status,
+		arg.Metadata,
+	)
+	var i Payment
+	err := row.Scan(
+		&i.ID,
+		&i.OrderId,
+		&i.Method,
+		&i.ExternalId,
+		&i.Amount,
+		&i.Currency,
+		&i.Status,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getOrderByPaymentExternalID = `-- name: GetOrderByPaymentExternalID :one
+SELECT o.id, o."orderNumber", o."userId", o."guestEmail", o.status, o."paymentStatus", o."stripePaymentIntentId", o.currency, o.subtotal, o."taxAmount", o."shippingAmount", o."discountAmount", o.total, o."shippingAddressId", o."billingAddressId", o.notes, o."wcId", o.locale, o."createdAt", o."updatedAt", o."paymentMethod" FROM "Order" o
+JOIN "Payment" p ON p."orderId" = o."id"
+WHERE p."externalId" = $1
+`
+
+func (q *Queries) GetOrderByPaymentExternalID(ctx context.Context, externalid *string) (Order, error) {
+	row := q.db.QueryRow(ctx, getOrderByPaymentExternalID, externalid)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.OrderNumber,
+		&i.UserId,
+		&i.GuestEmail,
+		&i.Status,
+		&i.PaymentStatus,
+		&i.StripePaymentIntentId,
+		&i.Currency,
+		&i.Subtotal,
+		&i.TaxAmount,
+		&i.ShippingAmount,
+		&i.DiscountAmount,
+		&i.Total,
+		&i.ShippingAddressId,
+		&i.BillingAddressId,
+		&i.Notes,
+		&i.WcId,
+		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PaymentMethod,
+	)
+	return i, err
+}
+
 const getOrderByStripeSession = `-- name: GetOrderByStripeSession :one
-SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt" FROM "Order" WHERE "stripePaymentIntentId" = $1
+SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "paymentMethod" FROM "Order" WHERE "stripePaymentIntentId" = $1
 `
 
 func (q *Queries) GetOrderByStripeSession(ctx context.Context, stripepaymentintentid *string) (Order, error) {
@@ -37,8 +118,66 @@ func (q *Queries) GetOrderByStripeSession(ctx context.Context, stripepaymentinte
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PaymentMethod,
 	)
 	return i, err
+}
+
+const getPaymentByExternalID = `-- name: GetPaymentByExternalID :one
+SELECT id, "orderId", method, "externalId", amount, currency, status, metadata, "createdAt", "updatedAt" FROM "Payment" WHERE "externalId" = $1
+`
+
+func (q *Queries) GetPaymentByExternalID(ctx context.Context, externalid *string) (Payment, error) {
+	row := q.db.QueryRow(ctx, getPaymentByExternalID, externalid)
+	var i Payment
+	err := row.Scan(
+		&i.ID,
+		&i.OrderId,
+		&i.Method,
+		&i.ExternalId,
+		&i.Amount,
+		&i.Currency,
+		&i.Status,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPaymentsByOrderID = `-- name: GetPaymentsByOrderID :many
+SELECT id, "orderId", method, "externalId", amount, currency, status, metadata, "createdAt", "updatedAt" FROM "Payment" WHERE "orderId" = $1 ORDER BY "createdAt" DESC
+`
+
+func (q *Queries) GetPaymentsByOrderID(ctx context.Context, orderid string) ([]Payment, error) {
+	rows, err := q.db.Query(ctx, getPaymentsByOrderID, orderid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Payment{}
+	for rows.Next() {
+		var i Payment
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrderId,
+			&i.Method,
+			&i.ExternalId,
+			&i.Amount,
+			&i.Currency,
+			&i.Status,
+			&i.Metadata,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateOrderPaymentStatus = `-- name: UpdateOrderPaymentStatus :one
@@ -46,16 +185,18 @@ UPDATE "Order"
 SET "paymentStatus" = $2::"PaymentStatus",
     "status" = COALESCE($3::"OrderStatus", "status"),
     "stripePaymentIntentId" = COALESCE($4::text, "stripePaymentIntentId"),
+    "paymentMethod" = COALESCE($5::"PaymentMethod", "paymentMethod"),
     "updatedAt" = NOW()
 WHERE "id" = $1
-RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt"
+RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "paymentMethod"
 `
 
 type UpdateOrderPaymentStatusParams struct {
-	ID                    string          `json:"id"`
-	Column2               PaymentStatus   `json:"column_2"`
-	Status                NullOrderStatus `json:"status"`
-	StripePaymentIntentId *string         `json:"stripePaymentIntentId"`
+	ID                    string            `json:"id"`
+	Column2               PaymentStatus     `json:"column_2"`
+	Status                NullOrderStatus   `json:"status"`
+	StripePaymentIntentId *string           `json:"stripePaymentIntentId"`
+	PaymentMethod         NullPaymentMethod `json:"paymentMethod"`
 }
 
 func (q *Queries) UpdateOrderPaymentStatus(ctx context.Context, arg UpdateOrderPaymentStatusParams) (Order, error) {
@@ -64,6 +205,7 @@ func (q *Queries) UpdateOrderPaymentStatus(ctx context.Context, arg UpdateOrderP
 		arg.Column2,
 		arg.Status,
 		arg.StripePaymentIntentId,
+		arg.PaymentMethod,
 	)
 	var i Order
 	err := row.Scan(
@@ -85,6 +227,40 @@ func (q *Queries) UpdateOrderPaymentStatus(ctx context.Context, arg UpdateOrderP
 		&i.Notes,
 		&i.WcId,
 		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PaymentMethod,
+	)
+	return i, err
+}
+
+const updatePaymentStatus = `-- name: UpdatePaymentStatus :one
+UPDATE "Payment"
+SET "status" = $2::"PaymentStatus",
+    "externalId" = COALESCE($3::text, "externalId"),
+    "updatedAt" = NOW()
+WHERE "id" = $1
+RETURNING id, "orderId", method, "externalId", amount, currency, status, metadata, "createdAt", "updatedAt"
+`
+
+type UpdatePaymentStatusParams struct {
+	ID         string        `json:"id"`
+	Column2    PaymentStatus `json:"column_2"`
+	ExternalId *string       `json:"externalId"`
+}
+
+func (q *Queries) UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStatusParams) (Payment, error) {
+	row := q.db.QueryRow(ctx, updatePaymentStatus, arg.ID, arg.Column2, arg.ExternalId)
+	var i Payment
+	err := row.Scan(
+		&i.ID,
+		&i.OrderId,
+		&i.Method,
+		&i.ExternalId,
+		&i.Amount,
+		&i.Currency,
+		&i.Status,
+		&i.Metadata,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

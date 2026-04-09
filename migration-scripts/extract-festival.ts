@@ -1,25 +1,154 @@
 import * as dotenv from 'dotenv';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 import { saveJson } from './utils';
-dotenv.config();
 
-const EDITIONS = [
-  { edition: 1, year: 2014, city: 'Thiès',     slug: 'last-wall-1st-edition', themeName: 'Edition One',       summary: "C'est en Décembre 2014 que tout a commencé. Le collectif s'est donné pour défi de faire une session de jam en dehors de Dakar, dans l'esprit de la culture HIP-HOP et de la self-détermination." },
-  { edition: 2, year: 2015, city: 'Saint-Louis',slug: 'last-wall-2nd-edition', themeName: 'Golden Heritage',   summary: "Avec la participation de l'artiste suisse Seika One, le festival devient International dès sa 2ème édition à Saint-Louis du Sénégal." },
-  { edition: 3, year: 2016, city: 'Kaolack',   slug: 'last-wall-3rd-edition', themeName: 'Panafricanism',     summary: "Pour sa 3ème édition, le RBS Crew a choisi Kaolack pour participer à la revalorisation de cette grande ville et appuyer les artistes autochtones." },
-  { edition: 4, year: 2017, city: 'Kaffrine',  slug: 'last-wall-4th-edition', themeName: 'Kemetik Musso',     summary: "Cette édition à Kaffrine rend un vibrant hommage aux braves Femmes du monde en général et aux battantes Africaines en particulier." },
-  { edition: 5, year: 2018, city: 'Louga',     slug: 'last-wall-5th-edition', themeName: 'Afrofuturism',      summary: "Afrofuturisme — un thème équivalent à l'urgence de notre époque. L'Afrique n'a personne à rattraper." },
-  { edition: 6, year: 2019, city: 'Thiès',     slug: 'last-wall-6th-edition', themeName: 'Green Hope',        summary: "Le Last Wall Tour de 2019 fut particulièrement authentique, avec des artistes qui ont parlé au nom de la Nature et de l'urgence environnementale." },
-  { edition: 7, year: 2021, city: 'Dakar',     slug: 'last-wall-7th-edition', themeName: 'The Kulture',       summary: "Après le Covid, retour en force avec NO PROGRESS WITHOUT KULTURE. Première édition avec un prélude à Dakar puis en Casamance (Ziguinchor)." },
-  { edition: 8, year: 2022, city: 'Dakar',     slug: 'last-wall-8th-edition', themeName: 'Jarino Liniu Moom', summary: "JARIÑO LINIOU MOOM — appel à la jeunesse et au retour aux sources. Le RBS Crew passe d'un festival annuel à une biennale pour mieux préparer chaque édition." },
-  { edition: 9, year: 2024, city: 'Dakar',     slug: 'last-wall-9th-edition', themeName: 'Transmission',      summary: "9ème édition du 28 novembre au 1er décembre 2024 à Dakar. 21 graffeurs venus des quatre coins du Sénégal, du continent africain et d'ailleurs." },
-];
+dotenv.config();
 
 async function migrateFestival() {
   console.log('🎪 Extraction Last Wall Tour Festival vers JSON...');
 
-  saveJson('festival.json', EDITIONS);
+  try {
+    const response = await axios.get('https://rbsakademya.com/last-wall/');
+    const html = response.data;
+    const $ = cheerio.load(html);
 
-  console.log('\n🏁 Festival terminé.');
+    const logo = $('#logo').attr('src');
+    // Global hero image is usually the first big image in the body
+    const heroImage = $('.et_pb_section_0 .et_pb_image img').attr('src') || $('.wp-image-30680').attr('src');
+    
+    // Extract partners
+    const partners: string[] = [];
+    $('h2, h3, h4').each((i, el) => {
+      const text = $(el).text().toLowerCase();
+      if (text.includes('partenaire') || text.includes('collaborations')) {
+        const section = $(el).closest('.et_pb_section');
+        section.find('img').each((j, img) => {
+          const src = $(img).attr('src');
+          if (src && !src.includes('lazy') && !partners.includes(src)) {
+            partners.push(src);
+          }
+        });
+      }
+    });
+
+    const editions: any[] = [];
+    const _typography: string[] = [];
+
+    // Divi blurbs usually hold the editions
+    const blurbElements = $('.et_pb_blurb').toArray();
+    
+    for (let i = 0; i < blurbElements.length; i++) {
+      const el = blurbElements[i];
+      const themeName = $(el).find('h2').text().trim();
+      const image = $(el).find('.et_pb_main_blurb_image img').attr('src');
+      const rawText = $(el).find('.et_pb_blurb_description').text().replace(/\s+/g, ' ').trim();
+      
+      let year = null;
+      let editionNumStr = null;
+      let city = null;
+      let summary = rawText;
+
+      const metadataMatch = rawText.match(/^(\d{4})\s*[-–]\s*(\d+)(?:e|th|st|nd|rd)\s+edition,\s*([^A-Z]*?)(?=[A-Z]|$)/i);
+      if (metadataMatch) {
+         year = parseInt(metadataMatch[1], 10);
+         editionNumStr = parseInt(metadataMatch[2], 10);
+         city = metadataMatch[3].trim().replace(/(&amp;|and)/g, '&');
+         summary = rawText.substring(metadataMatch[0].length).trim();
+      }
+
+      // Collect inline typography specs
+      $(el).find('[style*=font-family]').each((_, span) => {
+          const style = $(span).attr('style') || '';
+          const match = style.match(/font-family:\s*([^;]+);/);
+          if (match) _typography.push(match[1].trim());
+      });
+
+      // Attempt to find the specific URL page for this edition
+      let specificUrl = $(el).siblings('.et_pb_button_module_wrapper').find('a.et_pb_button').attr('href');
+
+      // If we found a specific URL, fetch its info
+      let gallery: string[] = [];
+      let editionHero = null;
+      let editionTypography: string[] = [];
+      let editionBio = '';
+
+      if (specificUrl) {
+          try {
+              console.log(`fetching specific page: ${specificUrl}`);
+              const specRes = await axios.get(specificUrl);
+              const _$ = cheerio.load(specRes.data);
+              
+              editionHero = _$('.et_pb_section_0 .et_pb_image img').attr('src') || _$('img').eq(0).attr('src');
+              
+              _$('img').each((_, imgEl) => {
+                  const src = _$(imgEl).attr('src');
+                  if (src && !src.includes('data:image') && !src.includes('logo') && !gallery.includes(src)) {
+                      gallery.push(src);
+                  }
+              });
+
+              // Extract the detailed bio of the edition
+              _$('.et_pb_text_inner p').each((_, p) => {
+                  const pTxt = _$(p).text().replace(/\s+/g, ' ').trim();
+                  // Simple heuristic to exclude footer/copyright blurbs
+                  if (pTxt.length > 40 && !pTxt.toLowerCase().includes('droits d’auteur') && !pTxt.includes('contact@') && !pTxt.includes('RBS LABZ')) {
+                      editionBio += pTxt + '\n\n';
+                  }
+              });
+              editionBio = editionBio.trim();
+
+              _$(el).find('[style*=font-family]').each((_, span) => {
+                  const style = _$(span).attr('style') || '';
+                  const match = style.match(/font-family:\s*([^;]+);/);
+                  if (match) {
+                      editionTypography.push(match[1].trim());
+                      _typography.push(match[1].trim());
+                  }
+              });
+              editionTypography = [...new Set(editionTypography)];
+          } catch (e) {
+              console.log(`Failed to fetch specific page ${specificUrl}`);
+          }
+      }
+
+      // Ignore the main header blurb that lacks an image and specificUrl
+      if (themeName && (image || specificUrl)) {
+        editions.push({
+          edition: editionNumStr || editions.length + 1,
+          year: year || null,
+          city: city || 'Unknown',
+          slug: themeName ? themeName.toLowerCase().replace(/\s+/g, '-') : `last-wall-${editions.length + 1}`,
+          themeName: themeName || 'Last Wall Edition',
+          image: image || null,
+          summary: summary,
+          bio: editionBio || null,
+          specificUrl: specificUrl,
+          editionHeroImage: editionHero,
+          gallery: gallery.slice(0, 15), // keep up to 15 images
+          typography: editionTypography.length > 0 ? editionTypography : undefined
+        });
+      }
+    }
+
+    // reverse to order historically
+    editions.reverse();
+
+    const result = {
+      projectInfo: {
+        logo: logo,
+        heroImage: heroImage,
+        typography: [...new Set(_typography)],
+        partners: partners
+      },
+      editions: editions
+    };
+
+    saveJson('festival.json', result);
+    console.log('\n🏁 Festival terminee, extractions de typographie, heros, pages specifiques, logos et partenaires incluses.');
+  } catch (error) {
+    console.error('Erreur lors de l\'extraction du festival:', error);
+  }
 }
 
 migrateFestival();

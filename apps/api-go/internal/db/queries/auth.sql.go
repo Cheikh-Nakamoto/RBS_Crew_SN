@@ -61,7 +61,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (U
 const createUser = `-- name: CreateUser :one
 INSERT INTO "User" ("id", "email", "passwordHash", "firstName", "lastName", "phone", "role", "preferredLocale", "createdAt", "updatedAt", "emailVerified")
 VALUES ($1, $2, $3, $4, $5, $6, 'CUSTOMER'::"UserRole", 'fr'::"Locale", NOW(), NOW(), false)
-RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "createdAt", "updatedAt", "resetToken", "resetTokenExpiry"
+RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "createdAt", "updatedAt", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry"
 `
 
 type CreateUserParams struct {
@@ -98,6 +98,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.UpdatedAt,
 		&i.ResetToken,
 		&i.ResetTokenExpiry,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationTokenExpiry,
 	)
 	return i, err
 }
@@ -143,7 +145,7 @@ func (q *Queries) GetActiveSessionsByUser(ctx context.Context, userid string) ([
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "createdAt", "updatedAt", "resetToken", "resetTokenExpiry" FROM "User" WHERE "email" = $1
+SELECT id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "createdAt", "updatedAt", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry" FROM "User" WHERE "email" = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -164,7 +166,29 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.UpdatedAt,
 		&i.ResetToken,
 		&i.ResetTokenExpiry,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationTokenExpiry,
 	)
+	return i, err
+}
+
+const getUserByEmailVerificationToken = `-- name: GetUserByEmailVerificationToken :one
+SELECT "id", "email", "emailVerified"
+FROM "User"
+WHERE "emailVerificationToken" = $1
+  AND "emailVerificationTokenExpiry" > NOW()
+`
+
+type GetUserByEmailVerificationTokenRow struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"emailVerified"`
+}
+
+func (q *Queries) GetUserByEmailVerificationToken(ctx context.Context, emailverificationtoken *string) (GetUserByEmailVerificationTokenRow, error) {
+	row := q.db.QueryRow(ctx, getUserByEmailVerificationToken, emailverificationtoken)
+	var i GetUserByEmailVerificationTokenRow
+	err := row.Scan(&i.ID, &i.Email, &i.EmailVerified)
 	return i, err
 }
 
@@ -224,8 +248,30 @@ func (q *Queries) GetUserByResetToken(ctx context.Context, resettoken *string) (
 	return i, err
 }
 
+const setEmailVerificationToken = `-- name: SetEmailVerificationToken :exec
+UPDATE "User"
+SET "emailVerificationToken" = $2, "emailVerificationTokenExpiry" = $3, "updatedAt" = NOW()
+WHERE "id" = $1
+`
+
+type SetEmailVerificationTokenParams struct {
+	ID                           string           `json:"id"`
+	EmailVerificationToken       *string          `json:"emailVerificationToken"`
+	EmailVerificationTokenExpiry pgtype.Timestamp `json:"emailVerificationTokenExpiry"`
+}
+
+func (q *Queries) SetEmailVerificationToken(ctx context.Context, arg SetEmailVerificationTokenParams) error {
+	_, err := q.db.Exec(ctx, setEmailVerificationToken, arg.ID, arg.EmailVerificationToken, arg.EmailVerificationTokenExpiry)
+	return err
+}
+
 const setEmailVerified = `-- name: SetEmailVerified :exec
-UPDATE "User" SET "emailVerified" = true, "updatedAt" = NOW() WHERE "id" = $1
+UPDATE "User"
+SET "emailVerified" = true,
+    "emailVerificationToken" = NULL,
+    "emailVerificationTokenExpiry" = NULL,
+    "updatedAt" = NOW()
+WHERE "id" = $1
 `
 
 func (q *Queries) SetEmailVerified(ctx context.Context, id string) error {

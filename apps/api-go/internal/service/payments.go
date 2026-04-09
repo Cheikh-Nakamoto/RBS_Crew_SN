@@ -2,51 +2,60 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 
 	db "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db/queries"
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/payment"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/repository"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/shopspring/decimal"
-	"github.com/stripe/stripe-go/v82"
-	"github.com/stripe/stripe-go/v82/checkout/session"
-	"github.com/stripe/stripe-go/v82/webhook"
 )
 
 type PaymentsService struct {
-	stripeKey     string
-	webhookSecret string
-	ordersRepo    *repository.OrdersRepository
+	providers  map[payment.Method]payment.Provider
+	ordersRepo *repository.OrdersRepository
 }
 
-func NewPaymentsService(stripeKey, webhookSecret string, ordersRepo *repository.OrdersRepository) *PaymentsService {
-	stripe.Key = stripeKey
+func NewPaymentsService(ordersRepo *repository.OrdersRepository, providers ...payment.Provider) *PaymentsService {
+	pm := make(map[payment.Method]payment.Provider)
+	for _, p := range providers {
+		pm[p.Name()] = p
+	}
 	return &PaymentsService{
-		stripeKey:     stripeKey,
-		webhookSecret: webhookSecret,
-		ordersRepo:    ordersRepo,
+		providers:  pm,
+		ordersRepo: ordersRepo,
 	}
 }
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
 type CreateCheckoutDTO struct {
-	OrderID    string `json:"orderId" validate:"required"`
-	SuccessURL string `json:"successUrl" validate:"required,url"`
-	CancelURL  string `json:"cancelUrl" validate:"required,url"`
+	OrderID       string `json:"orderId" validate:"required"`
+	PaymentMethod string `json:"paymentMethod" validate:"required,oneof=STRIPE PAYPAL WAVE ORANGE_MONEY"`
+	SuccessURL    string `json:"successUrl" validate:"required,url"`
+	CancelURL     string `json:"cancelUrl" validate:"required,url"`
 }
 
 type CheckoutResponse struct {
-	URL string `json:"url"`
+	URL            string `json:"url"`
+	PaymentMethod  string `json:"paymentMethod"`
+	PaymentID      string `json:"paymentId,omitempty"`
 }
 
 // ── Checkout Session ──────────────────────────────────────────────────────────
 
 func (s *PaymentsService) CreateCheckout(ctx context.Context, userID, role string, dto CreateCheckoutDTO) (*CheckoutResponse, *types.AppError) {
-	// 1. Get and validate order
+	// 1. Validate payment method
+	method := payment.Method(dto.PaymentMethod)
+	provider, ok := s.providers[method]
+	if !ok {
+		return nil, types.BadRequest("Payment method not available: " + dto.PaymentMethod)
+	}
+
+	// 2. Get and validate order
 	order, err := s.ordersRepo.GetByID(ctx, dto.OrderID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -63,163 +72,173 @@ func (s *PaymentsService) CreateCheckout(ctx context.Context, userID, role strin
 		return nil, types.BadRequest("Order is already paid")
 	}
 
-	// 2. Fetch order items for line items
+	// 3. Fetch order items
 	items, err := s.ordersRepo.GetItems(ctx, order.ID)
 	if err != nil {
 		return nil, types.InternalError("Failed to fetch order items")
 	}
 
-	// 3. Construct Stripe LineItems
-	var lineItems []*stripe.CheckoutSessionLineItemParams
+	// 4. Build order info for provider
+	var providerItems []payment.OrderItem
 	for _, item := range items {
-		// Stripe expects zero-decimal currency formats for non-zero decimal currencies
-		// But for XOF it's actually a 0-decimal currency, so total is just the integer.
-		// Standardized way: convert unit price to integer (assuming no decimal support needed or multiply depending on currency).
-		// We'll multiply by 100 as fallback logic for standard currencies like EUR/USD,
-		// but XOF might need no multiplication. For simplicity let's assume standard behavior = price * 100.
-		unitAmount := item.UnitPrice.Mul(decimal.NewFromInt(100)).IntPart()
-		if order.Currency == "XOF" {
-			unitAmount = item.UnitPrice.IntPart() // XOF has no cents
+		unitPrice := item.UnitPrice.IntPart() // XOF = no decimals
+		if order.Currency != "XOF" {
+			unitPrice = item.UnitPrice.Mul(decimal.NewFromInt(100)).IntPart()
 		}
-
-		lineItem := &stripe.CheckoutSessionLineItemParams{
-			PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
-				Currency: stripe.String(string(order.Currency)),
-				ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
-					Name: stripe.String(item.ProductName),
-				},
-				UnitAmount: stripe.Int64(unitAmount),
-			},
-			Quantity: stripe.Int64(int64(item.Quantity)),
-		}
-		lineItems = append(lineItems, lineItem)
-	}
-
-	// 4. Create Stripe Session
-	params := &stripe.CheckoutSessionParams{
-		PaymentMethodTypes: stripe.StringSlice([]string{"card"}), // Add orangemoney or others if needed
-		Mode:               stripe.String(string(stripe.CheckoutSessionModePayment)),
-		SuccessURL:         stripe.String(dto.SuccessURL),
-		CancelURL:          stripe.String(dto.CancelURL),
-		ClientReferenceID:  stripe.String(order.ID),
-		LineItems:          lineItems,
-		CustomerEmail:      order.GuestEmail, // Best effort
-	}
-	
-	// Add shipping cost if any
-	if order.ShippingAmount.IntPart() > 0 {
-		shippingAmount := order.ShippingAmount.Mul(decimal.NewFromInt(100)).IntPart()
-		if order.Currency == "XOF" {
-			shippingAmount = order.ShippingAmount.IntPart()
-		}
-		lineItems = append(lineItems, &stripe.CheckoutSessionLineItemParams{
-			PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
-				Currency: stripe.String(string(order.Currency)),
-				ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
-					Name: stripe.String("Frais de livraison"),
-				},
-				UnitAmount: stripe.Int64(shippingAmount),
-			},
-			Quantity: stripe.Int64(1),
+		providerItems = append(providerItems, payment.OrderItem{
+			Name:     item.ProductName,
+			Quantity: int64(item.Quantity),
+			Price:    unitPrice,
 		})
 	}
 
-	sess, err := session.New(params)
+	totalAmount := order.Total.IntPart()
+	shippingAmount := order.ShippingAmount.IntPart()
+	if order.Currency != "XOF" {
+		totalAmount = order.Total.Mul(decimal.NewFromInt(100)).IntPart()
+		shippingAmount = order.ShippingAmount.Mul(decimal.NewFromInt(100)).IntPart()
+	}
+
+	email := ""
+	if order.GuestEmail != nil {
+		email = *order.GuestEmail
+	}
+
+	orderInfo := payment.OrderInfo{
+		ID:          order.ID,
+		OrderNumber: order.OrderNumber,
+		Currency:    string(order.Currency),
+		Items:       providerItems,
+		Shipping:    shippingAmount,
+		Total:       totalAmount,
+		Email:       email,
+	}
+
+	// 5. Create payment with provider
+	result, err := provider.CreatePayment(ctx, orderInfo, payment.CallbackURLs{
+		SuccessURL: dto.SuccessURL,
+		CancelURL:  dto.CancelURL,
+	})
 	if err != nil {
-		slog.Error("Failed to create Stripe checkout session", "error", err)
+		slog.Error("Failed to create payment", "method", dto.PaymentMethod, "error", err)
 		return nil, types.InternalError("Failed to initialize payment gateway")
 	}
 
-	// 5. Save intent id internally
-	if _, err := s.ordersRepo.UpdateOrderPaymentStatus(ctx, order.ID, order.PaymentStatus, nil, &sess.ID); err != nil {
-		slog.Error("Failed to save stripe session ID", "error", err)
-		// We still return the URL because the user can pay, we'll reconcile via webhook.
+	// 6. Create Payment record in DB
+	paymentID := uuid.New().String()
+	_, dbErr := s.ordersRepo.CreatePayment(ctx, db.CreatePaymentParams{
+		ID:         paymentID,
+		OrderId:    order.ID,
+		Method:     db.PaymentMethod(method),
+		ExternalId: &result.ExternalID,
+		Amount:     order.Total,
+		Currency:   string(order.Currency),
+		Status:     db.PaymentStatusUNPAID,
+	})
+	if dbErr != nil {
+		slog.Error("Failed to save payment record", "error", dbErr)
+		// Continue anyway — we'll reconcile via webhook
 	}
 
-	return &CheckoutResponse{URL: sess.URL}, nil
+	// 7. Update order's payment method
+	pm := db.NullPaymentMethod{PaymentMethod: db.PaymentMethod(method), Valid: true}
+	if _, err := s.ordersRepo.UpdateOrderPaymentMethod(ctx, order.ID, pm); err != nil {
+		slog.Error("Failed to update order payment method", "error", err)
+	}
+
+	return &CheckoutResponse{
+		URL:           result.RedirectURL,
+		PaymentMethod: dto.PaymentMethod,
+		PaymentID:     paymentID,
+	}, nil
 }
 
 // ── Webhook Handler ───────────────────────────────────────────────────────────
 
-func (s *PaymentsService) HandleWebhook(ctx context.Context, payload []byte, signature string) *types.AppError {
-	// 1. Verify signature
-	event, err := webhook.ConstructEvent(payload, signature, s.webhookSecret)
-	if err != nil {
-		slog.Error("Stripe webhook signature validation failed", "error", err)
-		return types.BadRequest("Invalid payload / signature")
+func (s *PaymentsService) HandleWebhook(ctx context.Context, method payment.Method, payload []byte, headers map[string]string) *types.AppError {
+	provider, ok := s.providers[method]
+	if !ok {
+		return types.BadRequest("Unknown payment method: " + string(method))
 	}
 
-	slog.Info("Stripe webhook received", "type", event.Type)
+	// Convert map to http.Header
+	httpHeaders := make(map[string][]string)
+	for k, v := range headers {
+		httpHeaders[k] = []string{v}
+	}
 
-	// 2. Process based on event type
-	switch event.Type {
-	case "checkout.session.completed":
-		var sess stripe.CheckoutSession
-		if err := json.Unmarshal(event.Data.Raw, &sess); err != nil {
-			return types.InternalError("Failed to parse event data")
-		}
-		
-		// Some checkout sessions might not have a ClientReferenceID. Fallback to lookup by Stripe Session ID.
-		if sess.ClientReferenceID != "" {
-			if err := s.markAsPaidByOrderID(ctx, sess.ClientReferenceID); err != nil {
-				return err
-			}
+	event, err := provider.VerifyWebhook(ctx, payload, httpHeaders)
+	if err != nil {
+		slog.Error("Webhook verification failed", "method", method, "error", err)
+		return types.BadRequest("Invalid webhook: " + err.Error())
+	}
+
+	if event == nil {
+		// Unhandled event type — acknowledge silently
+		return nil
+	}
+
+	slog.Info("Payment webhook received", "method", method, "status", event.Status, "externalId", event.ExternalID, "orderId", event.OrderID)
+
+	// Find the order
+	orderID := event.OrderID
+	if orderID == "" && event.ExternalID != "" {
+		// Try to find via payment record
+		p, err := s.ordersRepo.GetPaymentByExternalID(ctx, event.ExternalID)
+		if err == nil {
+			orderID = p.OrderId
 		} else {
-			if err := s.markAsPaidBySessionID(ctx, sess.ID); err != nil {
-				return err
+			// Fallback: try the old stripePaymentIntentId column
+			o, err := s.ordersRepo.GetOrderByStripeSession(ctx, event.ExternalID)
+			if err == nil {
+				orderID = o.ID
 			}
 		}
+	}
 
-	case "payment_intent.payment_failed":
-		var intent stripe.PaymentIntent
-		if err := json.Unmarshal(event.Data.Raw, &intent); err != nil {
-			return types.InternalError("Failed to parse event data")
-		}
-		
-		// Logic to mark as failed
-		order, err := s.ordersRepo.GetOrderByStripeSession(ctx, intent.ID)
+	if orderID == "" {
+		slog.Warn("Webhook received but order not found", "method", method, "externalId", event.ExternalID)
+		return nil // Don't return error — it might be a duplicate or something old
+	}
+
+	// Update payment record status
+	if event.ExternalID != "" {
+		p, err := s.ordersRepo.GetPaymentByExternalID(ctx, event.ExternalID)
 		if err == nil {
-			failedStatus := db.OrderStatusFAILED
-			_, _ = s.ordersRepo.UpdateOrderPaymentStatus(ctx, order.ID, db.PaymentStatusUNPAID, &failedStatus, nil)
+			newStatus := db.PaymentStatusUNPAID
+			switch event.Status {
+			case "PAID":
+				newStatus = db.PaymentStatusPAID
+			case "REFUNDED":
+				newStatus = db.PaymentStatusREFUNDED
+			}
+			if _, err := s.ordersRepo.UpdatePaymentStatus(ctx, p.ID, newStatus); err != nil {
+				slog.Error("Failed to update payment status", "paymentId", p.ID, "error", err)
+			}
+		}
+	}
+
+	// Update order status
+	switch event.Status {
+	case "PAID":
+		processing := db.OrderStatusPROCESSING
+		if _, err := s.ordersRepo.UpdateOrderPaymentStatus(ctx, orderID, db.PaymentStatusPAID, &processing, nil); err != nil {
+			slog.Error("Failed to mark order as paid", "orderId", orderID, "error", err)
+			return types.InternalError("Failed to update order")
 		}
 
-	case "charge.refunded":
-		var charge stripe.Charge
-		if err := json.Unmarshal(event.Data.Raw, &charge); err != nil {
-			return types.InternalError("Failed to parse event")
-		}
-		// If charge refunded, mark order refunded
-		order, err := s.ordersRepo.GetOrderByStripeSession(ctx, charge.PaymentIntent.ID)
-		if err == nil {
-			refundedStatus := db.OrderStatusREFUNDED
-			_, _ = s.ordersRepo.UpdateOrderPaymentStatus(ctx, order.ID, db.PaymentStatusREFUNDED, &refundedStatus, nil)
+	case "FAILED":
+		failed := db.OrderStatusFAILED
+		if _, err := s.ordersRepo.UpdateOrderPaymentStatus(ctx, orderID, db.PaymentStatusUNPAID, &failed, nil); err != nil {
+			slog.Error("Failed to mark order as failed", "orderId", orderID, "error", err)
 		}
 
-	default:
-		slog.Debug("Unhandled Stripe event type", "type", event.Type)
+	case "REFUNDED":
+		refunded := db.OrderStatusREFUNDED
+		if _, err := s.ordersRepo.UpdateOrderPaymentStatus(ctx, orderID, db.PaymentStatusREFUNDED, &refunded, nil); err != nil {
+			slog.Error("Failed to mark order as refunded", "orderId", orderID, "error", err)
+		}
 	}
 
 	return nil
-}
-
-func (s *PaymentsService) markAsPaidByOrderID(ctx context.Context, orderID string) *types.AppError {
-	processing := db.OrderStatusPROCESSING
-	if _, err := s.ordersRepo.UpdateOrderPaymentStatus(ctx, orderID, db.PaymentStatusPAID, &processing, nil); err != nil {
-		slog.Error("Failed to update status for order", "orderId", orderID, "error", err)
-		return types.InternalError("Failed to update order")
-	}
-	// TODO: Trigger order email confirmation through MailService here
-	return nil
-}
-
-func (s *PaymentsService) markAsPaidBySessionID(ctx context.Context, sessionID string) *types.AppError {
-	order, err := s.ordersRepo.GetOrderByStripeSession(ctx, sessionID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			slog.Warn("Stripe session completed but order not found", "sessionId", sessionID)
-			return types.NotFound("Order not found")
-		}
-		return types.InternalError("Database error")
-	}
-	return s.markAsPaidByOrderID(ctx, order.ID)
 }

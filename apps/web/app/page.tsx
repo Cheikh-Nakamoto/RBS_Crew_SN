@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, ExternalLink, Zap, Globe, Trophy } from 'lucide-react';
+import { ArrowRight, MapPin, PlayCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { ApiResponse } from '@rbs/types';
 import { formatXOF } from '@/lib/format';
+import { HeroBackground } from '@/components/hero-background';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -32,439 +33,293 @@ interface ArtistItem {
   translations: Array<{ locale: string; name: string }>;
 }
 
-// ── Stat Item ──────────────────────────────────────────────────────────────────
+// ── Fallback images ────────────────────────────────────────────────────────────
 
-function StatCard({ value, label, icon: Icon }: { value: string; label: string; icon: typeof Zap }) {
-  return (
-    <div className="glass rounded-2xl p-6 flex flex-col items-center text-center card-hover border border-white/8">
-      <div className="w-10 h-10 rounded-xl bg-[oklch(0.72_0.19_48/15%)] border border-[oklch(0.72_0.19_48/30%)] flex items-center justify-center mb-4">
-        <Icon className="w-5 h-5 text-[oklch(0.72_0.19_48)]" />
-      </div>
-      <span className="font-display text-4xl text-white mb-1">{value}</span>
-      <span className="text-sm text-white/45">{label}</span>
-    </div>
-  );
-}
+const FALLBACK_IMAGES: string[] = [
+  'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=1200&q=80',
+  'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1200&q=80',
+  'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200&q=80',
+  'https://images.unsplash.com/photo-1519638399535-1b036603ac77?w=1200&q=80',
+  'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=1200&q=80',
+  'https://images.unsplash.com/photo-1481487196290-c152efe083f5?w=1200&q=80',
+];
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+const FALLBACK_THUMB: { title: string; image: string; tag: string }[] = [
+  { title: 'Murales Dakar',      image: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=600&q=80', tag: 'Graffiti' },
+  { title: 'Sérigraphie RBS',    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80', tag: 'Sérigraphie' },
+  { title: 'Festival Last Wall', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&q=80', tag: 'Festival' },
+];
 
 export default async function HomePage() {
-  // Fetch data from NestJS API (server-side)
   const [projectsData, productsData, artistsData] = await Promise.allSettled([
-    api
-      .get('projects?limit=3', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } })
-      .json<ApiResponse<ProjectItem[]>>(),
-    api
-      .get('products?limit=4&status=PUBLISHED', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 1800 } })
-      .json<ApiResponse<ProductItem[]>>(),
-    api
-      .get('artists?limit=6', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } })
-      .json<ApiResponse<ArtistItem[]>>(),
+    api.get('projects?limit=10', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } }).json<ApiResponse<ProjectItem[]>>(),
+    api.get('products?limit=4&status=PUBLISHED', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 1800 } }).json<ApiResponse<ProductItem[]>>(),
+    api.get('artists?limit=10', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } }).json<ApiResponse<ArtistItem[]>>(),
   ]);
 
-  const projects =
-    projectsData.status === 'fulfilled' ? projectsData.value.data : [];
-  const products =
-    productsData.status === 'fulfilled' ? productsData.value.data : [];
-  const artists =
-    artistsData.status === 'fulfilled' ? artistsData.value.data : [];
+  const projects = projectsData.status === 'fulfilled' ? projectsData.value.data : [];
+  const products = productsData.status === 'fulfilled' ? productsData.value.data : [];
+  const artists = artistsData.status === 'fulfilled' ? artistsData.value.data : [];
+
+  const heroImages = (() => {
+    const imgs: string[] = [];
+    const pImgs = projects.map(p => p.featuredImageUrl).filter(Boolean) as string[];
+    const aImgs = artists.map(a => a.featuredImageUrl).filter(Boolean) as string[];
+    const max = Math.max(pImgs.length, aImgs.length);
+    for (let i = 0; i < max; i++) {
+      if (pImgs[i]) imgs.push(pImgs[i]);
+      if (aImgs[i]) imgs.push(aImgs[i]);
+    }
+    return imgs.length >= 2 ? imgs : FALLBACK_IMAGES;
+  })();
+
+  const thematicCols = [
+    {
+      tag: artists[0]?.city ?? 'Dakar',
+      title: projects[0]?.translations.find(t => t.locale === 'fr')?.title ?? 'Murales',
+      image: projects[0]?.featuredImageUrl ?? FALLBACK_THUMB[0].image,
+    },
+    {
+      tag: artists[1]?.city ?? 'Thiès',
+      title: projects[1]?.translations.find(t => t.locale === 'fr')?.title ?? 'Sérigraphie',
+      image: projects[1]?.featuredImageUrl ?? FALLBACK_THUMB[1].image,
+    },
+    {
+      tag: artists[2]?.city ?? 'Saint-Louis',
+      title: projects[2]?.translations.find(t => t.locale === 'fr')?.title ?? 'Last Wall',
+      image: projects[2]?.featuredImageUrl ?? FALLBACK_THUMB[2].image,
+    },
+  ];
+
+  const collectionItems = (() => {
+    const out: { title: string; image: string; tag: string; href: string; wide?: boolean }[] = [];
+    const pList = projects.slice(0, 6);
+    const aList = artists.slice(0, 6);
+    const max = Math.max(pList.length, aList.length);
+    for (let i = 0; i < max; i++) {
+      if (pList[i]) {
+        const t = pList[i].translations.find(x => x.locale === 'fr') ?? pList[i].translations[0];
+        out.push({ title: t?.title ?? 'Projet', image: pList[i].featuredImageUrl ?? FALLBACK_IMAGES[i % FALLBACK_IMAGES.length], tag: 'Projet', href: '/projects', wide: i === 0 });
+      }
+      if (aList[i]) {
+        const t = aList[i].translations.find(x => x.locale === 'fr') ?? aList[i].translations[0];
+        out.push({ title: t?.name ?? 'Artiste', image: aList[i].featuredImageUrl ?? FALLBACK_IMAGES[(i + 3) % FALLBACK_IMAGES.length], tag: aList[i].city ?? 'Crew', href: `/crew/${aList[i].slug}` });
+      }
+    }
+    return out.slice(0, 8);
+  })();
 
   return (
-    <div className="overflow-hidden">
-      {/* ── Hero Section ───────────────────────────────────────────────── */}
-      <section className="relative min-h-[92vh] flex flex-col items-center justify-center px-4 py-24 overflow-hidden">
-        {/* Background gradient blobs */}
-        <div
-          className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full opacity-20"
-          style={{
-            background:
-              'radial-gradient(ellipse at center, oklch(0.72 0.19 48 / 40%) 0%, transparent 70%)',
-          }}
-        />
-        <div
-          className="pointer-events-none absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full opacity-10"
-          style={{
-            background:
-              'radial-gradient(ellipse at center, oklch(0.60 0.25 345 / 60%) 0%, transparent 70%)',
-          }}
-        />
-        <div
-          className="pointer-events-none absolute top-1/3 left-0 w-[300px] h-[300px] rounded-full opacity-10"
-          style={{
-            background:
-              'radial-gradient(ellipse at center, oklch(0.72 0.15 200 / 60%) 0%, transparent 70%)',
-          }}
-        />
+    <div className="overflow-hidden bg-[#111111]">
 
-        {/* Decorative corner elements */}
-        <div className="absolute top-10 left-6 md:left-12 opacity-30 font-display text-xs tracking-widest text-white/40 uppercase rotate-90 origin-left">
-          Since 2012
-        </div>
-        <div className="absolute top-10 right-6 md:right-12 opacity-30 font-display text-xs tracking-widest text-white/40 uppercase -rotate-90 origin-right">
-          Dakar · SN
-        </div>
+      {/* ── Hero — images dynamiques plein écran + style maquette_hero ── */}
+      <section className="relative min-h-screen flex flex-col justify-center overflow-hidden pt-20">
+        <HeroBackground images={heroImages} interval={5000} />
+        {/* Assombrissement plus léger pour ce style épuré */}
+        <div className="absolute inset-0 bg-black/40 z-[2]" />
 
-        {/* Main content */}
-        <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-white/10 mb-2">
-            <span className="w-2 h-2 rounded-full bg-[oklch(0.65_0.20_140)] animate-pulse" />
-            <span className="text-xs font-medium text-white/60 uppercase tracking-widest">
-              Graffiti · Art Urbain · Sérigraphie
-            </span>
+        <div className="relative z-[10] w-full max-w-[90rem] mx-auto px-6 grid grid-cols-12 gap-6 items-center">
+          {/* Ligne verticale + 03 à gauche */}
+          <div className="col-span-2 hidden md:flex flex-col items-start gap-4">
+            <span className="font-display text-4xl font-bold text-white tracking-wider">03</span>
+            <div className="w-[2px] h-32 bg-white/40 ml-4"></div>
           </div>
 
-          <h1 className="font-display text-7xl sm:text-8xl md:text-[9rem] lg:text-[11rem] leading-none tracking-tight">
-            <span className="block text-white">RBS</span>
-            <span
-              className="block text-shimmer"
-              style={{
-                background:
-                  'linear-gradient(90deg, #fff 0%, oklch(0.72 0.19 48) 25%, #fff 50%, oklch(0.60 0.25 345) 75%, #fff 100%)',
-                backgroundSize: '200% auto',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                animation: 'shimmer 4s linear infinite',
-              }}
-            >
-              CREW
-            </span>
-          </h1>
+          <div className="col-span-12 md:col-span-9 flex flex-col gap-4">
+             <div className="flex flex-col gap-1 text-white/70 text-xs font-semibold tracking-widest uppercase mb-4">
+               <span>#rbscrew #graffitiafrica #dakar</span>
+               <span>@rbscrewsn @dakar @lastwall</span>
+             </div>
+             
+             <p className="text-white/60 text-xs font-semibold uppercase tracking-[0.4em] mb-2">
+               E V E N T   A R C H I V E
+             </p>
 
-          <p className="text-lg sm:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
-            Collectif fondé en{' '}
-            <span className="text-white/80 font-medium">2012 à Dakar</span>. Plus de{' '}
-            <span className="text-white/80 font-medium">30 artistes</span> à travers le monde.
-            Graffiti, fresques murales, sérigraphie et la 1ère école de graffiti d&apos;Afrique.
-          </p>
+             <h1 className="font-display text-7xl md:text-8xl lg:text-[7rem] leading-[0.9] tracking-tight text-white mb-6 uppercase">
+               Graffiti <br/>
+               <span className="text-white">From Dakar</span>
+             </h1>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Link
-              href="/crew"
-              className="group flex items-center gap-2 px-7 py-3.5 rounded-xl bg-[oklch(0.72_0.19_48)] text-black font-semibold text-sm hover:bg-[oklch(0.80_0.19_48)] transition-all duration-200 shadow-lg shadow-[oklch(0.72_0.19_48/30%)] hover:shadow-[oklch(0.72_0.19_48/50%)] hover:scale-[1.02]"
-            >
-              Découvrir le Crew
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <Link
-              href="/shop"
-              className="flex items-center gap-2 px-7 py-3.5 rounded-xl border border-white/15 text-white/80 font-semibold text-sm hover:border-white/30 hover:text-white hover:bg-white/5 transition-all duration-200"
-            >
-              Voir le Shop
-            </Link>
+             <p className="text-white/80 max-w-md text-sm leading-relaxed mb-8 mix-blend-screen bg-black/20 p-4 rounded backdrop-blur-sm md:bg-transparent md:p-0 md:backdrop-blur-none">
+               Fondé en 2012, ce crew rassemble plus de 30 artistes. Entre fresques murales, sérigraphie et la 1ère école de graffiti d'Afrique, le RBS Crew redessine l'espace urbain.
+             </p>
+          </div>
+          
+          <div className="col-span-1 hidden md:flex flex-col items-end">
+             {/* Small visual arrow/chevron */}
+             <div className="w-6 h-6 border-b border-r border-white/50 rotate-45 mt-10"></div>
           </div>
         </div>
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-40">
-          <span className="text-xs text-white/50 uppercase tracking-widest">Scroll</span>
-          <div className="w-px h-10 bg-gradient-to-b from-white/40 to-transparent" />
-        </div>
-      </section>
-
-      {/* ── Stats Section ──────────────────────────────────────────────── */}
-      <section className="section-padding px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard value="12+" label="Années d'existence" icon={Trophy} />
-            <StatCard value="30+" label="Membres du crew" icon={Globe} />
-            <StatCard value="5"   label="Éditions du festival" icon={Zap} />
-          </div>
-        </div>
-      </section>
-
-      {/* ── À Propos Section ───────────────────────────────────────────── */}
-      <section className="section-padding px-4 sm:px-6 relative overflow-hidden">
-        <div className="absolute right-0 top-0 display-number select-none pointer-events-none">
-          RBS
-        </div>
-        <div className="max-w-5xl mx-auto relative z-10">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <div className="accent-line">
-                <span className="text-xs font-semibold uppercase tracking-widest text-[oklch(0.72_0.19_48)]">
-                  Qui sommes-nous
-                </span>
-              </div>
-              <h2 className="font-display text-4xl sm:text-5xl text-white leading-tight">
-                RBS CREW — <br />
-                <span className="text-gradient">Art & Culture</span>
-              </h2>
-              <p className="text-white/50 leading-relaxed">
-                Le RBS Crew est un collectif fondé en{' '}
-                <strong className="text-white/80">2012 à Dakar, Sénégal</strong>. Durant plus d&apos;une
-                décennie, ce collectif n&apos;a cessé de croître, comptant aujourd&apos;hui plus de 30 membres à
-                travers le monde.
-              </p>
-              <p className="text-white/50 leading-relaxed">
-                Grâce à ses diverses initiatives, événements et collaborations, le RBS Crew est
-                désormais une figure marquante du{' '}
-                <span className="text-white/80">graffiti et des arts urbains</span>. En 2021, le
-                collectif a fondé la{' '}
-                <span className="text-white/80">première école de graffiti d&apos;Afrique</span>.
-              </p>
-              <Link
-                href="/crew"
-                className="inline-flex items-center gap-2 text-sm font-medium text-[oklch(0.72_0.19_48)] hover:text-[oklch(0.88_0.18_90)] transition-colors duration-200 group"
-              >
-                Voir les membres du crew
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </div>
-
-            {/* Artists preview grid */}
-            {artists.length > 0 && (
-              <div className="grid grid-cols-3 gap-2">
-                {artists.slice(0, 6).map((artist, i) => {
-                  const t = artist.translations.find((x) => x.locale === 'fr') ?? artist.translations[0];
-                  return (
-                    <Link
-                      key={artist.id}
-                      href={`/crew/${artist.slug}`}
-                      className="group relative aspect-square rounded-xl overflow-hidden bg-white/5 border border-white/8 hover:border-[oklch(0.72_0.19_48/40%)] transition-all duration-300"
-                      style={{ animationDelay: `${i * 80}ms` }}
-                    >
-                      {artist.featuredImageUrl ? (
-                        <Image
-                          src={artist.featuredImageUrl}
-                          alt={t?.name ?? ''}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 20vw"
-                          className="object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center font-display text-2xl text-white/20">
-                          {t?.name?.[0] ?? '?'}
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-2">
-                        <span className="text-xs font-medium text-white truncate">{t?.name}</span>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Derniers Projets ───────────────────────────────────────────── */}
-      {projects.length > 0 && (
-        <section className="section-padding px-4 sm:px-6">
-          <div className="max-w-7xl mx-auto space-y-12">
-            <div className="flex items-end justify-between flex-wrap gap-4">
-              <div>
-                <div className="accent-line mb-3">
-                  <span className="text-xs font-semibold uppercase tracking-widest text-[oklch(0.72_0.19_48)]">
-                    Portfolio
-                  </span>
+        {/* Bottom bar in hero */}
+        <div className="absolute bottom-10 inset-x-0 z-[10]">
+          <div className="max-w-[90rem] mx-auto px-6 flex flex-col gap-4">
+             <div className="w-full h-px bg-white/20 mb-4 hidden md:block"></div>
+             <div className="grid grid-cols-12 gap-6 items-end">
+                <div className="col-span-12 md:col-span-4 hidden md:block">
+                   <h3 className="text-white text-xs font-bold uppercase mb-2">Graffiti Challenge</h3>
+                   <p className="text-white/50 text-xs leading-relaxed max-w-xs">Le Last Wall Tour est un festival international réunissant des créateurs talentueux pour transformer l'espace public.</p>
                 </div>
-                <h2 className="font-display text-4xl sm:text-5xl text-white">Derniers Projets</h2>
-              </div>
-              <Link
-                href="/projects"
-                className="inline-flex items-center gap-2 text-sm font-medium text-white/50 hover:text-white transition-colors duration-200 group"
-              >
-                Voir tous les projets
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-6">
-              {projects.map((project, i) => {
-                const t =
-                  project.translations.find((x) => x.locale === 'fr') ?? project.translations[0];
-                return (
-                  <div
-                    key={project.id}
-                    className="group bg-white/4 rounded-2xl overflow-hidden border border-white/8 hover:border-[oklch(0.72_0.19_48/35%)] transition-all duration-300 card-hover"
-                    style={{ animationDelay: `${i * 100}ms` }}
-                  >
-                    {project.featuredImageUrl ? (
-                      <div className="relative aspect-video overflow-hidden">
-                        <Image
-                          src={project.featuredImageUrl}
-                          alt={t?.title ?? ''}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          className="object-cover transition-transform duration-700 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                      </div>
-                    ) : (
-                      <div className="aspect-video bg-white/4 flex items-center justify-center">
-                        <span className="font-display text-6xl text-white/10">{String(i + 1).padStart(2, '0')}</span>
-                      </div>
-                    )}
-                    <div className="p-5 space-y-2">
-                      <h3 className="font-semibold text-white line-clamp-2 group-hover:text-[oklch(0.72_0.19_48)] transition-colors duration-200">
-                        {t?.title}
-                      </h3>
-                      {project.clientName && (
-                        <p className="text-xs text-white/40 uppercase tracking-wider">
-                          Client : {project.clientName}
-                        </p>
-                      )}
-                      {t?.summary && (
-                        <p className="text-sm text-white/45 line-clamp-2 leading-relaxed">{t.summary}</p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                <div className="col-span-12 md:col-span-5 hidden md:block">
+                   <h3 className="text-white text-xs font-bold uppercase mb-2">About Our Art</h3>
+                   <p className="text-white/50 text-xs leading-relaxed max-w-xs">Une approche unique mêlant identité africaine et codes du graffiti contemporain dans chaque fresque et sérigraphie.</p>
+                </div>
+                <div className="col-span-12 md:col-span-3 flex items-center justify-start md:justify-end gap-4">
+                   <span className="text-white font-bold text-xl">27</span>
+                   <div className="flex-1 md:max-w-[100px] h-[2px] bg-white relative">
+                      <div className="absolute inset-y-0 right-0 w-1/2 bg-white/30"></div>
+                   </div>
+                   <span className="text-white/60 font-bold text-xl">06</span>
+                </div>
+             </div>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
-      {/* ── Shop CTA Section ───────────────────────────────────────────── */}
+      {/* ── Potret Moments (Maquette) / L'Art & la Rue ────────────────────── */}
+      <section className="bg-[#111111] py-24 px-6 relative border-t border-white/10">
+        <div className="max-w-[90rem] mx-auto grid grid-cols-12 gap-6 relative">
+          
+          <div className="col-span-12 md:col-span-7 flex flex-col justify-start">
+            <h2 className="font-display text-5xl sm:text-7xl md:text-[6rem] uppercase text-white font-black leading-[0.9] tracking-tight mb-8">
+               L'ART <br/> & LA RUE
+            </h2>
+            <p className="text-white/60 text-sm max-w-xs leading-relaxed mb-12">
+               L'art urbain n'est pas toujours parfait. Comme la rue, il a ses aspérités, ses hauts et ses bas, mais c'est bien là que réside sa véritable beauté.
+            </p>
+          </div>
+          
+          {/* Vertical numbers */}
+          <div className="col-span-12 md:col-span-5 hidden md:flex flex-col items-end relative">
+             <div className="flex flex-col items-end justify-between font-display text-white/40 text-xl font-bold pr-10 border-r border-white/10 h-64 relative">
+                <span>05</span>
+                <span>06</span>
+                <span className="text-white relative">
+                   07
+                   {/* horizontal line across like in maquette */}
+                   <span className="absolute left-full top-1/2 w-48 h-px bg-white/30 ml-4 hidden lg:block"></span>
+                </span>
+                <span>08</span>
+                <span>09</span>
+             </div>
+          </div>
+
+          {/* Map pins - locations based on projects / artists */}
+          <div className="col-span-12 mt-12 md:mt-24">
+             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 border-b border-white/20 pb-8 relative">
+               {/* Underline progress for the first one */}
+               <div className="absolute bottom-0 left-0 w-1/3 h-[2px] bg-red-600"></div>
+
+               {(thematicCols || []).map((col, idx) => (
+                 <div key={idx} className="flex gap-4 items-center md:items-start group cursor-pointer">
+                    <MapPin className="text-red-600 w-8 h-8 group-hover:-translate-y-1 transition-transform" />
+                    <div className="flex flex-col">
+                       <span className="text-white font-bold text-lg mb-1">{col.tag}</span>
+                       <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">{col.title}</span>
+                    </div>
+                 </div>
+               ))}
+             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Collection Grid (Relaxing Place style) ─────────────── */}
+      <section className="bg-[#111111] py-20 px-6">
+        <div className="max-w-[90rem] mx-auto flex flex-col items-center">
+            <h3 className="font-display text-white text-2xl font-bold uppercase tracking-widest mb-3">Moments Créatifs</h3>
+            <p className="text-white/60 mb-20 text-sm font-medium tracking-wide">Découvrez nos espaces de sérigraphie et d'expression</p>
+
+            <div className="flex flex-col md:flex-row items-center justify-center gap-8 w-full max-w-6xl">
+              {/* 3 staggered images */}
+              <div className="w-full md:w-1/3 flex flex-col gap-4 md:mt-16 group">
+                 <div className="relative aspect-[3/4] w-full overflow-hidden border border-white/10 group-hover:border-white/30 transition-colors">
+                    <Image src={collectionItems[0]?.image || FALLBACK_IMAGES[0]} alt={collectionItems[0]?.title} fill className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" />
+                 </div>
+                 <span className="text-white/70 text-sm font-semibold text-center uppercase tracking-widest group-hover:text-white transition-colors">{collectionItems[0]?.title}</span>
+              </div>
+              
+              <div className="w-full md:w-1/3 flex flex-col gap-4 group">
+                 <div className="relative aspect-[3/4] w-full overflow-hidden border border-white/10 group-hover:border-white/30 transition-colors">
+                    <Image src={collectionItems[1]?.image || FALLBACK_IMAGES[1]} alt={collectionItems[1]?.title} fill className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" />
+                 </div>
+                 <span className="text-white/70 text-sm font-semibold text-center uppercase tracking-widest group-hover:text-white transition-colors">{collectionItems[1]?.title}</span>
+              </div>
+              
+              <div className="w-full md:w-1/3 flex flex-col gap-4 md:mt-32 group">
+                 <div className="relative aspect-[3/4] w-full overflow-hidden border border-white/10 group-hover:border-white/30 transition-colors">
+                    <Image src={collectionItems[2]?.image || FALLBACK_IMAGES[2]} alt={collectionItems[2]?.title} fill className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" />
+                 </div>
+                 <span className="text-white/70 text-sm font-semibold text-center uppercase tracking-widest group-hover:text-white transition-colors">{collectionItems[2]?.title}</span>
+              </div>
+            </div>
+        </div>
+      </section>
+
+      {/* ── Last Wall Tour Festival CTA ───────────────────────────────────────────── */}
+      <section className="relative h-[80vh] min-h-[600px] flex flex-col justify-end overflow-hidden border-t border-white/10">
+        <Image src={FALLBACK_IMAGES[3]} fill className="object-cover opacity-50 brightness-50" alt="Last Wall Tour Background" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-[#111111]/90 via-[#111111]/40 to-transparent z-[2]" />
+        
+        <div className="relative z-[10] w-full max-w-[90rem] mx-auto px-6 grid grid-cols-12 gap-6 pb-20 items-end">
+          {/* left bottom small thumbnail for Festival */}
+          <div className="col-span-12 md:col-span-4 hidden md:flex items-end mb-6">
+             <Link href="/festival" className="relative w-64 aspect-[4/3] border border-white/20 p-2 bg-[#111]/40 backdrop-blur-sm group cursor-pointer block">
+                <div className="relative w-full h-full overflow-hidden">
+                    <Image src={FALLBACK_IMAGES[4]} fill className="object-cover group-hover:scale-110 transition-transform duration-700 grayscale group-hover:grayscale-0" alt="Festival Edition Thumbnail" />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-transparent transition-colors">
+                  <ArrowRight className="text-white w-10 h-10 -rotate-45 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+             </Link>
+          </div>
+          
+          <div className="col-span-12 md:col-span-8 flex flex-col items-center md:items-end text-center md:text-right">
+            <h2 className="font-display text-5xl sm:text-7xl md:text-[6.5rem] text-white font-black uppercase tracking-tight leading-[0.9] mb-8">
+              LAST WALL <br/> TOUR
+            </h2>
+            <Link href="/festival" className="flex items-center gap-3 mb-8 cursor-pointer group">
+               <span className="w-10 h-10 flex items-center justify-center border border-white/30 rounded-full group-hover:bg-white transition-colors duration-300">
+                  <ArrowRight className="w-5 h-5 text-white group-hover:text-black transition-colors" />
+               </span>
+               <span className="text-white/80 text-sm uppercase tracking-[0.2em] font-semibold group-hover:text-white transition-colors">Découvrir le Festival</span>
+            </Link>
+            <p className="text-white/60 text-sm max-w-lg leading-relaxed mb-6">
+              "Le Last Wall Tour est un festival international réunissant des créateurs de classe mondiale pour transformer l'espace public au Sénégal. Une odyssée de couleurs, de respect et de transmission."
+            </p>
+            <p className="text-white/30 text-xs font-bold uppercase tracking-widest">
+              Initiative RBS Akademya
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Shop CTA (just list top products flatly at bottom) */}
       {products.length > 0 && (
-        <section className="section-padding px-4 sm:px-6 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[oklch(0.72_0.19_48/5%)] to-transparent pointer-events-none" />
-          <div className="max-w-7xl mx-auto relative z-10 space-y-12">
-            <div className="flex items-end justify-between flex-wrap gap-4">
-              <div>
-                <div className="accent-line mb-3">
-                  <span className="text-xs font-semibold uppercase tracking-widest text-[oklch(0.72_0.19_48)]">
-                    Merch & Produits
-                  </span>
-                </div>
-                <h2 className="font-display text-4xl sm:text-5xl text-white">Le Shop</h2>
-              </div>
-              <Link
-                href="/shop"
-                className="inline-flex items-center gap-2 text-sm font-medium text-white/50 hover:text-white transition-colors duration-200 group"
-              >
-                Voir tout le shop
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {products.map((product, i) => {
-                const t = product.translations.find((x) => x.locale === 'fr') ?? product.translations[0];
-                return (
-                  <Link
-                    key={product.id}
-                    href={`/shop/${t?.slug ?? product.slug}`}
-                    className="group bg-white/4 rounded-2xl overflow-hidden border border-white/8 hover:border-[oklch(0.72_0.19_48/40%)] transition-all duration-300 card-hover"
-                    style={{ animationDelay: `${i * 80}ms` }}
-                  >
-                    {product.featuredImageUrl ? (
-                      <div className="relative aspect-square overflow-hidden">
-                        <Image
-                          src={product.featuredImageUrl}
-                          alt={t?.name ?? ''}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                          className="object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                      </div>
-                    ) : (
-                      <div className="aspect-square bg-white/4 flex items-center justify-center">
-                        <span className="font-display text-4xl text-white/10">RBS</span>
-                      </div>
-                    )}
-                    <div className="p-3">
-                      <p className="text-sm font-medium text-white line-clamp-1 mb-1">{t?.name}</p>
-                      <p className="text-sm font-bold text-[oklch(0.72_0.19_48)]">
-                        {formatXOF(product.price)}
-                      </p>
-                    </div>
-                  </Link>
-                );
-              })}
+        <section className="bg-black py-12 px-6">
+          <div className="max-w-[90rem] mx-auto flex flex-col md:flex-row items-center justify-between gap-8 pt-8">
+            <h3 className="text-white/40 text-xs uppercase tracking-[0.3em] font-bold flex-shrink-0">
+               // Merch & Shop
+            </h3>
+            <div className="flex flex-wrap gap-8 justify-end items-center">
+               {products.map(p => {
+                 const t = p.translations.find((x) => x.locale === 'fr') ?? p.translations[0];
+                 return (
+                   <Link key={p.id} href={`/shop/${t?.slug || p.slug}`} className="group flex items-center gap-3">
+                     <span className="text-white/80 group-hover:text-red-500 font-semibold uppercase tracking-wider text-xs transition-colors">
+                       {t?.name}
+                     </span>
+                     <span className="text-white/30 text-xs">[{formatXOF(p.price)}]</span>
+                   </Link>
+                 )
+               })}
+               <Link href="/shop" className="flex items-center gap-2 text-red-500 text-xs font-bold uppercase tracking-wider hover:text-white transition-colors ml-4">
+                 Voir tout <ArrowRight className="w-3 h-3" />
+               </Link>
             </div>
           </div>
         </section>
       )}
-
-      {/* ── Festival CTA ───────────────────────────────────────────────── */}
-      <section className="section-padding px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="relative rounded-3xl overflow-hidden glass border border-white/10 p-10 md:p-16 text-center">
-            <div
-              className="absolute inset-0 opacity-15 pointer-events-none"
-              style={{
-                background:
-                  'radial-gradient(ellipse at 30% 50%, oklch(0.72 0.19 48 / 60%) 0%, transparent 60%), radial-gradient(ellipse at 70% 50%, oklch(0.60 0.25 345 / 40%) 0%, transparent 60%)',
-              }}
-            />
-            <div className="relative z-10 space-y-6 max-w-2xl mx-auto">
-              <div className="tag-graffiti mx-auto w-fit">Last Wall Tour</div>
-              <h2 className="font-display text-5xl sm:text-6xl text-white leading-tight">
-                Festival de Graffiti
-              </h2>
-              <p className="text-white/50 text-lg leading-relaxed">
-                Découvrez les éditions du festival international de graffiti organisé par le RBS Crew,
-                réunissant des artistes de toute l&apos;Afrique et du monde.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-                <Link
-                  href="/festival"
-                  className="group flex items-center gap-2 px-7 py-3.5 rounded-xl bg-[oklch(0.72_0.19_48)] text-black font-semibold text-sm hover:bg-[oklch(0.80_0.19_48)] transition-all duration-200 shadow-lg shadow-[oklch(0.72_0.19_48/25%)]"
-                >
-                  Voir les éditions
-                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                </Link>
-                <a
-                  href="https://rbsakademya.com/last-wall/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-7 py-3.5 rounded-xl border border-white/15 text-white/70 font-semibold text-sm hover:border-white/30 hover:text-white transition-all duration-200"
-                >
-                  Site officiel
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Labz CTA ───────────────────────────────────────────────────── */}
-      <section className="section-padding px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="space-y-5">
-              <div className="accent-line">
-                <span className="text-xs font-semibold uppercase tracking-widest text-[oklch(0.72_0.19_48)]">
-                  Collaboration B2B
-                </span>
-              </div>
-              <h2 className="font-display text-4xl sm:text-5xl text-white leading-tight">
-                RBS <span className="text-gradient">Labz</span>
-              </h2>
-              <p className="text-white/50 leading-relaxed">
-                Sérigraphie, fresques murales, graffiti live, formation artistique — faites appel au
-                savoir-faire du RBS Crew pour vos projets professionnels.
-              </p>
-              <Link
-                href="/labz"
-                className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-[oklch(0.72_0.19_48)] text-black font-semibold text-sm hover:bg-[oklch(0.80_0.19_48)] transition-all duration-200 shadow-lg shadow-[oklch(0.72_0.19_48/25%)]"
-              >
-                Demander un devis
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {['Sérigraphie', 'Fresque murale', 'Graffiti live', 'Formation'].map((service, i) => (
-                <div
-                  key={service}
-                  className="glass rounded-xl p-4 border border-white/8 text-sm font-medium text-white/60"
-                  style={{ animationDelay: `${i * 80}ms` }}
-                >
-                  <span className="block text-[oklch(0.72_0.19_48)] font-display text-xs uppercase tracking-wider mb-2">
-                    0{i + 1}
-                  </span>
-                  {service}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

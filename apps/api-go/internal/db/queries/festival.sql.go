@@ -12,9 +12,9 @@ import (
 )
 
 const createFestivalEdition = `-- name: CreateFestivalEdition :one
-INSERT INTO "FestivalEdition" ("id", "slug", "editionNumber", "year", "city", "country", "status", "createdAt", "updatedAt")
-VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-RETURNING id, slug, "editionNumber", year, city, country, status, "wpId", "createdAt", "updatedAt"
+INSERT INTO "FestivalEdition" ("id", "slug", "editionNumber", "year", "city", "country", "status", "mainImage", "heroImage", "gallery", "typography", "createdAt", "updatedAt")
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+RETURNING id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "createdAt", "updatedAt"
 `
 
 type CreateFestivalEditionParams struct {
@@ -25,6 +25,10 @@ type CreateFestivalEditionParams struct {
 	City          *string       `json:"city"`
 	Country       string        `json:"country"`
 	Status        ProductStatus `json:"status"`
+	MainImage     *string       `json:"mainImage"`
+	HeroImage     *string       `json:"heroImage"`
+	Gallery       []byte        `json:"gallery"`
+	Typography    []byte        `json:"typography"`
 }
 
 func (q *Queries) CreateFestivalEdition(ctx context.Context, arg CreateFestivalEditionParams) (FestivalEdition, error) {
@@ -36,6 +40,10 @@ func (q *Queries) CreateFestivalEdition(ctx context.Context, arg CreateFestivalE
 		arg.City,
 		arg.Country,
 		arg.Status,
+		arg.MainImage,
+		arg.HeroImage,
+		arg.Gallery,
+		arg.Typography,
 	)
 	var i FestivalEdition
 	err := row.Scan(
@@ -47,6 +55,10 @@ func (q *Queries) CreateFestivalEdition(ctx context.Context, arg CreateFestivalE
 		&i.Country,
 		&i.Status,
 		&i.WpId,
+		&i.MainImage,
+		&i.HeroImage,
+		&i.Gallery,
+		&i.Typography,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -63,7 +75,7 @@ func (q *Queries) DeleteFestivalEdition(ctx context.Context, id string) error {
 }
 
 const getFestivalByID = `-- name: GetFestivalByID :one
-SELECT id, slug, "editionNumber", year, city, country, status, "wpId", "createdAt", "updatedAt" FROM "FestivalEdition" WHERE "id" = $1
+SELECT id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "createdAt", "updatedAt" FROM "FestivalEdition" WHERE "id" = $1
 `
 
 func (q *Queries) GetFestivalByID(ctx context.Context, id string) (FestivalEdition, error) {
@@ -78,6 +90,10 @@ func (q *Queries) GetFestivalByID(ctx context.Context, id string) (FestivalEditi
 		&i.Country,
 		&i.Status,
 		&i.WpId,
+		&i.MainImage,
+		&i.HeroImage,
+		&i.Gallery,
+		&i.Typography,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -85,7 +101,7 @@ func (q *Queries) GetFestivalByID(ctx context.Context, id string) (FestivalEditi
 }
 
 const getFestivalBySlug = `-- name: GetFestivalBySlug :one
-SELECT id, slug, "editionNumber", year, city, country, status, "wpId", "createdAt", "updatedAt" FROM "FestivalEdition" WHERE "slug" = $1
+SELECT id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "createdAt", "updatedAt" FROM "FestivalEdition" WHERE "slug" = $1
 `
 
 func (q *Queries) GetFestivalBySlug(ctx context.Context, slug string) (FestivalEdition, error) {
@@ -100,6 +116,10 @@ func (q *Queries) GetFestivalBySlug(ctx context.Context, slug string) (FestivalE
 		&i.Country,
 		&i.Status,
 		&i.WpId,
+		&i.MainImage,
+		&i.HeroImage,
+		&i.Gallery,
+		&i.Typography,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -138,7 +158,7 @@ func (q *Queries) GetFestivalTranslations(ctx context.Context, festivaleditionid
 }
 
 const listFestivalEditions = `-- name: ListFestivalEditions :many
-SELECT f.id, f.slug, f."editionNumber", f.year, f.city, f.country, f.status, f."wpId", f."createdAt", f."updatedAt", COUNT(*) OVER() AS total_count
+SELECT f.id, f.slug, f."editionNumber", f.year, f.city, f.country, f.status, f."wpId", f."mainImage", f."heroImage", f.gallery, f.typography, f."createdAt", f."updatedAt", COUNT(*) OVER() AS total_count
 FROM "FestivalEdition" f
 WHERE f."status" = 'PUBLISHED'::"ProductStatus"
 ORDER BY f."year" DESC, f."editionNumber" DESC
@@ -159,6 +179,10 @@ type ListFestivalEditionsRow struct {
 	Country       string           `json:"country"`
 	Status        ProductStatus    `json:"status"`
 	WpId          *int32           `json:"wpId"`
+	MainImage     *string          `json:"mainImage"`
+	HeroImage     *string          `json:"heroImage"`
+	Gallery       []byte           `json:"gallery"`
+	Typography    []byte           `json:"typography"`
 	CreatedAt     pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
 	TotalCount    int64            `json:"total_count"`
@@ -182,6 +206,10 @@ func (q *Queries) ListFestivalEditions(ctx context.Context, arg ListFestivalEdit
 			&i.Country,
 			&i.Status,
 			&i.WpId,
+			&i.MainImage,
+			&i.HeroImage,
+			&i.Gallery,
+			&i.Typography,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.TotalCount,
@@ -201,16 +229,24 @@ UPDATE "FestivalEdition"
 SET "city" = COALESCE($2, "city"),
     "country" = COALESCE($3, "country"),
     "status" = COALESCE($4::"ProductStatus", "status"),
+    "mainImage" = COALESCE($5, "mainImage"),
+    "heroImage" = COALESCE($6, "heroImage"),
+    "gallery" = COALESCE($7, "gallery"),
+    "typography" = COALESCE($8, "typography"),
     "updatedAt" = NOW()
 WHERE "id" = $1
-RETURNING id, slug, "editionNumber", year, city, country, status, "wpId", "createdAt", "updatedAt"
+RETURNING id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "createdAt", "updatedAt"
 `
 
 type UpdateFestivalEditionParams struct {
-	ID      string            `json:"id"`
-	City    *string           `json:"city"`
-	Country *string           `json:"country"`
-	Status  NullProductStatus `json:"status"`
+	ID         string            `json:"id"`
+	City       *string           `json:"city"`
+	Country    *string           `json:"country"`
+	Status     NullProductStatus `json:"status"`
+	MainImage  *string           `json:"mainImage"`
+	HeroImage  *string           `json:"heroImage"`
+	Gallery    []byte            `json:"gallery"`
+	Typography []byte            `json:"typography"`
 }
 
 func (q *Queries) UpdateFestivalEdition(ctx context.Context, arg UpdateFestivalEditionParams) (FestivalEdition, error) {
@@ -219,6 +255,10 @@ func (q *Queries) UpdateFestivalEdition(ctx context.Context, arg UpdateFestivalE
 		arg.City,
 		arg.Country,
 		arg.Status,
+		arg.MainImage,
+		arg.HeroImage,
+		arg.Gallery,
+		arg.Typography,
 	)
 	var i FestivalEdition
 	err := row.Scan(
@@ -230,6 +270,10 @@ func (q *Queries) UpdateFestivalEdition(ctx context.Context, arg UpdateFestivalE
 		&i.Country,
 		&i.Status,
 		&i.WpId,
+		&i.MainImage,
+		&i.HeroImage,
+		&i.Gallery,
+		&i.Typography,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

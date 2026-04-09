@@ -79,3 +79,44 @@ func (r *OrdersRepository) UpdateStatus(ctx context.Context, id, status string) 
 	}
 	return &o, nil
 }
+
+// ── Payment methods ───────────────────────────────────────────────────────────
+
+func (r *OrdersRepository) CreatePayment(ctx context.Context, params db.CreatePaymentParams) (*db.Payment, error) {
+	p, err := r.q.CreatePayment(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (r *OrdersRepository) GetPaymentByExternalID(ctx context.Context, externalID string) (*db.Payment, error) {
+	p, err := r.q.GetPaymentByExternalID(ctx, &externalID)
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (r *OrdersRepository) UpdatePaymentStatus(ctx context.Context, id string, status db.PaymentStatus) (*db.Payment, error) {
+	p, err := r.q.UpdatePaymentStatus(ctx, db.UpdatePaymentStatusParams{
+		ID:      id,
+		Column2: status,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (r *OrdersRepository) UpdateOrderPaymentMethod(ctx context.Context, orderID string, method db.NullPaymentMethod) (*db.Order, error) {
+	o, err := r.q.UpdateOrderPaymentStatus(ctx, db.UpdateOrderPaymentStatusParams{
+		ID:            orderID,
+		PaymentMethod: method,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &o, nil
+}
+

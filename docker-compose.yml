@@ -33,7 +33,7 @@ services:
   nestjs-api:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: apps/api-go/Dockerfile
     restart: unless-stopped
     ports:
       - "4000:4000"

@@ -15,8 +15,8 @@ SELECT * FROM "FestivalEdition" WHERE "id" = $1;
 SELECT * FROM "FestivalTranslation" WHERE "festivalEditionId" = $1;
 
 -- name: CreateFestivalEdition :one
-INSERT INTO "FestivalEdition" ("id", "slug", "editionNumber", "year", "city", "country", "status", "createdAt", "updatedAt")
-VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+INSERT INTO "FestivalEdition" ("id", "slug", "editionNumber", "year", "city", "country", "status", "mainImage", "heroImage", "gallery", "typography", "createdAt", "updatedAt")
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
 RETURNING *;
 
 -- name: UpsertFestivalTranslation :one
@@ -31,6 +31,10 @@ UPDATE "FestivalEdition"
 SET "city" = COALESCE(sqlc.narg('city'), "city"),
     "country" = COALESCE(sqlc.narg('country'), "country"),
     "status" = COALESCE(sqlc.narg('status')::"ProductStatus", "status"),
+    "mainImage" = COALESCE(sqlc.narg('mainImage'), "mainImage"),
+    "heroImage" = COALESCE(sqlc.narg('heroImage'), "heroImage"),
+    "gallery" = COALESCE(sqlc.narg('gallery'), "gallery"),
+    "typography" = COALESCE(sqlc.narg('typography'), "typography"),
     "updatedAt" = NOW()
 WHERE "id" = $1
 RETURNING *;

@@ -1,0 +1,197 @@
+definitions:
+  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.RefreshRequest:
+    properties:
+      refreshToken:
+        type: string
+    required:
+    - refreshToken
+    type: object
+  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.RegisterRequest:
+    properties:
+      email:
+        type: string
+      firstName:
+        type: string
+      lastName:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.TokenPair:
+    properties:
+      accessToken:
+        type: string
+      refreshToken:
+        type: string
+    type: object
+  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.UserResponse:
+    properties:
+      createdAt:
+        type: string
+      email:
+        type: string
+      firstName:
+        type: string
+      id:
+        type: string
+      lastName:
+        type: string
+      preferredLocale:
+        type: string
+      role:
+        type: string
+    type: object
+  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_types.AppError:
+    properties:
+      error:
+        type: string
+      message:
+        type: string
+      statusCode:
+        type: integer
+    type: object
+info:
+  contact: {}
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.TokenPair'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_types.AppError'
+      summary: Login and receive JWT tokens
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Logout (revoke all sessions)
+      tags:
+      - Auth
+  /auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_types.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get current user profile
+      tags:
+      - Auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.TokenPair'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_types.AppError'
+      summary: Refresh access token using refresh token
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Registration payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_types.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_types.AppError'
+      summary: Register a new user
+      tags:
+      - Auth
+  /auth/session:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Check session
+      tags:
+      - Auth
+swagger: "2.0"

@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Package } from 'lucide-react';
 import { formatXOF } from '@/lib/format';
+import { AddToCartButton } from '@/components/add-to-cart-button';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -17,7 +18,7 @@ export default async function ProductPage({ params }: Props) {
   let product: Product;
   try {
     product = await api
-      .get(`products/slug/${slug}`, { headers: { 'Accept-Language': 'fr' } })
+      .get(`products/${slug}`, { headers: { 'Accept-Language': 'fr' } })
       .json<Product>();
   } catch {
     notFound();
@@ -127,12 +128,14 @@ export default async function ProductPage({ params }: Props) {
           )}
 
           {/* Add to cart button */}
-          <button
-            disabled={!inStock}
-            className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-semibold text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed bg-[oklch(0.72_0.19_48)] text-black hover:bg-[oklch(0.80_0.19_48)] shadow-lg shadow-[oklch(0.72_0.19_48/25%)] hover:shadow-[oklch(0.72_0.19_48/40%)] hover:scale-[1.01]"
-          >
-            {inStock ? 'Ajouter au panier' : 'Produit indisponible'}
-          </button>
+          <AddToCartButton
+            productId={product.id}
+            slug={translation?.slug ?? product.slug}
+            name={translation?.name ?? 'Produit'}
+            price={product.price}
+            image={product.featuredImageUrl}
+            maxStock={product.stock}
+          />
 
           {/* SKU */}
           {product.sku && (

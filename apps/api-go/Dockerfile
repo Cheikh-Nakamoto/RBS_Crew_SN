@@ -7,11 +7,11 @@ RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /build
 
 # Copy and download dependencies
-COPY go.mod go.sum ./
+COPY apps/api-go/go.mod apps/api-go/go.sum ./
 RUN go mod download
 
 # Copy the rest of the source code
-COPY . .
+COPY apps/api-go/ .
 
 # Build the binary statically
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \

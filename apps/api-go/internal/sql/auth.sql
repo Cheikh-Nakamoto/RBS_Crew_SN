@@ -35,5 +35,21 @@ UPDATE "User"
 SET "resetToken" = NULL, "resetTokenExpiry" = NULL, "passwordHash" = $2, "updatedAt" = NOW()
 WHERE "id" = $1;
 
+-- name: SetEmailVerificationToken :exec
+UPDATE "User"
+SET "emailVerificationToken" = $2, "emailVerificationTokenExpiry" = $3, "updatedAt" = NOW()
+WHERE "id" = $1;
+
+-- name: GetUserByEmailVerificationToken :one
+SELECT "id", "email", "emailVerified"
+FROM "User"
+WHERE "emailVerificationToken" = $1
+  AND "emailVerificationTokenExpiry" > NOW();
+
 -- name: SetEmailVerified :exec
-UPDATE "User" SET "emailVerified" = true, "updatedAt" = NOW() WHERE "id" = $1;
+UPDATE "User"
+SET "emailVerified" = true,
+    "emailVerificationToken" = NULL,
+    "emailVerificationTokenExpiry" = NULL,
+    "updatedAt" = NOW()
+WHERE "id" = $1;

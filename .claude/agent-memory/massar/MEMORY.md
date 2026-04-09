@@ -1,0 +1,1 @@
+- [massar profile](user_massar.md) — Security Engineer, audits Go backend, wants structured vuln reports

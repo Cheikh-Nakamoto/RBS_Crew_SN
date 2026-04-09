@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 
@@ -15,6 +16,7 @@ type Config struct {
 	APIPort          string
 	Environment      string
 	CORSOrigin       string
+	AppURL           string
 
 	// SMTP
 	SMTPHost string
@@ -26,27 +28,85 @@ type Config struct {
 	// Stripe
 	StripeSecretKey     string
 	StripeWebhookSecret string
+
+	// PayPal
+	PayPalClientID     string
+	PayPalClientSecret string
+	PayPalWebhookID    string
+	PayPalSandbox      bool
+
+	// Wave
+	WaveAPIKey    string
+	WaveSecretKey string
+
+	// Orange Money
+	OrangeMoneyClientID     string
+	OrangeMoneyClientSecret string
+	OrangeMoneyMerchantKey  string
 }
 
 func Load() (*Config, error) {
 	_ = godotenv.Load() // Ignore error if .env is missing, just fallback to env vars
 
+	env := getEnv("APP_ENV", "development")
+
+	jwtSecret, err := requireEnv("JWT_SECRET")
+	if err != nil && env == "production" {
+		return nil, err
+	}
+	if jwtSecret == "" {
+		jwtSecret = "change-me-secret-do-not-use-in-production"
+	}
+
+	jwtRefreshSecret, err := requireEnv("JWT_REFRESH_SECRET")
+	if err != nil && env == "production" {
+		return nil, err
+	}
+	if jwtRefreshSecret == "" {
+		jwtRefreshSecret = "change-me-refresh-secret-do-not-use-in-production"
+	}
+
+	dbURL, err := requireEnv("DATABASE_URL")
+	if err != nil && env == "production" {
+		return nil, err
+	}
+	if dbURL == "" {
+		dbURL = "postgresql://rbs:password@localhost:5432/rbs_db"
+	}
+
 	return &Config{
-		DatabaseURL:      getEnv("DATABASE_URL", "postgresql://rbs:password@localhost:5432/rbs_db"),
-		RedisURL:         getEnv("REDIS_URL", "redis://localhost:6379"),
-		JWTSecret:        getEnv("JWT_SECRET", "change-me-secret"),
-		JWTRefreshSecret: getEnv("JWT_REFRESH_SECRET", "change-me-refresh-secret"),
-		APIPort:          getEnv("API_PORT", "4000"),
-		Environment:      getEnv("NODE_ENV", "development"),
-		CORSOrigin:       getEnv("CORS_ORIGIN", "http://localhost:3000"),
-		SMTPHost:         getEnv("SMTP_HOST", ""),
-		SMTPPort:         getEnvAsInt("SMTP_PORT", 587),
-		SMTPUser:         getEnv("SMTP_USER", ""),
-		SMTPPass:         getEnv("SMTP_PASS", ""),
-		SMTPFrom:         getEnv("SMTP_FROM", "RBS Crew <noreply@rbscrew.sn>"),
-		StripeSecretKey:     getEnv("STRIPE_SECRET_KEY", ""),
-		StripeWebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET", ""),
+		DatabaseURL:         dbURL,
+		RedisURL:            getEnv("REDIS_URL", "redis://localhost:6379"),
+		JWTSecret:           jwtSecret,
+		JWTRefreshSecret:    jwtRefreshSecret,
+		APIPort:             getEnv("API_PORT", "4000"),
+		Environment:         env,
+		CORSOrigin:          getEnv("CORS_ORIGIN", "http://localhost:3000"),
+		AppURL:              getEnv("APP_URL", "http://localhost:3000"),
+		SMTPHost:            getEnv("SMTP_HOST", ""),
+		SMTPPort:            getEnvAsInt("SMTP_PORT", 587),
+		SMTPUser:            getEnv("SMTP_USER", ""),
+		SMTPPass:            getEnv("SMTP_PASS", ""),
+		SMTPFrom:            getEnv("SMTP_FROM", "RBS Crew <noreply@rbscrew.sn>"),
+		StripeSecretKey:         getEnv("STRIPE_SECRET_KEY", ""),
+		StripeWebhookSecret:     getEnv("STRIPE_WEBHOOK_SECRET", ""),
+		PayPalClientID:          getEnv("PAYPAL_CLIENT_ID", ""),
+		PayPalClientSecret:      getEnv("PAYPAL_CLIENT_SECRET", ""),
+		PayPalWebhookID:         getEnv("PAYPAL_WEBHOOK_ID", ""),
+		PayPalSandbox:           getEnv("PAYPAL_SANDBOX", "true") == "true",
+		WaveAPIKey:              getEnv("WAVE_API_KEY", ""),
+		WaveSecretKey:           getEnv("WAVE_SECRET_KEY", ""),
+		OrangeMoneyClientID:     getEnv("OM_CLIENT_ID", ""),
+		OrangeMoneyClientSecret: getEnv("OM_CLIENT_SECRET", ""),
+		OrangeMoneyMerchantKey:  getEnv("OM_MERCHANT_KEY", ""),
 	}, nil
+}
+
+func requireEnv(key string) (string, error) {
+	if value, ok := os.LookupEnv(key); ok && value != "" {
+		return value, nil
+	}
+	return "", fmt.Errorf("required environment variable %q is not set", key)
 }
 
 func getEnvAsInt(key string, fallback int) int {
