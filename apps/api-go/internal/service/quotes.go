@@ -6,39 +6,13 @@ import (
 	"time"
 
 	db "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db/queries"
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/repository"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
-
-type CreateQuoteDTO struct {
-	Name         string     `json:"name"      validate:"required"`
-	Surname      *string    `json:"surname"`
-	Email        string     `json:"email"     validate:"required,email"`
-	Phone        *string    `json:"phone"`
-	Company      *string    `json:"company"`
-	OrderType    string     `json:"orderType" validate:"required"`
-	Quantity     *int32     `json:"quantity"`
-	DeliveryDate *time.Time `json:"deliveryDate"`
-	Message      string     `json:"message"   validate:"required"`
-}
-
-type QuoteResponse struct {
-	ID           string     `json:"id"`
-	Name         string     `json:"name"`
-	Surname      *string    `json:"surname"`
-	Email        string     `json:"email"`
-	Phone        *string    `json:"phone"`
-	Company      *string    `json:"company"`
-	OrderType    string     `json:"orderType"`
-	Quantity     *int32     `json:"quantity"`
-	DeliveryDate *time.Time `json:"deliveryDate"`
-	Message      string     `json:"message"`
-	Status       string     `json:"status"`
-	CreatedAt    time.Time  `json:"createdAt"`
-}
 
 type QuotesService struct {
 	repo *repository.QuotesRepository
@@ -48,7 +22,7 @@ func NewQuotesService(repo *repository.QuotesRepository) *QuotesService {
 	return &QuotesService{repo: repo}
 }
 
-func (s *QuotesService) Create(ctx context.Context, dto CreateQuoteDTO) (*QuoteResponse, *types.AppError) {
+func (s *QuotesService) Create(ctx context.Context, dto model.CreateQuoteDTO) (*model.QuoteResponse, *types.AppError) {
 	params := db.CreateQuoteParams{
 		ID:        uuid.New().String(),
 		Name:      dto.Name,
@@ -72,13 +46,13 @@ func (s *QuotesService) Create(ctx context.Context, dto CreateQuoteDTO) (*QuoteR
 	return &res, nil
 }
 
-func (s *QuotesService) FindAll(ctx context.Context, page, limit int) (*types.PaginatedResponse[QuoteResponse], *types.AppError) {
+func (s *QuotesService) FindAll(ctx context.Context, page, limit int) (*types.PaginatedResponse[model.QuoteResponse], *types.AppError) {
 	rows, err := s.repo.List(ctx, int32(limit), int32((page-1)*limit))
 	if err != nil {
 		return nil, types.InternalError("Failed to fetch quotes")
 	}
 	var total int
-	results := make([]QuoteResponse, 0, len(rows))
+	results := make([]model.QuoteResponse, 0, len(rows))
 	for _, row := range rows {
 		if total == 0 {
 			total = int(row.TotalCount)
@@ -103,7 +77,7 @@ func (s *QuotesService) FindAll(ctx context.Context, page, limit int) (*types.Pa
 	return types.Paginate(results, total, page, limit), nil
 }
 
-func (s *QuotesService) FindOne(ctx context.Context, id string) (*QuoteResponse, *types.AppError) {
+func (s *QuotesService) FindOne(ctx context.Context, id string) (*model.QuoteResponse, *types.AppError) {
 	q, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -115,7 +89,17 @@ func (s *QuotesService) FindOne(ctx context.Context, id string) (*QuoteResponse,
 	return &res, nil
 }
 
-func (s *QuotesService) UpdateStatus(ctx context.Context, id, status string) (*QuoteResponse, *types.AppError) {
+func (s *QuotesService) Delete(ctx context.Context, id string) *types.AppError {
+	if err := s.repo.Delete(ctx, id); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return types.NotFound("Quote not found")
+		}
+		return types.InternalError("Failed to delete quote")
+	}
+	return nil
+}
+
+func (s *QuotesService) UpdateStatus(ctx context.Context, id, status string) (*model.QuoteResponse, *types.AppError) {
 	q, err := s.repo.UpdateStatus(ctx, id, status)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -127,13 +111,13 @@ func (s *QuotesService) UpdateStatus(ctx context.Context, id, status string) (*Q
 	return &res, nil
 }
 
-func toQuoteResponse(q *db.Quote) QuoteResponse {
+func toQuoteResponse(q *db.Quote) model.QuoteResponse {
 	var deliveryDate *time.Time
 	if q.DeliveryDate.Valid {
 		t := q.DeliveryDate.Time
 		deliveryDate = &t
 	}
-	return QuoteResponse{
+	return model.QuoteResponse{
 		ID: q.ID, Name: q.Name, Surname: q.Surname,
 		Email: q.Email, Phone: q.Phone, Company: q.Company,
 		OrderType: q.OrderType, Quantity: q.Quantity,

@@ -371,6 +371,7 @@ type Order struct {
 	GuestEmail            *string           `json:"guestEmail"`
 	Status                OrderStatus       `json:"status"`
 	PaymentStatus         PaymentStatus     `json:"paymentStatus"`
+	PaymentMethod         NullPaymentMethod `json:"paymentMethod"`
 	StripePaymentIntentId *string           `json:"stripePaymentIntentId"`
 	Currency              string            `json:"currency"`
 	Subtotal              decimal.Decimal   `json:"subtotal"`
@@ -385,7 +386,6 @@ type Order struct {
 	Locale                Locale            `json:"locale"`
 	CreatedAt             pgtype.Timestamp  `json:"createdAt"`
 	UpdatedAt             pgtype.Timestamp  `json:"updatedAt"`
-	PaymentMethod         NullPaymentMethod `json:"paymentMethod"`
 }
 
 type OrderItem struct {
@@ -519,6 +519,7 @@ type Project struct {
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
 	FeaturedImageUrl *string          `json:"featuredImageUrl"`
+	Gallery          []byte           `json:"gallery"`
 }
 
 type ProjectTranslation struct {

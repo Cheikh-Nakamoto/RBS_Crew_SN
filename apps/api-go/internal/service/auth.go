@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
 
 	db "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db/queries"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/mail"
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/repository"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 	"github.com/golang-jwt/jwt/v5"
@@ -40,48 +43,15 @@ func NewAuthService(repo *repository.AuthRepository, mailService *mail.MailServi
 	}
 }
 
-// ── DTOs ─────────────────────────────────────────────────────────────────────
-
-type RegisterRequest struct {
-	Email     string  `json:"email"     validate:"required,email"`
-	Password  string  `json:"password"  validate:"required,password_strength"`
-	FirstName *string `json:"firstName"`
-	LastName  *string `json:"lastName"`
-	Phone     *string `json:"phone"`
-}
-
-type LoginRequest struct {
-	Email    string `json:"email"    validate:"required,email"`
-	Password string `json:"password" validate:"required"`
-}
-
-type RefreshRequest struct {
-	RefreshToken string `json:"refreshToken" validate:"required"`
-}
-
-type TokenPair struct {
-	AccessToken  string `json:"accessToken"`
-	RefreshToken string `json:"refreshToken"`
-}
-
-type UserResponse struct {
-	ID              string    `json:"id"`
-	Email           string    `json:"email"`
-	FirstName       *string   `json:"firstName"`
-	LastName        *string   `json:"lastName"`
-	Role            string    `json:"role"`
-	PreferredLocale string    `json:"preferredLocale"`
-	CreatedAt       time.Time `json:"createdAt"`
-}
-
 // ── Register ─────────────────────────────────────────────────────────────────
 
-func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*UserResponse, *types.AppError) {
+func (s *AuthService) Register(ctx context.Context, req model.RegisterRequest) (*model.AuthResponse, *types.AppError) {
 	_, err := s.repo.GetUserByEmail(ctx, req.Email)
 	if err == nil {
 		return nil, types.Conflict("Email already in use")
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
+		fmt.Printf("GetUserByEmail err: %v\n", err)
 		return nil, types.InternalError("Database error")
 	}
 
@@ -117,12 +87,21 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*UserR
 		_ = s.mailService.SendEmailVerification(user.Email, verificationToken)
 	}
 
-	return toUserResponse(user), nil
+	tokens, appErr := s.issueTokens(ctx, user.ID, user.Email, string(user.Role))
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	return &model.AuthResponse{
+		User:         *toUserResponse(user),
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+	}, nil
 }
 
 // ── Login ─────────────────────────────────────────────────────────────────────
 
-func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*TokenPair, *types.AppError) {
+func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (*model.TokenPair, *types.AppError) {
 	user, err := s.repo.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, types.Unauthorized("Invalid credentials")
@@ -137,7 +116,7 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*TokenPair, 
 
 // ── Refresh ───────────────────────────────────────────────────────────────────
 
-func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*TokenPair, *types.AppError) {
+func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*model.TokenPair, *types.AppError) {
 	claims := &types.JWTClaims{}
 	token, err := jwt.ParseWithClaims(refreshToken, claims, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -161,7 +140,9 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*TokenP
 	// Check if this refresh token matches any stored hash (same as NestJS Promise.any)
 	matched := false
 	for _, session := range sessions {
-		if bcrypt.CompareHashAndPassword([]byte(session.TokenHash), []byte(refreshToken)) == nil {
+		hash := sha256.Sum256([]byte(refreshToken))
+		hexHash := hex.EncodeToString(hash[:])
+		if bcrypt.CompareHashAndPassword([]byte(session.TokenHash), []byte(hexHash)) == nil {
 			matched = true
 			break
 		}
@@ -184,7 +165,7 @@ func (s *AuthService) Logout(ctx context.Context, userID string) (map[string]str
 
 // ── Me ────────────────────────────────────────────────────────────────────────
 
-func (s *AuthService) Me(ctx context.Context, userID string) (*UserResponse, *types.AppError) {
+func (s *AuthService) Me(ctx context.Context, userID string) (*model.UserResponse, *types.AppError) {
 	row, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -192,11 +173,11 @@ func (s *AuthService) Me(ctx context.Context, userID string) (*UserResponse, *ty
 		}
 		return nil, types.InternalError("Database error")
 	}
-	return &UserResponse{
+	return &model.UserResponse{
 		ID:              row.ID,
 		Email:           row.Email,
 		FirstName:       row.FirstName,
-		LastName:       row.LastName,
+		LastName:        row.LastName,
 		Role:            string(row.Role),
 		PreferredLocale: string(row.PreferredLocale),
 		CreatedAt:       row.CreatedAt.Time,
@@ -214,7 +195,7 @@ func (s *AuthService) ForgotPassword(ctx context.Context, email string) *types.A
 
 	token := uuid.New().String()
 	exp := pgtype.Timestamp{Time: time.Now().Add(resetExpiry), Valid: true}
-	
+
 	if err := s.repo.SetPasswordResetToken(ctx, email, &token, exp); err != nil {
 		return types.InternalError("Database error")
 	}
@@ -291,7 +272,7 @@ func (s *AuthService) CheckSession(_ context.Context, tokenStr string) map[strin
 
 // ── private ───────────────────────────────────────────────────────────────────
 
-func (s *AuthService) issueTokens(ctx context.Context, userID, email, role string) (*TokenPair, *types.AppError) {
+func (s *AuthService) issueTokens(ctx context.Context, userID, email, role string) (*model.TokenPair, *types.AppError) {
 	now := time.Now()
 
 	accessClaims := types.JWTClaims{
@@ -326,8 +307,11 @@ func (s *AuthService) issueTokens(ctx context.Context, userID, email, role strin
 		return nil, types.InternalError("Failed to sign refresh token")
 	}
 
-	tokenHash, err := bcrypt.GenerateFromPassword([]byte(refreshToken), bcryptCost)
+	hash := sha256.Sum256([]byte(refreshToken))
+	hexHash := hex.EncodeToString(hash[:])
+	tokenHash, err := bcrypt.GenerateFromPassword([]byte(hexHash), bcryptCost)
 	if err != nil {
+		fmt.Printf("Failed to hash refresh token: %v\n", err)
 		return nil, types.InternalError("Failed to hash refresh token")
 	}
 
@@ -341,11 +325,11 @@ func (s *AuthService) issueTokens(ctx context.Context, userID, email, role strin
 		return nil, types.InternalError("Failed to create session")
 	}
 
-	return &TokenPair{AccessToken: accessToken, RefreshToken: refreshToken}, nil
+	return &model.TokenPair{AccessToken: accessToken, RefreshToken: refreshToken}, nil
 }
 
-func toUserResponse(u *db.User) *UserResponse {
-	return &UserResponse{
+func toUserResponse(u *db.User) *model.UserResponse {
+	return &model.UserResponse{
 		ID:              u.ID,
 		Email:           u.Email,
 		FirstName:       u.FirstName,

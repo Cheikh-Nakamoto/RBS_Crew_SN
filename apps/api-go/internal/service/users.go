@@ -3,91 +3,14 @@ package service
 import (
 	"context"
 	"errors"
-	"time"
 
 	db "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db/queries"
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/repository"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
-
-// ── DTOs ─────────────────────────────────────────────────────────────────────
-
-type UpdateUserDTO struct {
-	FirstName       *string `json:"firstName"`
-	LastName        *string `json:"lastName"`
-	Phone           *string `json:"phone"`
-	PreferredLocale *string `json:"preferredLocale" validate:"omitempty,oneof=fr en"`
-}
-
-type UpdateUserRoleDTO struct {
-	Role string `json:"role" validate:"required,oneof=CUSTOMER EDITOR ADMIN"`
-}
-
-type CreateAddressDTO struct {
-	Label      *string `json:"label"`
-	FirstName  string  `json:"firstName"  validate:"required"`
-	LastName   string  `json:"lastName"   validate:"required"`
-	Company    *string `json:"company"`
-	Line1      string  `json:"line1"      validate:"required"`
-	Line2      *string `json:"line2"`
-	City       string  `json:"city"       validate:"required"`
-	PostalCode string  `json:"postalCode" validate:"required"`
-	Country    string  `json:"country"    validate:"required,len=2"`
-	IsDefault  bool    `json:"isDefault"`
-}
-
-type UpdateAddressDTO struct {
-	Label      *string `json:"label"`
-	FirstName  *string `json:"firstName"`
-	LastName   *string `json:"lastName"`
-	Company    *string `json:"company"`
-	Line1      *string `json:"line1"`
-	Line2      *string `json:"line2"`
-	City       *string `json:"city"`
-	PostalCode *string `json:"postalCode"`
-	Country    *string `json:"country"`
-	IsDefault  *bool   `json:"isDefault"`
-}
-
-// ── Response types ────────────────────────────────────────────────────────────
-
-type UserProfileResponse struct {
-	ID              string    `json:"id"`
-	Email           string    `json:"email"`
-	FirstName       *string   `json:"firstName"`
-	LastName        *string   `json:"lastName"`
-	Phone           *string   `json:"phone"`
-	Role            string    `json:"role"`
-	PreferredLocale string    `json:"preferredLocale"`
-	CreatedAt       time.Time `json:"createdAt"`
-}
-
-type AddressResponse struct {
-	ID         string  `json:"id"`
-	Label      *string `json:"label"`
-	FirstName  string  `json:"firstName"`
-	LastName   string  `json:"lastName"`
-	Company    *string `json:"company"`
-	Line1      string  `json:"line1"`
-	Line2      *string `json:"line2"`
-	City       string  `json:"city"`
-	PostalCode string  `json:"postalCode"`
-	Country    string  `json:"country"`
-	IsDefault  bool    `json:"isDefault"`
-}
-
-type UserListItem struct {
-	ID              string    `json:"id"`
-	Email           string    `json:"email"`
-	FirstName       *string   `json:"firstName"`
-	LastName        *string   `json:"lastName"`
-	Role            string    `json:"role"`
-	PreferredLocale string    `json:"preferredLocale"`
-	Phone           *string   `json:"phone"`
-	CreatedAt       time.Time `json:"createdAt"`
-}
 
 // ── Service ───────────────────────────────────────────────────────────────────
 
@@ -101,7 +24,7 @@ func NewUsersService(repo *repository.UsersRepository) *UsersService {
 
 // ── GetMe ─────────────────────────────────────────────────────────────────────
 
-func (s *UsersService) GetMe(ctx context.Context, userID string) (*UserProfileResponse, *types.AppError) {
+func (s *UsersService) GetMe(ctx context.Context, userID string) (*model.UserProfileResponse, *types.AppError) {
 	row, err := s.repo.GetByID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -114,7 +37,7 @@ func (s *UsersService) GetMe(ctx context.Context, userID string) (*UserProfileRe
 
 // ── UpdateMe ──────────────────────────────────────────────────────────────────
 
-func (s *UsersService) UpdateMe(ctx context.Context, userID string, dto UpdateUserDTO) (*UserProfileResponse, *types.AppError) {
+func (s *UsersService) UpdateMe(ctx context.Context, userID string, dto model.UpdateUserDTO) (*model.UserProfileResponse, *types.AppError) {
 	params := db.UpdateUserParams{ID: userID}
 	if dto.FirstName != nil {
 		params.FirstName = dto.FirstName
@@ -136,7 +59,7 @@ func (s *UsersService) UpdateMe(ctx context.Context, userID string, dto UpdateUs
 		}
 		return nil, types.InternalError("Failed to update user")
 	}
-	return &UserProfileResponse{
+	return &model.UserProfileResponse{
 		ID:              row.ID,
 		Email:           row.Email,
 		FirstName:       row.FirstName,
@@ -159,19 +82,19 @@ func (s *UsersService) DeleteMe(ctx context.Context, userID string) *types.AppEr
 
 // ── Addresses ─────────────────────────────────────────────────────────────────
 
-func (s *UsersService) GetAddresses(ctx context.Context, userID string) ([]AddressResponse, *types.AppError) {
+func (s *UsersService) GetAddresses(ctx context.Context, userID string) ([]model.AddressResponse, *types.AppError) {
 	rows, err := s.repo.GetAddresses(ctx, userID)
 	if err != nil {
 		return nil, types.InternalError("Failed to fetch addresses")
 	}
-	result := make([]AddressResponse, 0, len(rows))
+	result := make([]model.AddressResponse, 0, len(rows))
 	for _, a := range rows {
 		result = append(result, toAddressResponse(&a))
 	}
 	return result, nil
 }
 
-func (s *UsersService) AddAddress(ctx context.Context, userID string, dto CreateAddressDTO) (*AddressResponse, *types.AppError) {
+func (s *UsersService) AddAddress(ctx context.Context, userID string, dto model.CreateAddressDTO) (*model.AddressResponse, *types.AppError) {
 	// If isDefault, unset all others first
 	if dto.IsDefault {
 		if err := s.repo.UnsetDefaultAddresses(ctx, userID); err != nil {
@@ -201,7 +124,7 @@ func (s *UsersService) AddAddress(ctx context.Context, userID string, dto Create
 	return &res, nil
 }
 
-func (s *UsersService) UpdateAddress(ctx context.Context, userID, addrID string, dto UpdateAddressDTO) (*AddressResponse, *types.AppError) {
+func (s *UsersService) UpdateAddress(ctx context.Context, userID, addrID string, dto model.UpdateAddressDTO) (*model.AddressResponse, *types.AppError) {
 	// Ownership check
 	existing, err := s.repo.GetAddressByID(ctx, addrID)
 	if err != nil {
@@ -260,7 +183,7 @@ func (s *UsersService) DeleteAddress(ctx context.Context, userID, addrID string)
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
 
-func (s *UsersService) ListAll(ctx context.Context, search *string, page, limit int) (*types.PaginatedResponse[UserListItem], *types.AppError) {
+func (s *UsersService) ListAll(ctx context.Context, search *string, page, limit int) (*types.PaginatedResponse[model.UserListItem], *types.AppError) {
 	params := db.ListUsersParams{
 		Limit:  int32(limit),
 		Offset: int32((page - 1) * limit),
@@ -271,12 +194,12 @@ func (s *UsersService) ListAll(ctx context.Context, search *string, page, limit 
 		return nil, types.InternalError("Failed to fetch users")
 	}
 	var total int
-	items := make([]UserListItem, 0, len(rows))
+	items := make([]model.UserListItem, 0, len(rows))
 	for _, r := range rows {
 		if total == 0 {
 			total = int(r.TotalCount)
 		}
-		items = append(items, UserListItem{
+		items = append(items, model.UserListItem{
 			ID:              r.ID,
 			Email:           r.Email,
 			FirstName:       r.FirstName,
@@ -290,7 +213,7 @@ func (s *UsersService) ListAll(ctx context.Context, search *string, page, limit 
 	return types.Paginate(items, total, page, limit), nil
 }
 
-func (s *UsersService) GetByID(ctx context.Context, id string) (*UserProfileResponse, *types.AppError) {
+func (s *UsersService) GetByID(ctx context.Context, id string) (*model.UserProfileResponse, *types.AppError) {
 	row, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -301,7 +224,7 @@ func (s *UsersService) GetByID(ctx context.Context, id string) (*UserProfileResp
 	return toProfileResponse(row), nil
 }
 
-func (s *UsersService) UpdateRole(ctx context.Context, id, role string) (*UserProfileResponse, *types.AppError) {
+func (s *UsersService) UpdateRole(ctx context.Context, id, role string) (*model.UserProfileResponse, *types.AppError) {
 	r := db.UserRole(role)
 	params := db.UpdateUserParams{ID: id, Role: db.NullUserRole{UserRole: r, Valid: true}}
 	row, err := s.repo.Update(ctx, params)
@@ -311,7 +234,7 @@ func (s *UsersService) UpdateRole(ctx context.Context, id, role string) (*UserPr
 		}
 		return nil, types.InternalError("Failed to update role")
 	}
-	return &UserProfileResponse{
+	return &model.UserProfileResponse{
 		ID:              row.ID,
 		Email:           row.Email,
 		FirstName:       row.FirstName,
@@ -332,8 +255,8 @@ func (s *UsersService) AdminDelete(ctx context.Context, id string) *types.AppErr
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-func toProfileResponse(row *db.GetUserByIDFullRow) *UserProfileResponse {
-	return &UserProfileResponse{
+func toProfileResponse(row *db.GetUserByIDFullRow) *model.UserProfileResponse {
+	return &model.UserProfileResponse{
 		ID:              row.ID,
 		Email:           row.Email,
 		FirstName:       row.FirstName,
@@ -345,8 +268,8 @@ func toProfileResponse(row *db.GetUserByIDFullRow) *UserProfileResponse {
 	}
 }
 
-func toAddressResponse(a *db.Address) AddressResponse {
-	return AddressResponse{
+func toAddressResponse(a *db.Address) model.AddressResponse {
+	return model.AddressResponse{
 		ID:         a.ID,
 		Label:      a.Label,
 		FirstName:  a.FirstName,

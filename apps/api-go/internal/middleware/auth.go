@@ -15,6 +15,7 @@ func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			header := r.Header.Get("Authorization")
 			if !strings.HasPrefix(header, "Bearer ") {
+				fmt.Printf("Authorization header missing or malformed: %s\n", header) // Debug log
 				types.WriteError(w, types.Unauthorized("Missing or invalid token"))
 				return
 			}
@@ -31,9 +32,10 @@ func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
 				jwt.WithAudience(types.JWTAudience),
 				jwt.WithExpirationRequired(),
 			)
-
+			fmt.Printf("Token parsed: valid=%v, claims=%+v, error=%v\n", token.Valid, claims, err) // Debug log
 			if err != nil || !token.Valid {
 				types.WriteError(w, types.Unauthorized("Invalid or expired token"))
+				fmt.Printf("Token validation error: %v\n", err) // Debug log
 				return
 			}
 

@@ -50,6 +50,11 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
       API_PORT: 4000
       NODE_ENV: ${NODE_ENV:-development}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME:-rbs-media}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL:-https://pub-f89062d997054062a74be2228aba1326.r2.dev}
 
   nextjs-web:
     build:

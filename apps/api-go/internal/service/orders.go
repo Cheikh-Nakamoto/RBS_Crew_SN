@@ -9,6 +9,7 @@ import (
 	"time"
 
 	db "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db/queries"
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/repository"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 	"github.com/google/uuid"
@@ -16,49 +17,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/shopspring/decimal"
 )
-
-// ── DTOs ─────────────────────────────────────────────────────────────────────
-
-type CreateOrderItemDTO struct {
-	ProductID string `json:"productId" validate:"required,uuid"`
-	VariantID *string `json:"variantId"`
-	Quantity  int    `json:"quantity"  validate:"required,min=1"`
-}
-
-type CreateOrderDTO struct {
-	Items             []CreateOrderItemDTO `json:"items"      validate:"required,min=1,dive"`
-	GuestEmail        string               `json:"guestEmail"`
-	ShippingAddressID *string              `json:"shippingAddressId"`
-	BillingAddressID  *string              `json:"billingAddressId"`
-	Notes             *string              `json:"notes"`
-}
-
-// ── Response types ────────────────────────────────────────────────────────────
-
-type OrderItemResponse struct {
-	ID          string          `json:"id"`
-	ProductID   string          `json:"productId"`
-	ProductName string          `json:"productName"`
-	ProductSKU  *string         `json:"productSku"`
-	Quantity    int32           `json:"quantity"`
-	UnitPrice   decimal.Decimal `json:"unitPrice"`
-	TotalPrice  decimal.Decimal `json:"totalPrice"`
-}
-
-type OrderResponse struct {
-	ID             string              `json:"id"`
-	OrderNumber    string              `json:"orderNumber"`
-	Status         string              `json:"status"`
-	PaymentStatus  string              `json:"paymentStatus"`
-	Currency       string              `json:"currency"`
-	Subtotal       decimal.Decimal     `json:"subtotal"`
-	TaxAmount      decimal.Decimal     `json:"taxAmount"`
-	ShippingAmount decimal.Decimal     `json:"shippingAmount"`
-	DiscountAmount decimal.Decimal     `json:"discountAmount"`
-	Total          decimal.Decimal     `json:"total"`
-	Items          []OrderItemResponse `json:"items"`
-	CreatedAt      time.Time           `json:"createdAt"`
-}
 
 // ── Service ───────────────────────────────────────────────────────────────────
 
@@ -71,7 +29,7 @@ func NewOrdersService(ordersRepo *repository.OrdersRepository, productsRepo *rep
 	return &OrdersService{ordersRepo: ordersRepo, productsRepo: productsRepo}
 }
 
-func (s *OrdersService) Create(ctx context.Context, dto CreateOrderDTO, userID *string) (*OrderResponse, *types.AppError) {
+func (s *OrdersService) Create(ctx context.Context, dto model.CreateOrderDTO, userID *string) (*model.OrderResponse, *types.AppError) {
 	if userID == nil && dto.GuestEmail == "" {
 		return nil, types.BadRequest("guestEmail is required for guest orders")
 	}
@@ -158,14 +116,15 @@ func (s *OrdersService) Create(ctx context.Context, dto CreateOrderDTO, userID *
 	}
 
 	// 4. Create order items
-	items := make([]OrderItemResponse, 0, len(itemsData))
+	items := make([]model.OrderItemResponse, 0, len(itemsData))
 	for _, itemParam := range itemsData {
 		itemParam.OrderId = order.ID
 		created, err := qtx.CreateOrderItem(ctx, itemParam)
 		if err != nil {
+			fmt.Printf("CreateOrderItem error: %v\n", err)
 			return nil, types.InternalError("Failed to create order item")
 		}
-		items = append(items, OrderItemResponse{
+		items = append(items, model.OrderItemResponse{
 			ID: created.ID, ProductID: created.ProductId,
 			ProductName: created.ProductName, ProductSKU: created.ProductSku,
 			Quantity: created.Quantity, UnitPrice: created.UnitPrice, TotalPrice: created.TotalPrice,
@@ -179,13 +138,13 @@ func (s *OrdersService) Create(ctx context.Context, dto CreateOrderDTO, userID *
 	return toOrderResponse(&order, items), nil
 }
 
-func (s *OrdersService) FindAll(ctx context.Context, page, limit int) (*types.PaginatedResponse[OrderResponse], *types.AppError) {
+func (s *OrdersService) FindAll(ctx context.Context, page, limit int) (*types.PaginatedResponse[model.OrderResponse], *types.AppError) {
 	rows, err := s.ordersRepo.List(ctx, int32(limit), int32((page-1)*limit))
 	if err != nil {
 		return nil, types.InternalError("Failed to fetch orders")
 	}
 	var total int
-	results := make([]OrderResponse, 0, len(rows))
+	results := make([]model.OrderResponse, 0, len(rows))
 	for _, row := range rows {
 		if total == 0 {
 			total = int(row.TotalCount)
@@ -218,13 +177,13 @@ func (s *OrdersService) FindAll(ctx context.Context, page, limit int) (*types.Pa
 	return types.Paginate(results, total, page, limit), nil
 }
 
-func (s *OrdersService) FindMy(ctx context.Context, userID string, page, limit int) (*types.PaginatedResponse[OrderResponse], *types.AppError) {
+func (s *OrdersService) FindMy(ctx context.Context, userID string, page, limit int) (*types.PaginatedResponse[model.OrderResponse], *types.AppError) {
 	rows, err := s.ordersRepo.ListMy(ctx, userID, int32(limit), int32((page-1)*limit))
 	if err != nil {
 		return nil, types.InternalError("Failed to fetch orders")
 	}
 	var total int
-	results := make([]OrderResponse, 0, len(rows))
+	results := make([]model.OrderResponse, 0, len(rows))
 	for _, row := range rows {
 		if total == 0 {
 			total = int(row.TotalCount)
@@ -257,7 +216,7 @@ func (s *OrdersService) FindMy(ctx context.Context, userID string, page, limit i
 	return types.Paginate(results, total, page, limit), nil
 }
 
-func (s *OrdersService) FindOne(ctx context.Context, id, userID, role string) (*OrderResponse, *types.AppError) {
+func (s *OrdersService) FindOne(ctx context.Context, id, userID, role string) (*model.OrderResponse, *types.AppError) {
 	order, err := s.ordersRepo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -273,7 +232,17 @@ func (s *OrdersService) FindOne(ctx context.Context, id, userID, role string) (*
 	return &res, nil
 }
 
-func (s *OrdersService) UpdateStatus(ctx context.Context, id, status string) (*OrderResponse, *types.AppError) {
+func (s *OrdersService) AdminDelete(ctx context.Context, id string) *types.AppError {
+	if err := s.ordersRepo.Delete(ctx, id); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return types.NotFound("Order not found")
+		}
+		return types.InternalError("Failed to delete order")
+	}
+	return nil
+}
+
+func (s *OrdersService) UpdateStatus(ctx context.Context, id, status string) (*model.OrderResponse, *types.AppError) {
 	order, err := s.ordersRepo.UpdateStatus(ctx, id, status)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -292,10 +261,10 @@ func generateOrderNumber() string {
 	return "RBS-" + strings.ToUpper(strconv.FormatInt(time.Now().UnixMilli(), 36))
 }
 
-func toItemResponses(items []db.OrderItem) []OrderItemResponse {
-	var result []OrderItemResponse
+func toItemResponses(items []db.OrderItem) []model.OrderItemResponse {
+	var result []model.OrderItemResponse
 	for _, item := range items {
-		result = append(result, OrderItemResponse{
+		result = append(result, model.OrderItemResponse{
 			ID: item.ID, ProductID: item.ProductId,
 			ProductName: item.ProductName, ProductSKU: item.ProductSku,
 			Quantity: item.Quantity, UnitPrice: item.UnitPrice, TotalPrice: item.TotalPrice,
@@ -304,8 +273,8 @@ func toItemResponses(items []db.OrderItem) []OrderItemResponse {
 	return result
 }
 
-func toOrderResponse(o *db.Order, items []OrderItemResponse) *OrderResponse {
-	return &OrderResponse{
+func toOrderResponse(o *db.Order, items []model.OrderItemResponse) *model.OrderResponse {
+	return &model.OrderResponse{
 		ID: o.ID, OrderNumber: o.OrderNumber,
 		Status: string(o.Status), PaymentStatus: string(o.PaymentStatus),
 		Currency:       o.Currency,
@@ -317,8 +286,8 @@ func toOrderResponse(o *db.Order, items []OrderItemResponse) *OrderResponse {
 	}
 }
 
-func toOrderResponseFromRow(o *db.Order, items []OrderItemResponse) OrderResponse {
-	return OrderResponse{
+func toOrderResponseFromRow(o *db.Order, items []model.OrderItemResponse) model.OrderResponse {
+	return model.OrderResponse{
 		ID: o.ID, OrderNumber: o.OrderNumber,
 		Status: string(o.Status), PaymentStatus: string(o.PaymentStatus),
 		Currency:       o.Currency,

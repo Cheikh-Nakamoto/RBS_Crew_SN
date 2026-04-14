@@ -8,11 +8,42 @@ import (
 )
 
 type ServicesRepository struct {
-	q *db.Queries
+	q    *db.Queries
+	pool *pgxpool.Pool
 }
 
 func NewServicesRepository(pool *pgxpool.Pool) *ServicesRepository {
-	return &ServicesRepository{q: db.New(pool)}
+	return &ServicesRepository{q: db.New(pool), pool: pool}
+}
+
+type AdminListServiceRow struct {
+	db.Service
+	TotalCount int64
+}
+
+func (r *ServicesRepository) AdminList(ctx context.Context, limit, offset int32) ([]AdminListServiceRow, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, slug, icon, status, "menuOrder", "createdAt", "updatedAt", COUNT(*) OVER() AS total_count
+		 FROM "Service"
+		 ORDER BY "menuOrder" ASC, "createdAt" DESC
+		 LIMIT $1 OFFSET $2`, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AdminListServiceRow
+	for rows.Next() {
+		var row AdminListServiceRow
+		if err := rows.Scan(
+			&row.ID, &row.Slug, &row.Icon, &row.Status,
+			&row.MenuOrder, &row.CreatedAt, &row.UpdatedAt,
+			&row.TotalCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, row)
+	}
+	return items, rows.Err()
 }
 
 func (r *ServicesRepository) List(ctx context.Context, limit, offset int32) ([]db.ListServicesRow, error) {

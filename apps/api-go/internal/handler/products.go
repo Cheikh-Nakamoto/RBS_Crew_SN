@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/service"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 	"github.com/go-chi/chi/v5"
@@ -16,7 +17,7 @@ func NewProductsHandler(svc *service.ProductsService) *ProductsHandler {
 
 func (h *ProductsHandler) List(w http.ResponseWriter, r *http.Request) {
 	q := types.ParsePagination(r)
-	f := service.ProductFilter{
+	f := model.ProductFilter{
 		Page:  q.Page,
 		Limit: q.Limit,
 		Order: q.Order,

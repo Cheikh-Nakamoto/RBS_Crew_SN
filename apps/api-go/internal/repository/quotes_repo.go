@@ -8,11 +8,12 @@ import (
 )
 
 type QuotesRepository struct {
-	q *db.Queries
+	q    *db.Queries
+	pool *pgxpool.Pool
 }
 
 func NewQuotesRepository(pool *pgxpool.Pool) *QuotesRepository {
-	return &QuotesRepository{q: db.New(pool)}
+	return &QuotesRepository{q: db.New(pool), pool: pool}
 }
 
 func (r *QuotesRepository) List(ctx context.Context, limit, offset int32) ([]db.ListQuotesRow, error) {
@@ -41,4 +42,9 @@ func (r *QuotesRepository) UpdateStatus(ctx context.Context, id, status string) 
 		return nil, err
 	}
 	return &q, nil
+}
+
+func (r *QuotesRepository) Delete(ctx context.Context, id string) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM "Quote" WHERE "id" = $1`, id)
+	return err
 }

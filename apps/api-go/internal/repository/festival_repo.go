@@ -20,6 +20,38 @@ func (r *FestivalRepository) List(ctx context.Context, limit, offset int32) ([]d
 	return r.q.ListFestivalEditions(ctx, db.ListFestivalEditionsParams{Limit: limit, Offset: offset})
 }
 
+type AdminListFestivalRow struct {
+	db.FestivalEdition
+	TotalCount int64
+}
+
+func (r *FestivalRepository) AdminList(ctx context.Context, limit, offset int32) ([]AdminListFestivalRow, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "createdAt", "updatedAt", COUNT(*) OVER() AS total_count
+		 FROM "FestivalEdition"
+		 ORDER BY "year" DESC, "editionNumber" DESC
+		 LIMIT $1 OFFSET $2`, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AdminListFestivalRow
+	for rows.Next() {
+		var row AdminListFestivalRow
+		if err := rows.Scan(
+			&row.ID, &row.Slug, &row.EditionNumber, &row.Year,
+			&row.City, &row.Country, &row.Status, &row.WpId,
+			&row.MainImage, &row.HeroImage, &row.Gallery, &row.Typography,
+			&row.CreatedAt, &row.UpdatedAt,
+			&row.TotalCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, row)
+	}
+	return items, rows.Err()
+}
+
 func (r *FestivalRepository) GetBySlug(ctx context.Context, slug string) (*db.FestivalEdition, error) {
 	f, err := r.q.GetFestivalBySlug(ctx, slug)
 	if err != nil {

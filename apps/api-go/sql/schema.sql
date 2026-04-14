@@ -8,6 +8,9 @@ CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'CANCEL
 CREATE TYPE "PaymentStatus" AS ENUM ('UNPAID', 'PAID', 'PARTIALLY_REFUNDED', 'REFUNDED');
 
 -- CreateEnum
+CREATE TYPE "PaymentMethod" AS ENUM ('STRIPE', 'PAYPAL', 'WAVE', 'ORANGE_MONEY');
+
+-- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('CUSTOMER', 'ADMIN', 'EDITOR');
 
 -- CreateEnum
@@ -208,6 +211,7 @@ CREATE TABLE "Order" (
     "guestEmail" TEXT,
     "status" "OrderStatus" NOT NULL DEFAULT 'PENDING',
     "paymentStatus" "PaymentStatus" NOT NULL DEFAULT 'UNPAID',
+    "paymentMethod" "PaymentMethod",
     "stripePaymentIntentId" TEXT,
     "currency" TEXT NOT NULL DEFAULT 'EUR',
     "subtotal" DECIMAL(10,2) NOT NULL,
@@ -240,6 +244,28 @@ CREATE TABLE "OrderItem" (
 
     CONSTRAINT "OrderItem_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateTable
+CREATE TABLE "Payment" (
+    "id" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "method" "PaymentMethod" NOT NULL,
+    "externalId" TEXT,
+    "amount" DECIMAL(10,2) NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'XOF',
+    "status" "PaymentStatus" NOT NULL DEFAULT 'UNPAID',
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "Payment_orderId_idx" ON "Payment"("orderId");
+
+-- CreateIndex
+CREATE INDEX "Payment_externalId_idx" ON "Payment"("externalId");
 
 -- CreateTable
 CREATE TABLE "Page" (
@@ -498,6 +524,9 @@ ALTER TABLE "Project" ADD CONSTRAINT "Project_featuredImageId_fkey" FOREIGN KEY 
 
 -- AddForeignKey
 ALTER TABLE "ProjectTranslation" ADD CONSTRAINT "ProjectTranslation_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE;
 -- CreateTable
 CREATE TABLE "Artist" (
     "id" TEXT NOT NULL,
@@ -710,7 +739,8 @@ ADD COLUMN     "imageUrl" TEXT NOT NULL;
 
 -- AlterTable
 ALTER TABLE "Project" DROP COLUMN "featuredImageId",
-ADD COLUMN     "featuredImageUrl" TEXT;
+ADD COLUMN     "featuredImageUrl" TEXT,
+ADD COLUMN     "gallery" JSONB DEFAULT '[]'::jsonb;
 
 -- DropTable
 DROP TABLE "Media";
@@ -738,29 +768,3 @@ CREATE UNIQUE INDEX "User_resetToken_key" ON "User"("resetToken");
 ALTER TABLE "User" ADD COLUMN "emailVerificationToken" TEXT;
 ALTER TABLE "User" ADD COLUMN "emailVerificationTokenExpiry" TIMESTAMP(3);
 CREATE UNIQUE INDEX "User_emailVerificationToken_key" ON "User"("emailVerificationToken");
-
--- ── Multi-Payment Provider Support ─────────────────────────────────────────
-CREATE TYPE "PaymentMethod" AS ENUM ('STRIPE', 'PAYPAL', 'WAVE', 'ORANGE_MONEY');
-
-CREATE TABLE "Payment" (
-    "id" TEXT NOT NULL,
-    "orderId" TEXT NOT NULL,
-    "method" "PaymentMethod" NOT NULL,
-    "externalId" TEXT,
-    "amount" DECIMAL(10,2) NOT NULL,
-    "currency" TEXT NOT NULL DEFAULT 'XOF',
-    "status" "PaymentStatus" NOT NULL DEFAULT 'UNPAID',
-    "metadata" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
-);
-
-ALTER TABLE "Payment" ADD CONSTRAINT "Payment_orderId_fkey"
-    FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE;
-
-CREATE INDEX "Payment_orderId_idx" ON "Payment"("orderId");
-CREATE INDEX "Payment_externalId_idx" ON "Payment"("externalId");
-
-ALTER TABLE "Order" ADD COLUMN "paymentMethod" "PaymentMethod";

@@ -18,7 +18,7 @@ INSERT INTO "Order" ("id", "orderNumber", "userId", "guestEmail", "status", "pay
                      "total", "shippingAddressId", "billingAddressId", "notes", "locale", "createdAt", "updatedAt")
 VALUES ($1, $2, $3, $4, 'PENDING'::"OrderStatus", 'UNPAID'::"PaymentStatus",
         'XOF', $5, 0, 0, 0, $5, $6, $7, $8, 'fr'::"Locale", NOW(), NOW())
-RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "paymentMethod"
+RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt"
 `
 
 type CreateOrderParams struct {
@@ -51,6 +51,7 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.GuestEmail,
 		&i.Status,
 		&i.PaymentStatus,
+		&i.PaymentMethod,
 		&i.StripePaymentIntentId,
 		&i.Currency,
 		&i.Subtotal,
@@ -65,7 +66,6 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.PaymentMethod,
 	)
 	return i, err
 }
@@ -116,7 +116,7 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 }
 
 const getOrderByID = `-- name: GetOrderByID :one
-SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "paymentMethod" FROM "Order" WHERE "id" = $1
+SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt" FROM "Order" WHERE "id" = $1
 `
 
 func (q *Queries) GetOrderByID(ctx context.Context, id string) (Order, error) {
@@ -129,6 +129,7 @@ func (q *Queries) GetOrderByID(ctx context.Context, id string) (Order, error) {
 		&i.GuestEmail,
 		&i.Status,
 		&i.PaymentStatus,
+		&i.PaymentMethod,
 		&i.StripePaymentIntentId,
 		&i.Currency,
 		&i.Subtotal,
@@ -143,7 +144,6 @@ func (q *Queries) GetOrderByID(ctx context.Context, id string) (Order, error) {
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.PaymentMethod,
 	)
 	return i, err
 }
@@ -208,7 +208,7 @@ func (q *Queries) GetProductForOrder(ctx context.Context, id string) (GetProduct
 }
 
 const listMyOrders = `-- name: ListMyOrders :many
-SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "paymentMethod", COUNT(*) OVER() AS total_count
+SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", COUNT(*) OVER() AS total_count
 FROM "Order"
 WHERE "userId" = $1
 ORDER BY "createdAt" DESC
@@ -228,6 +228,7 @@ type ListMyOrdersRow struct {
 	GuestEmail            *string           `json:"guestEmail"`
 	Status                OrderStatus       `json:"status"`
 	PaymentStatus         PaymentStatus     `json:"paymentStatus"`
+	PaymentMethod         NullPaymentMethod `json:"paymentMethod"`
 	StripePaymentIntentId *string           `json:"stripePaymentIntentId"`
 	Currency              string            `json:"currency"`
 	Subtotal              decimal.Decimal   `json:"subtotal"`
@@ -242,7 +243,6 @@ type ListMyOrdersRow struct {
 	Locale                Locale            `json:"locale"`
 	CreatedAt             pgtype.Timestamp  `json:"createdAt"`
 	UpdatedAt             pgtype.Timestamp  `json:"updatedAt"`
-	PaymentMethod         NullPaymentMethod `json:"paymentMethod"`
 	TotalCount            int64             `json:"total_count"`
 }
 
@@ -262,6 +262,7 @@ func (q *Queries) ListMyOrders(ctx context.Context, arg ListMyOrdersParams) ([]L
 			&i.GuestEmail,
 			&i.Status,
 			&i.PaymentStatus,
+			&i.PaymentMethod,
 			&i.StripePaymentIntentId,
 			&i.Currency,
 			&i.Subtotal,
@@ -276,7 +277,6 @@ func (q *Queries) ListMyOrders(ctx context.Context, arg ListMyOrdersParams) ([]L
 			&i.Locale,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.PaymentMethod,
 			&i.TotalCount,
 		); err != nil {
 			return nil, err
@@ -290,7 +290,7 @@ func (q *Queries) ListMyOrders(ctx context.Context, arg ListMyOrdersParams) ([]L
 }
 
 const listOrders = `-- name: ListOrders :many
-SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "paymentMethod", COUNT(*) OVER() AS total_count
+SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", COUNT(*) OVER() AS total_count
 FROM "Order"
 ORDER BY "createdAt" DESC
 LIMIT $1 OFFSET $2
@@ -308,6 +308,7 @@ type ListOrdersRow struct {
 	GuestEmail            *string           `json:"guestEmail"`
 	Status                OrderStatus       `json:"status"`
 	PaymentStatus         PaymentStatus     `json:"paymentStatus"`
+	PaymentMethod         NullPaymentMethod `json:"paymentMethod"`
 	StripePaymentIntentId *string           `json:"stripePaymentIntentId"`
 	Currency              string            `json:"currency"`
 	Subtotal              decimal.Decimal   `json:"subtotal"`
@@ -322,7 +323,6 @@ type ListOrdersRow struct {
 	Locale                Locale            `json:"locale"`
 	CreatedAt             pgtype.Timestamp  `json:"createdAt"`
 	UpdatedAt             pgtype.Timestamp  `json:"updatedAt"`
-	PaymentMethod         NullPaymentMethod `json:"paymentMethod"`
 	TotalCount            int64             `json:"total_count"`
 }
 
@@ -342,6 +342,7 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]ListO
 			&i.GuestEmail,
 			&i.Status,
 			&i.PaymentStatus,
+			&i.PaymentMethod,
 			&i.StripePaymentIntentId,
 			&i.Currency,
 			&i.Subtotal,
@@ -356,7 +357,6 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]ListO
 			&i.Locale,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.PaymentMethod,
 			&i.TotalCount,
 		); err != nil {
 			return nil, err
@@ -373,7 +373,7 @@ const updateOrderStatus = `-- name: UpdateOrderStatus :one
 UPDATE "Order"
 SET "status" = $2::"OrderStatus", "updatedAt" = NOW()
 WHERE "id" = $1
-RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "paymentMethod"
+RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt"
 `
 
 type UpdateOrderStatusParams struct {
@@ -391,6 +391,7 @@ func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusPa
 		&i.GuestEmail,
 		&i.Status,
 		&i.PaymentStatus,
+		&i.PaymentMethod,
 		&i.StripePaymentIntentId,
 		&i.Currency,
 		&i.Subtotal,
@@ -405,7 +406,6 @@ func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusPa
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.PaymentMethod,
 	)
 	return i, err
 }

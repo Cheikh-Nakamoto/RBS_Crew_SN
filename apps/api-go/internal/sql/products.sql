@@ -43,6 +43,13 @@ SELECT * FROM "ProductImage"
 WHERE "productId" = $1
 ORDER BY "position" ASC;
 
+-- name: AddProductImage :exec
+INSERT INTO "ProductImage" ("id", "productId", "imageUrl", "position")
+VALUES ($1, $2, $3, $4);
+
+-- name: ClearProductImages :exec
+DELETE FROM "ProductImage" WHERE "productId" = $1;
+
 -- name: GetProductCategories :many
 SELECT c."id", c."slug", ct."name"
 FROM "ProductCategory" pc

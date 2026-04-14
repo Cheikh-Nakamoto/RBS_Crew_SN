@@ -20,6 +20,36 @@ func (r *ProjectsRepository) List(ctx context.Context, limit, offset int32) ([]d
 	return r.q.ListProjects(ctx, db.ListProjectsParams{Limit: limit, Offset: offset})
 }
 
+type AdminListProjectRow struct {
+	db.Project
+	TotalCount int64
+}
+
+func (r *ProjectsRepository) AdminList(ctx context.Context, limit, offset int32) ([]AdminListProjectRow, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, slug, "completedAt", "clientName", status, "createdAt", "updatedAt", "featuredImageUrl", COUNT(*) OVER() AS total_count
+		 FROM "Project"
+		 ORDER BY "createdAt" DESC
+		 LIMIT $1 OFFSET $2`, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AdminListProjectRow
+	for rows.Next() {
+		var row AdminListProjectRow
+		if err := rows.Scan(
+			&row.ID, &row.Slug, &row.CompletedAt, &row.ClientName,
+			&row.Status, &row.CreatedAt, &row.UpdatedAt, &row.FeaturedImageUrl,
+			&row.TotalCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, row)
+	}
+	return items, rows.Err()
+}
+
 func (r *ProjectsRepository) GetBySlug(ctx context.Context, slug string) (*db.Project, error) {
 	p, err := r.q.GetProjectBySlug(ctx, slug)
 	if err != nil {

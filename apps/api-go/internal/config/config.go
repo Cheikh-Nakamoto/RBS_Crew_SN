@@ -43,6 +43,13 @@ type Config struct {
 	OrangeMoneyClientID     string
 	OrangeMoneyClientSecret string
 	OrangeMoneyMerchantKey  string
+
+	// Cloudflare R2 (S3-compatible storage)
+	R2AccountID   string
+	R2AccessKey   string
+	R2SecretKey   string
+	R2Bucket      string
+	R2PublicURL   string
 }
 
 func Load() (*Config, error) {
@@ -99,6 +106,11 @@ func Load() (*Config, error) {
 		OrangeMoneyClientID:     getEnv("OM_CLIENT_ID", ""),
 		OrangeMoneyClientSecret: getEnv("OM_CLIENT_SECRET", ""),
 		OrangeMoneyMerchantKey:  getEnv("OM_MERCHANT_KEY", ""),
+		R2AccountID:             getEnv("R2_ACCOUNT_ID", ""),
+		R2AccessKey:             getEnv("R2_ACCESS_KEY_ID", ""),
+		R2SecretKey:             getEnv("R2_SECRET_ACCESS_KEY", ""),
+		R2Bucket:                getEnv("R2_BUCKET_NAME", ""),
+		R2PublicURL:             getEnv("R2_PUBLIC_URL", ""),
 	}, nil
 }
 

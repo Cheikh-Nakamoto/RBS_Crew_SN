@@ -2,8 +2,10 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/service"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 	"github.com/go-chi/chi/v5"
@@ -14,13 +16,15 @@ type OrdersHandler struct{ svc *service.OrdersService }
 func NewOrdersHandler(svc *service.OrdersService) *OrdersHandler { return &OrdersHandler{svc: svc} }
 
 func (h *OrdersHandler) Create(w http.ResponseWriter, r *http.Request) {
-	var dto service.CreateOrderDTO
+	var dto model.CreateOrderDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		types.WriteError(w, types.BadRequest("Invalid payload"))
+		fmt.Printf("Error decoding CreateOrderDTO: %v\n", err) // Debug log
 		return
 	}
 	if err := validate.Struct(dto); err != nil {
 		types.WriteError(w, types.BadRequest(err.Error()))
+		fmt.Printf("Validation error for CreateOrderDTO: %v\n", err) // Debug log
 		return
 	}
 
@@ -32,6 +36,7 @@ func (h *OrdersHandler) Create(w http.ResponseWriter, r *http.Request) {
 	result, appErr := h.svc.Create(r.Context(), dto, userID)
 	if appErr != nil {
 		types.WriteError(w, appErr)
+		fmt.Printf("Error creating order: %v\n", appErr) // Debug log
 		return
 	}
 	types.WriteJSON(w, http.StatusCreated, result)
@@ -70,6 +75,14 @@ func (h *OrdersHandler) FindOne(w http.ResponseWriter, r *http.Request) {
 	types.WriteJSON(w, http.StatusOK, result)
 }
 
+func (h *OrdersHandler) AdminDelete(w http.ResponseWriter, r *http.Request) {
+	if appErr := h.svc.AdminDelete(r.Context(), chi.URLParam(r, "id")); appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *OrdersHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var body struct {
@@ -97,7 +110,7 @@ type QuotesHandler struct{ svc *service.QuotesService }
 func NewQuotesHandler(svc *service.QuotesService) *QuotesHandler { return &QuotesHandler{svc: svc} }
 
 func (h *QuotesHandler) Create(w http.ResponseWriter, r *http.Request) {
-	var dto service.CreateQuoteDTO
+	var dto model.CreateQuoteDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		types.WriteError(w, types.BadRequest("Invalid payload"))
 		return
@@ -131,4 +144,33 @@ func (h *QuotesHandler) FindOne(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	types.WriteJSON(w, http.StatusOK, result)
+}
+
+func (h *QuotesHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var body struct {
+		Status string `json:"status" validate:"required,oneof=NEW IN_REVIEW ANSWERED"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		types.WriteError(w, types.BadRequest("Invalid payload"))
+		return
+	}
+	if err := validate.Struct(body); err != nil {
+		types.WriteError(w, types.BadRequest("Invalid status: must be one of NEW, IN_REVIEW, ANSWERED"))
+		return
+	}
+	result, appErr := h.svc.UpdateStatus(r.Context(), id, body.Status)
+	if appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, result)
+}
+
+func (h *QuotesHandler) AdminDelete(w http.ResponseWriter, r *http.Request) {
+	if appErr := h.svc.Delete(r.Context(), chi.URLParam(r, "id")); appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

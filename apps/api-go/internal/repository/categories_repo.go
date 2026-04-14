@@ -60,3 +60,28 @@ func (r *CategoriesRepository) UpsertTranslation(ctx context.Context, params db.
 	_, err := r.q.UpsertCategoryTranslation(ctx, params)
 	return err
 }
+
+func (r *CategoriesRepository) Update(ctx context.Context, params db.UpdateCategoryParams) (*db.Category, error) {
+	c, err := r.q.UpdateCategory(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func (r *CategoriesRepository) GetAllTranslations(ctx context.Context, id string) ([]db.CategoryTranslation, error) {
+	rows, err := r.pool.Query(ctx, `SELECT id, "categoryId", locale, name, description FROM "CategoryTranslation" WHERE "categoryId" = $1`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []db.CategoryTranslation
+	for rows.Next() {
+		var t db.CategoryTranslation
+		if err := rows.Scan(&t.ID, &t.CategoryId, &t.Locale, &t.Name, &t.Description); err != nil {
+			return nil, err
+		}
+		items = append(items, t)
+	}
+	return items, rows.Err()
+}

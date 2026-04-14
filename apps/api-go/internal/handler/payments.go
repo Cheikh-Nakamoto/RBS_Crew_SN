@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/payment"
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/service"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 )
@@ -19,7 +20,7 @@ func NewPaymentsHandler(svc *service.PaymentsService) *PaymentsHandler {
 }
 
 func (h *PaymentsHandler) CreateCheckout(w http.ResponseWriter, r *http.Request) {
-	var dto service.CreateCheckoutDTO
+	var dto model.CreateCheckoutDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		types.WriteError(w, types.BadRequest("Invalid payload"))
 		return

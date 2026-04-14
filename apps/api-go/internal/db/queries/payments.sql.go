@@ -56,7 +56,7 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 }
 
 const getOrderByPaymentExternalID = `-- name: GetOrderByPaymentExternalID :one
-SELECT o.id, o."orderNumber", o."userId", o."guestEmail", o.status, o."paymentStatus", o."stripePaymentIntentId", o.currency, o.subtotal, o."taxAmount", o."shippingAmount", o."discountAmount", o.total, o."shippingAddressId", o."billingAddressId", o.notes, o."wcId", o.locale, o."createdAt", o."updatedAt", o."paymentMethod" FROM "Order" o
+SELECT o.id, o."orderNumber", o."userId", o."guestEmail", o.status, o."paymentStatus", o."paymentMethod", o."stripePaymentIntentId", o.currency, o.subtotal, o."taxAmount", o."shippingAmount", o."discountAmount", o.total, o."shippingAddressId", o."billingAddressId", o.notes, o."wcId", o.locale, o."createdAt", o."updatedAt" FROM "Order" o
 JOIN "Payment" p ON p."orderId" = o."id"
 WHERE p."externalId" = $1
 `
@@ -71,6 +71,7 @@ func (q *Queries) GetOrderByPaymentExternalID(ctx context.Context, externalid *s
 		&i.GuestEmail,
 		&i.Status,
 		&i.PaymentStatus,
+		&i.PaymentMethod,
 		&i.StripePaymentIntentId,
 		&i.Currency,
 		&i.Subtotal,
@@ -85,13 +86,12 @@ func (q *Queries) GetOrderByPaymentExternalID(ctx context.Context, externalid *s
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.PaymentMethod,
 	)
 	return i, err
 }
 
 const getOrderByStripeSession = `-- name: GetOrderByStripeSession :one
-SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "paymentMethod" FROM "Order" WHERE "stripePaymentIntentId" = $1
+SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt" FROM "Order" WHERE "stripePaymentIntentId" = $1
 `
 
 func (q *Queries) GetOrderByStripeSession(ctx context.Context, stripepaymentintentid *string) (Order, error) {
@@ -104,6 +104,7 @@ func (q *Queries) GetOrderByStripeSession(ctx context.Context, stripepaymentinte
 		&i.GuestEmail,
 		&i.Status,
 		&i.PaymentStatus,
+		&i.PaymentMethod,
 		&i.StripePaymentIntentId,
 		&i.Currency,
 		&i.Subtotal,
@@ -118,7 +119,6 @@ func (q *Queries) GetOrderByStripeSession(ctx context.Context, stripepaymentinte
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.PaymentMethod,
 	)
 	return i, err
 }
@@ -188,7 +188,7 @@ SET "paymentStatus" = $2::"PaymentStatus",
     "paymentMethod" = COALESCE($5::"PaymentMethod", "paymentMethod"),
     "updatedAt" = NOW()
 WHERE "id" = $1
-RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "paymentMethod"
+RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt"
 `
 
 type UpdateOrderPaymentStatusParams struct {
@@ -215,6 +215,7 @@ func (q *Queries) UpdateOrderPaymentStatus(ctx context.Context, arg UpdateOrderP
 		&i.GuestEmail,
 		&i.Status,
 		&i.PaymentStatus,
+		&i.PaymentMethod,
 		&i.StripePaymentIntentId,
 		&i.Currency,
 		&i.Subtotal,
@@ -229,7 +230,6 @@ func (q *Queries) UpdateOrderPaymentStatus(ctx context.Context, arg UpdateOrderP
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.PaymentMethod,
 	)
 	return i, err
 }

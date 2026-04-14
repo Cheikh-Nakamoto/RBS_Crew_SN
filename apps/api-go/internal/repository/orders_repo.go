@@ -80,6 +80,11 @@ func (r *OrdersRepository) UpdateStatus(ctx context.Context, id, status string) 
 	return &o, nil
 }
 
+func (r *OrdersRepository) Delete(ctx context.Context, id string) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM "Order" WHERE "id" = $1`, id)
+	return err
+}
+
 // ── Payment methods ───────────────────────────────────────────────────────────
 
 func (r *OrdersRepository) CreatePayment(ctx context.Context, params db.CreatePaymentParams) (*db.Payment, error) {

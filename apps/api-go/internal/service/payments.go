@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	db "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db/queries"
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/payment"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/repository"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
@@ -30,24 +31,9 @@ func NewPaymentsService(ordersRepo *repository.OrdersRepository, providers ...pa
 	}
 }
 
-// ── DTOs ──────────────────────────────────────────────────────────────────────
-
-type CreateCheckoutDTO struct {
-	OrderID       string `json:"orderId" validate:"required"`
-	PaymentMethod string `json:"paymentMethod" validate:"required,oneof=STRIPE PAYPAL WAVE ORANGE_MONEY"`
-	SuccessURL    string `json:"successUrl" validate:"required,url"`
-	CancelURL     string `json:"cancelUrl" validate:"required,url"`
-}
-
-type CheckoutResponse struct {
-	URL            string `json:"url"`
-	PaymentMethod  string `json:"paymentMethod"`
-	PaymentID      string `json:"paymentId,omitempty"`
-}
-
 // ── Checkout Session ──────────────────────────────────────────────────────────
 
-func (s *PaymentsService) CreateCheckout(ctx context.Context, userID, role string, dto CreateCheckoutDTO) (*CheckoutResponse, *types.AppError) {
+func (s *PaymentsService) CreateCheckout(ctx context.Context, userID, role string, dto model.CreateCheckoutDTO) (*model.CheckoutResponse, *types.AppError) {
 	// 1. Validate payment method
 	method := payment.Method(dto.PaymentMethod)
 	provider, ok := s.providers[method]
@@ -146,7 +132,7 @@ func (s *PaymentsService) CreateCheckout(ctx context.Context, userID, role strin
 		slog.Error("Failed to update order payment method", "error", err)
 	}
 
-	return &CheckoutResponse{
+	return &model.CheckoutResponse{
 		URL:           result.RedirectURL,
 		PaymentMethod: dto.PaymentMethod,
 		PaymentID:     paymentID,

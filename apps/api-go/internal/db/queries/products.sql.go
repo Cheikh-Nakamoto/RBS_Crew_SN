@@ -27,6 +27,28 @@ func (q *Queries) AddProductCategory(ctx context.Context, arg AddProductCategory
 	return err
 }
 
+const addProductImage = `-- name: AddProductImage :exec
+INSERT INTO "ProductImage" ("id", "productId", "imageUrl", "position")
+VALUES ($1, $2, $3, $4)
+`
+
+type AddProductImageParams struct {
+	ID        string `json:"id"`
+	ProductId string `json:"productId"`
+	ImageUrl  string `json:"imageUrl"`
+	Position  int32  `json:"position"`
+}
+
+func (q *Queries) AddProductImage(ctx context.Context, arg AddProductImageParams) error {
+	_, err := q.db.Exec(ctx, addProductImage,
+		arg.ID,
+		arg.ProductId,
+		arg.ImageUrl,
+		arg.Position,
+	)
+	return err
+}
+
 const addProductTag = `-- name: AddProductTag :exec
 INSERT INTO "ProductTag" ("productId", "tagId") VALUES ($1, $2)
 ON CONFLICT DO NOTHING
@@ -39,6 +61,15 @@ type AddProductTagParams struct {
 
 func (q *Queries) AddProductTag(ctx context.Context, arg AddProductTagParams) error {
 	_, err := q.db.Exec(ctx, addProductTag, arg.ProductId, arg.TagId)
+	return err
+}
+
+const clearProductImages = `-- name: ClearProductImages :exec
+DELETE FROM "ProductImage" WHERE "productId" = $1
+`
+
+func (q *Queries) ClearProductImages(ctx context.Context, productid string) error {
+	_, err := q.db.Exec(ctx, clearProductImages, productid)
 	return err
 }
 

@@ -50,6 +50,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.refreshToken = u.refreshToken;
         token.role = u.role;
         token.userId = u.id;
+        // Store expiry: access token is valid for 15 minutes
+        token.accessTokenExpiry = Date.now() + 14 * 60 * 1000;
+        return token;
+      }
+
+      // Access token still valid
+      if (Date.now() < (token.accessTokenExpiry as number ?? 0)) {
+        return token;
+      }
+
+      // Attempt refresh
+      try {
+        const res = await fetch(`${API_URL}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: token.refreshToken }),
+        });
+        if (res.ok) {
+          const data = await res.json() as { accessToken: string; refreshToken?: string };
+          token.accessToken = data.accessToken;
+          token.refreshToken = data.refreshToken ?? token.refreshToken;
+          token.accessTokenExpiry = Date.now() + 14 * 60 * 1000;
+          token.error = undefined;
+        } else {
+          token.error = 'RefreshTokenError';
+        }
+      } catch {
+        token.error = 'RefreshTokenError';
       }
       return token;
     },

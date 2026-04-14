@@ -59,12 +59,15 @@ func (p *PayPalProvider) getAccessToken(ctx context.Context) (string, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", fmt.Errorf("paypal: failed to decode token response: %w", err)
 	}
+	fmt.Printf("PayPal access token obtained: %s\n", result.AccessToken) // Debug log
 	return result.AccessToken, nil
 }
 
 func (p *PayPalProvider) CreatePayment(ctx context.Context, order OrderInfo, callbacks CallbackURLs) (*PaymentResult, error) {
 	token, err := p.getAccessToken(ctx)
+	fmt.Printf("PayPal access token: %s\n", token) // Debug log
 	if err != nil {
+		fmt.Printf("Error obtaining PayPal access token: %v\n", err) // Debug log
 		return nil, err
 	}
 

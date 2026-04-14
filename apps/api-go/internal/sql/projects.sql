@@ -15,8 +15,8 @@ SELECT * FROM "Project" WHERE "id" = $1;
 SELECT * FROM "ProjectTranslation" WHERE "projectId" = $1;
 
 -- name: CreateProject :one
-INSERT INTO "Project" ("id", "slug", "featuredImageUrl", "completedAt", "clientName", "status", "createdAt", "updatedAt")
-VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+INSERT INTO "Project" ("id", "slug", "featuredImageUrl", "gallery", "completedAt", "clientName", "status", "createdAt", "updatedAt")
+VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
 RETURNING *;
 
 -- name: UpsertProjectTranslation :one
@@ -31,6 +31,7 @@ RETURNING *;
 -- name: UpdateProject :one
 UPDATE "Project"
 SET "featuredImageUrl" = COALESCE(sqlc.narg('featured_image_url'), "featuredImageUrl"),
+    "gallery" = COALESCE(sqlc.narg('gallery'), "gallery"),
     "completedAt" = sqlc.narg('completed_at'),
     "clientName" = COALESCE(sqlc.narg('client_name'), "clientName"),
     "status" = COALESCE(sqlc.narg('status')::"ProductStatus", "status"),

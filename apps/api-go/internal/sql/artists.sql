@@ -17,6 +17,13 @@ SELECT * FROM "ArtistTranslation" WHERE "artistId" = $1;
 -- name: GetArtistArtworks :many
 SELECT * FROM "ArtistArtwork" WHERE "artistId" = $1 ORDER BY "position" ASC;
 
+-- name: AddArtistArtwork :exec
+INSERT INTO "ArtistArtwork" ("id", "artistId", "imageUrl", "position")
+VALUES ($1, $2, $3, $4);
+
+-- name: ClearArtistArtworks :exec
+DELETE FROM "ArtistArtwork" WHERE "artistId" = $1;
+
 -- name: CreateArtist :one
 INSERT INTO "Artist" ("id", "slug", "city", "country", "featuredImageUrl", "avatarUrl", "status", "createdAt", "updatedAt")
 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())

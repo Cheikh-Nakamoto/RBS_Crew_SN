@@ -66,6 +66,7 @@ func run() error {
 	// ── Repositories ────────────────────────────────────────────────────────
 	authRepo := repository.NewAuthRepository(pool)
 	categoriesRepo := repository.NewCategoriesRepository(pool)
+	tagsRepo := repository.NewTagsRepository(pool)
 	productsRepo := repository.NewProductsRepository(pool)
 	artistsRepo := repository.NewArtistsRepository(pool)
 	projectsRepo := repository.NewProjectsRepository(pool)
@@ -81,6 +82,7 @@ func run() error {
 	mailSvc := mail.NewMailService(cfg)
 	authSvc := service.NewAuthService(authRepo, mailSvc, cfg.JWTSecret, cfg.JWTRefreshSecret)
 	categoriesSvc := service.NewCategoriesService(categoriesRepo)
+	tagsSvc := service.NewTagsService(tagsRepo)
 	productsSvc := service.NewProductsService(productsRepo, redisClient)
 	artistsSvc := service.NewArtistsService(artistsRepo, redisClient)
 	projectsSvc := service.NewProjectsService(projectsRepo)
@@ -116,20 +118,31 @@ func run() error {
 
 	// ── Handlers ────────────────────────────────────────────────────────────
 	handlers := &router.Handlers{
-		Health:     handler.NewHealthHandler(pool),
-		Auth:       handler.NewAuthHandler(authSvc),
-		Categories: handler.NewCategoriesHandler(categoriesSvc),
-		Products:   handler.NewProductsHandler(productsSvc),
-		Artists:    handler.NewArtistsHandler(artistsSvc),
-		Projects:   handler.NewProjectsHandler(projectsSvc),
-		Festival:   handler.NewFestivalHandler(festivalSvc),
-		Press:      handler.NewPressHandler(pressSvc),
-		Pages:      handler.NewPagesHandler(pagesSvc),
-		Services:   handler.NewServicesHandler(servicesSvc),
-		Orders:     handler.NewOrdersHandler(ordersSvc),
-		Quotes:     handler.NewQuotesHandler(quotesSvc),
-		Users:      handler.NewUsersHandler(usersSvc),
-		Payments:   handler.NewPaymentsHandler(paymentsSvc),
+		Health:        handler.NewHealthHandler(pool),
+		Auth:          handler.NewAuthHandler(authSvc),
+		Categories:    handler.NewCategoriesHandler(categoriesSvc),
+		Products:      handler.NewProductsHandler(productsSvc),
+		Artists:       handler.NewArtistsHandler(artistsSvc),
+		Projects:      handler.NewProjectsHandler(projectsSvc),
+		Festival:      handler.NewFestivalHandler(festivalSvc),
+		Press:         handler.NewPressHandler(pressSvc),
+		Pages:         handler.NewPagesHandler(pagesSvc),
+		Services:      handler.NewServicesHandler(servicesSvc),
+		Orders:        handler.NewOrdersHandler(ordersSvc),
+		Quotes:        handler.NewQuotesHandler(quotesSvc),
+		Users:         handler.NewUsersHandler(usersSvc),
+		Payments:      handler.NewPaymentsHandler(paymentsSvc),
+		Tags:            handler.NewTagsHandler(tagsSvc),
+		AdminCategories: handler.NewAdminCategoriesHandler(categoriesSvc),
+		AdminTags:       handler.NewAdminTagsHandler(tagsSvc),
+		AdminProducts:   handler.NewAdminProductsHandler(productsSvc),
+		AdminArtists:    handler.NewAdminArtistsHandler(artistsSvc),
+		AdminProjects: handler.NewAdminProjectsHandler(projectsSvc),
+		AdminPages:    handler.NewAdminPagesHandler(pagesSvc),
+		AdminServices: handler.NewAdminServicesHandler(servicesSvc),
+		AdminFestival: handler.NewAdminFestivalHandler(festivalSvc),
+		AdminPress:    handler.NewAdminPressHandler(pressSvc),
+		Media:         handler.NewMediaHandler(cfg.R2AccountID, cfg.R2AccessKey, cfg.R2SecretKey, cfg.R2Bucket, cfg.R2PublicURL),
 	}
 
 	// ── HTTP Server ──────────────────────────────────────────────────────────

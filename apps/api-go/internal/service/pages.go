@@ -3,33 +3,14 @@ package service
 import (
 	"context"
 	"errors"
-	"time"
 
 	db "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db/queries"
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/repository"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
-
-type PageTranslation struct {
-	Locale          string  `json:"locale"`
-	Title           string  `json:"title"`
-	Slug            string  `json:"slug"`
-	Content         string  `json:"content"`
-	Excerpt         *string `json:"excerpt"`
-	MetaTitle       *string `json:"metaTitle"`
-	MetaDescription *string `json:"metaDescription"`
-}
-
-type PageResponse struct {
-	ID           string            `json:"id"`
-	Slug         string            `json:"slug"`
-	Template     *string           `json:"template"`
-	Status       string            `json:"status"`
-	MenuOrder    int32             `json:"menuOrder"`
-	Translations []PageTranslation `json:"translations"`
-	CreatedAt    time.Time         `json:"createdAt"`
-}
 
 type PagesService struct {
 	repo *repository.PagesRepository
@@ -39,13 +20,13 @@ func NewPagesService(repo *repository.PagesRepository) *PagesService {
 	return &PagesService{repo: repo}
 }
 
-func (s *PagesService) List(ctx context.Context, page, limit int) (*types.PaginatedResponse[PageResponse], *types.AppError) {
+func (s *PagesService) List(ctx context.Context, page, limit int) (*types.PaginatedResponse[model.PageResponse], *types.AppError) {
 	rows, err := s.repo.List(ctx, int32(limit), int32((page-1)*limit))
 	if err != nil {
 		return nil, types.InternalError("Failed to fetch pages")
 	}
 	var total int
-	results := make([]PageResponse, 0, len(rows))
+	results := make([]model.PageResponse, 0, len(rows))
 	for _, row := range rows {
 		if total == 0 {
 			total = int(row.TotalCount)
@@ -67,7 +48,7 @@ func (s *PagesService) List(ctx context.Context, page, limit int) (*types.Pagina
 	return types.Paginate(results, total, page, limit), nil
 }
 
-func (s *PagesService) GetBySlug(ctx context.Context, slug string) (*PageResponse, *types.AppError) {
+func (s *PagesService) GetBySlug(ctx context.Context, slug string) (*model.PageResponse, *types.AppError) {
 	p, err := s.repo.GetBySlug(ctx, slug)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -80,16 +61,130 @@ func (s *PagesService) GetBySlug(ctx context.Context, slug string) (*PageRespons
 	return &res, nil
 }
 
-func toPageResponse(p *db.Page, translations []db.PageTranslation) PageResponse {
-	trans := make([]PageTranslation, 0, len(translations))
+// ── Admin CRUD ────────────────────────────────────────────────────────────────
+
+func (s *PagesService) toAdminResponse(ctx context.Context, p *db.Page) model.AdminPageResponse {
+	translations, _ := s.repo.GetTranslations(ctx, p.ID)
+	trans := make([]model.AdminPageTranslation, 0, len(translations))
 	for _, t := range translations {
-		trans = append(trans, PageTranslation{
+		content := &t.Content
+		trans = append(trans, model.AdminPageTranslation{
+			Locale: string(t.Locale), Title: t.Title, Slug: t.Slug,
+			Content: content, MetaTitle: t.MetaTitle, MetaDescription: t.MetaDescription,
+		})
+	}
+	return model.AdminPageResponse{
+		ID: p.ID, IsPublished: p.Status == db.ProductStatusPUBLISHED,
+		Translations: trans, CreatedAt: p.CreatedAt.Time,
+	}
+}
+
+func (s *PagesService) AdminList(ctx context.Context, page, limit int) (*types.PaginatedResponse[model.AdminPageResponse], *types.AppError) {
+	rows, err := s.repo.AdminList(ctx, int32(limit), int32((page-1)*limit))
+	if err != nil {
+		return nil, types.InternalError("Failed to fetch pages")
+	}
+	var total int
+	results := make([]model.AdminPageResponse, 0, len(rows))
+	for _, row := range rows {
+		if total == 0 && row.TotalCount > 0 {
+			total = int(row.TotalCount)
+		}
+		pObj := row.Page
+		results = append(results, s.toAdminResponse(ctx, &pObj))
+	}
+	return types.Paginate(results, total, page, limit), nil
+}
+
+func (s *PagesService) AdminGetByID(ctx context.Context, id string) (*model.AdminPageResponse, *types.AppError) {
+	p, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, types.NotFound("Page not found")
+		}
+		return nil, types.InternalError("Database error")
+	}
+	res := s.toAdminResponse(ctx, p)
+	return &res, nil
+}
+
+func (s *PagesService) AdminCreate(ctx context.Context, input model.AdminPageInput) (*model.AdminPageResponse, *types.AppError) {
+	slug := ""
+	if len(input.Translations) > 0 {
+		slug = input.Translations[0].Slug
+	}
+	if slug == "" {
+		return nil, types.BadRequest("Slug is required")
+	}
+	status := db.ProductStatusDRAFT
+	if input.IsPublished {
+		status = db.ProductStatusPUBLISHED
+	}
+	p, err := s.repo.Create(ctx, db.CreatePageParams{
+		ID: uuid.New().String(), Slug: slug, Status: status,
+	})
+	if err != nil {
+		return nil, types.InternalError("Failed to create page")
+	}
+	for _, t := range input.Translations {
+		content := ""
+		if t.Content != nil {
+			content = *t.Content
+		}
+		_ = s.repo.UpsertTranslation(ctx, db.UpsertPageTranslationParams{
+			ID: uuid.New().String(), PageId: p.ID,
+			Locale: db.Locale(t.Locale), Title: t.Title, Slug: t.Slug,
+			Content: content, MetaTitle: t.MetaTitle, MetaDescription: t.MetaDescription,
+		})
+	}
+	res := s.toAdminResponse(ctx, p)
+	return &res, nil
+}
+
+func (s *PagesService) AdminUpdate(ctx context.Context, id string, input model.AdminPageInput) (*model.AdminPageResponse, *types.AppError) {
+	status := db.NullProductStatus{Valid: true, ProductStatus: db.ProductStatusDRAFT}
+	if input.IsPublished {
+		status.ProductStatus = db.ProductStatusPUBLISHED
+	}
+	p, err := s.repo.Update(ctx, db.UpdatePageParams{ID: id, Status: status})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, types.NotFound("Page not found")
+		}
+		return nil, types.InternalError("Failed to update page")
+	}
+	for _, t := range input.Translations {
+		content := ""
+		if t.Content != nil {
+			content = *t.Content
+		}
+		_ = s.repo.UpsertTranslation(ctx, db.UpsertPageTranslationParams{
+			ID: uuid.New().String(), PageId: p.ID,
+			Locale: db.Locale(t.Locale), Title: t.Title, Slug: t.Slug,
+			Content: content, MetaTitle: t.MetaTitle, MetaDescription: t.MetaDescription,
+		})
+	}
+	res := s.toAdminResponse(ctx, p)
+	return &res, nil
+}
+
+func (s *PagesService) AdminDelete(ctx context.Context, id string) *types.AppError {
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return types.InternalError("Failed to delete page")
+	}
+	return nil
+}
+
+func toPageResponse(p *db.Page, translations []db.PageTranslation) model.PageResponse {
+	trans := make([]model.PageTranslation, 0, len(translations))
+	for _, t := range translations {
+		trans = append(trans, model.PageTranslation{
 			Locale: string(t.Locale), Title: t.Title, Slug: t.Slug,
 			Content: t.Content, Excerpt: t.Excerpt,
 			MetaTitle: t.MetaTitle, MetaDescription: t.MetaDescription,
 		})
 	}
-	return PageResponse{
+	return model.PageResponse{
 		ID: p.ID, Slug: p.Slug, Template: p.Template,
 		Status: string(p.Status), MenuOrder: p.MenuOrder,
 		Translations: trans, CreatedAt: p.CreatedAt.Time,

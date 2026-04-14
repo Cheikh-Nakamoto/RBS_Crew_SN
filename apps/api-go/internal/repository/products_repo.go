@@ -93,3 +93,41 @@ func (r *ProductsRepository) CreateVariant(ctx context.Context, params db.Create
 	}
 	return &v, nil
 }
+
+func (r *ProductsRepository) Update(ctx context.Context, params db.UpdateProductParams) (*db.Product, error) {
+	p, err := r.q.UpdateProduct(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (r *ProductsRepository) DeleteTranslations(ctx context.Context, productID string) error {
+	return r.q.DeleteProductTranslations(ctx, productID)
+}
+
+func (r *ProductsRepository) AddCategory(ctx context.Context, productID, categoryID string) error {
+	return r.q.AddProductCategory(ctx, db.AddProductCategoryParams{ProductId: productID, CategoryId: categoryID})
+}
+
+func (r *ProductsRepository) AddImage(ctx context.Context, params db.AddProductImageParams) error {
+	return r.q.AddProductImage(ctx, params)
+}
+
+func (r *ProductsRepository) ClearImages(ctx context.Context, productID string) error {
+	return r.q.ClearProductImages(ctx, productID)
+}
+
+func (r *ProductsRepository) ClearCategories(ctx context.Context, productID string) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM "ProductCategory" WHERE "productId" = $1`, productID)
+	return err
+}
+
+func (r *ProductsRepository) AddTag(ctx context.Context, productID, tagID string) error {
+	return r.q.AddProductTag(ctx, db.AddProductTagParams{ProductId: productID, TagId: tagID})
+}
+
+func (r *ProductsRepository) ClearTags(ctx context.Context, productID string) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM "ProductTag" WHERE "productId" = $1`, productID)
+	return err
+}

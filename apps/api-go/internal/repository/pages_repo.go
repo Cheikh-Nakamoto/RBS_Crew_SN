@@ -8,11 +8,42 @@ import (
 )
 
 type PagesRepository struct {
-	q *db.Queries
+	q    *db.Queries
+	pool *pgxpool.Pool
 }
 
 func NewPagesRepository(pool *pgxpool.Pool) *PagesRepository {
-	return &PagesRepository{q: db.New(pool)}
+	return &PagesRepository{q: db.New(pool), pool: pool}
+}
+
+type AdminListPageRow struct {
+	db.Page
+	TotalCount int64
+}
+
+func (r *PagesRepository) AdminList(ctx context.Context, limit, offset int32) ([]AdminListPageRow, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, slug, template, status, "wpId", "parentId", "menuOrder", "createdAt", "updatedAt", COUNT(*) OVER() AS total_count
+		 FROM "Page"
+		 ORDER BY "menuOrder" ASC, "createdAt" DESC
+		 LIMIT $1 OFFSET $2`, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AdminListPageRow
+	for rows.Next() {
+		var row AdminListPageRow
+		if err := rows.Scan(
+			&row.ID, &row.Slug, &row.Template, &row.Status, &row.WpId,
+			&row.ParentId, &row.MenuOrder, &row.CreatedAt, &row.UpdatedAt,
+			&row.TotalCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, row)
+	}
+	return items, rows.Err()
 }
 
 func (r *PagesRepository) List(ctx context.Context, limit, offset int32) ([]db.ListPagesRow, error) {

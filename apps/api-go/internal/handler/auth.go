@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/service"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 	"github.com/go-playground/validator/v10"
@@ -56,13 +57,13 @@ func NewAuthHandler(svc *service.AuthService) *AuthHandler {
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
-// @Param        body body service.RegisterRequest true "Registration payload"
-// @Success      201 {object} service.UserResponse
+// @Param        body body model.RegisterRequest true "Registration payload"
+// @Success      201 {object} model.AuthResponse
 // @Failure      400 {object} types.AppError
 // @Failure      409 {object} types.AppError
 // @Router       /auth/register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req service.RegisterRequest
+	var req model.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		types.WriteError(w, types.BadRequest("Invalid JSON body"))
 		return
@@ -85,12 +86,12 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
-// @Param        body body service.LoginRequest true "Login credentials"
-// @Success      200 {object} service.TokenPair
+// @Param        body body model.LoginRequest true "Login credentials"
+// @Success      200 {object} model.TokenPair
 // @Failure      401 {object} types.AppError
 // @Router       /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req service.LoginRequest
+	var req model.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		types.WriteError(w, types.BadRequest("Invalid JSON body"))
 		return
@@ -113,12 +114,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
-// @Param        body body service.RefreshRequest true "Refresh token"
-// @Success      200 {object} service.TokenPair
+// @Param        body body model.RefreshRequest true "Refresh token"
+// @Success      200 {object} model.TokenPair
 // @Failure      401 {object} types.AppError
 // @Router       /auth/refresh [post]
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
-	var req service.RefreshRequest
+	var req model.RefreshRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		types.WriteError(w, types.BadRequest("Invalid JSON body"))
 		return
@@ -154,7 +155,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 // @Tags         Auth
 // @Security     BearerAuth
 // @Produce      json
-// @Success      200 {object} service.UserResponse
+// @Success      200 {object} model.UserResponse
 // @Failure      401 {object} types.AppError
 // @Router       /auth/me [get]
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {

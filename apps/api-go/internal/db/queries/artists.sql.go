@@ -11,6 +11,37 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addArtistArtwork = `-- name: AddArtistArtwork :exec
+INSERT INTO "ArtistArtwork" ("id", "artistId", "imageUrl", "position")
+VALUES ($1, $2, $3, $4)
+`
+
+type AddArtistArtworkParams struct {
+	ID       string `json:"id"`
+	ArtistId string `json:"artistId"`
+	ImageUrl string `json:"imageUrl"`
+	Position int32  `json:"position"`
+}
+
+func (q *Queries) AddArtistArtwork(ctx context.Context, arg AddArtistArtworkParams) error {
+	_, err := q.db.Exec(ctx, addArtistArtwork,
+		arg.ID,
+		arg.ArtistId,
+		arg.ImageUrl,
+		arg.Position,
+	)
+	return err
+}
+
+const clearArtistArtworks = `-- name: ClearArtistArtworks :exec
+DELETE FROM "ArtistArtwork" WHERE "artistId" = $1
+`
+
+func (q *Queries) ClearArtistArtworks(ctx context.Context, artistid string) error {
+	_, err := q.db.Exec(ctx, clearArtistArtworks, artistid)
+	return err
+}
+
 const createArtist = `-- name: CreateArtist :one
 INSERT INTO "Artist" ("id", "slug", "city", "country", "featuredImageUrl", "avatarUrl", "status", "createdAt", "updatedAt")
 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())

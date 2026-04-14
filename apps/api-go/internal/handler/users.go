@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/service"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 	"github.com/go-chi/chi/v5"
@@ -27,7 +28,7 @@ func (h *UsersHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 
 func (h *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	userID, _ := r.Context().Value(types.CtxUserID).(string)
-	var dto service.UpdateUserDTO
+	var dto model.UpdateUserDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		types.WriteError(w, types.BadRequest("Invalid JSON body"))
 		return
@@ -67,7 +68,7 @@ func (h *UsersHandler) GetAddresses(w http.ResponseWriter, r *http.Request) {
 
 func (h *UsersHandler) AddAddress(w http.ResponseWriter, r *http.Request) {
 	userID, _ := r.Context().Value(types.CtxUserID).(string)
-	var dto service.CreateAddressDTO
+	var dto model.CreateAddressDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		types.WriteError(w, types.BadRequest("Invalid JSON body"))
 		return
@@ -87,7 +88,7 @@ func (h *UsersHandler) AddAddress(w http.ResponseWriter, r *http.Request) {
 func (h *UsersHandler) UpdateAddress(w http.ResponseWriter, r *http.Request) {
 	userID, _ := r.Context().Value(types.CtxUserID).(string)
 	addrID := chi.URLParam(r, "id")
-	var dto service.UpdateAddressDTO
+	var dto model.UpdateAddressDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		types.WriteError(w, types.BadRequest("Invalid JSON body"))
 		return
@@ -137,7 +138,7 @@ func (h *UsersHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 func (h *UsersHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	var dto service.UpdateUserRoleDTO
+	var dto model.UpdateUserRoleDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		types.WriteError(w, types.BadRequest("Invalid JSON body"))
 		return

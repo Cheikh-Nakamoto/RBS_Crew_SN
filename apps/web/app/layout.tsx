@@ -1,9 +1,7 @@
 import type { Metadata } from 'next';
 import { Archivo_Black, Inter } from 'next/font/google';
 import './globals.css';
-import { Providers } from '@/components/providers';
-import { Navbar } from '@/components/layout/navbar';
-import { Footer } from '@/components/layout/footer';
+import { SessionProvider } from 'next-auth/react';
 
 const archivoBlack = Archivo_Black({
   subsets: ['latin'],
@@ -37,11 +35,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${archivoBlack.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground noise-overlay">
-        <Providers>
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </Providers>
+        <SessionProvider>
+          {children}
+        </SessionProvider>
       </body>
     </html>
   );
