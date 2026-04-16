@@ -33,11 +33,12 @@ export function PresseEditForm({ initialData }: { initialData: AdminPressMention
   const onSubmit = (data: PressMentionFormValues) => {
     startTransition(async () => {
       try {
-        await updatePresse(initialData.id, data);
+        const result = await updatePresse(initialData.id, data);
+        if (!result.success) { toast.error(result.error); return; }
         toast.success('Mention mise à jour');
         router.push('/admin/presse');
-      } catch {
-        toast.error('Une erreur est survenue');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Une erreur est survenue');
       }
     });
   };

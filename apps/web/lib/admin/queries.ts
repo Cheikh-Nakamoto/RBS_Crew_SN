@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { getAdminApi, getAuthedApi } from './api';
+import { getAdminApi } from './api';
 import type {
   AdminProduct,
   AdminCategory,
@@ -20,9 +20,10 @@ import type {
 // ─── Helpers ─────────────────────────────────────────────────────
 async function getToken(): Promise<string> {
   const session = await auth();
-  const token = (session as { accessToken?: string } | null)?.accessToken;
-  if (!token) redirect('/login');
-  return token;
+  // Pas de session OU refresh token expiré → redirect
+  if (!session?.accessToken) redirect('/login');
+  if (session.error === 'RefreshTokenError') redirect('/login?reason=session_expired');
+  return session.accessToken;
 }
 
 function buildQuery(params: Record<string, string | number | boolean | undefined>) {
@@ -54,7 +55,7 @@ export async function fetchAdminProduct(id: string): Promise<AdminProduct> {
 export async function fetchAdminCategories(params: { page?: number; limit?: number; search?: string } = {}): Promise<PaginatedResponse<AdminCategory>> {
   const token = await getToken();
   const q = buildQuery({ page: params.page ?? 1, limit: params.limit ?? 50, search: params.search });
-  return getAuthedApi(token).get(`categories?${q}`).json();
+  return getAdminApi(token).get(`categories?${q}`).json();
 }
 
 export async function fetchAdminCategory(id: string): Promise<AdminCategory> {
@@ -66,7 +67,7 @@ export async function fetchAdminCategory(id: string): Promise<AdminCategory> {
 export async function fetchAdminTags(params: { page?: number; limit?: number; search?: string } = {}): Promise<PaginatedResponse<AdminTag>> {
   const token = await getToken();
   const q = buildQuery({ page: params.page ?? 1, limit: params.limit ?? 50, search: params.search });
-  return getAuthedApi(token).get(`tags?${q}`).json();
+  return getAdminApi(token).get(`tags?${q}`).json();
 }
 
 export async function fetchAdminTag(id: string): Promise<AdminTag> {

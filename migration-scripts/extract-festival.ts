@@ -35,8 +35,9 @@ async function migrateFestival() {
     const editions: any[] = [];
     const _typography: string[] = [];
 
-    // Divi blurbs usually hold the editions
+    // Divi blurbs hold the editions on the listing page
     const blurbElements = $('.et_pb_blurb').toArray();
+    console.log(`  Found ${blurbElements.length} blurb elements on listing page`);
     
     for (let i = 0; i < blurbElements.length; i++) {
       const el = blurbElements[i];
@@ -55,6 +56,17 @@ async function migrateFestival() {
          editionNumStr = parseInt(metadataMatch[2], 10);
          city = metadataMatch[3].trim().replace(/(&amp;|and)/g, '&');
          summary = rawText.substring(metadataMatch[0].length).trim();
+      } else {
+        // Fallback: try to extract year from anywhere in the text
+        const yearFallback = rawText.match(/(\d{4})/);
+        if (yearFallback) year = parseInt(yearFallback[1], 10);
+        // Try to extract edition number from theme name like "9e edition"
+        const editionFallback = themeName.match(/(\d+)(?:e|th|st|nd|rd)\s+edition/i)
+          || rawText.match(/(\d+)(?:e|è|th|st|nd|rd)\s*[eé]?dition/i);
+        if (editionFallback) editionNumStr = parseInt(editionFallback[1], 10);
+        // Try to extract city
+        const cityFallback = rawText.match(/[-–]\s*([A-ZÀ-Ú][a-zà-ú]+(?:\s*[&,]\s*[A-ZÀ-Ú][a-zà-ú]+)*)\s/);
+        if (cityFallback) city = cityFallback[1];
       }
 
       // Collect inline typography specs
@@ -64,8 +76,23 @@ async function migrateFestival() {
           if (match) _typography.push(match[1].trim());
       });
 
-      // Attempt to find the specific URL page for this edition
-      let specificUrl = $(el).siblings('.et_pb_button_module_wrapper').find('a.et_pb_button').attr('href');
+      // ===== FIX: find the "voir plus" button URL =====
+      // The button wrapper is a sibling of the blurb inside the same column div.
+      // Structure: .et_pb_column > .et_pb_blurb + .et_pb_button_module_wrapper
+      // So we go up to the parent column and look for the button there.
+      const parentColumn = $(el).closest('.et_pb_column');
+      let specificUrl = parentColumn.find('.et_pb_button_module_wrapper a.et_pb_button').attr('href');
+      
+      // Fallback: try the header link inside the blurb itself
+      if (!specificUrl) {
+        specificUrl = $(el).find('.et_pb_module_header a').attr('href');
+      }
+      // Fallback: try the blurb image link
+      if (!specificUrl) {
+        specificUrl = $(el).find('.et_pb_main_blurb_image a').attr('href');
+      }
+
+      console.log(`  Blurb "${themeName}": specificUrl = ${specificUrl || 'NOT FOUND'}`);
 
       // If we found a specific URL, fetch its info
       let gallery: string[] = [];
@@ -75,15 +102,34 @@ async function migrateFestival() {
 
       if (specificUrl) {
           try {
-              console.log(`fetching specific page: ${specificUrl}`);
+              console.log(`  📥 Fetching edition page: ${specificUrl}`);
               const specRes = await axios.get(specificUrl);
               const _$ = cheerio.load(specRes.data);
               
-              editionHero = _$('.et_pb_section_0 .et_pb_image img').attr('src') || _$('img').eq(0).attr('src');
+              // Hero image: first non-logo image on the page (usually the poster)
+              editionHero = _$('.et_pb_image_0 img').attr('src') || _$('img').not('#logo').first().attr('src');
+              
+              // ===== FIX: Extract gallery images properly =====
+              // Gallery images are in et_pb_image modules with lightbox links
+              // or as plain img tags. We get the full-size src and filter out
+              // logos, favicons, and srcset resized duplicates.
+              const seenBasenames = new Set<string>();
               
               _$('img').each((_, imgEl) => {
                   const src = _$(imgEl).attr('src');
-                  if (src && !src.includes('data:image') && !src.includes('logo') && !gallery.includes(src)) {
+                  if (!src) return;
+                  
+                  // Skip data URIs, logos, favicons, and spray/fond-noir assets
+                  if (src.includes('data:image')) return;
+                  if (src.includes('logo') || src.includes('favicon')) return;
+                  if (src.includes('cropped-RBS')) return;
+                  if (src.includes('fond-noir') || src.includes('spray')) return;
+                  
+                  // Normalize to get the base image name (remove -WIDTHxHEIGHT and -scaled suffixes for dedup)
+                  const baseUrl = src.replace(/-\d+x\d+(\.\w+)$/, '$1').replace(/-scaled(\.\w+)$/, '$1');
+                  
+                  if (!seenBasenames.has(baseUrl)) {
+                      seenBasenames.add(baseUrl);
                       gallery.push(src);
                   }
               });
@@ -92,13 +138,14 @@ async function migrateFestival() {
               _$('.et_pb_text_inner p').each((_, p) => {
                   const pTxt = _$(p).text().replace(/\s+/g, ' ').trim();
                   // Simple heuristic to exclude footer/copyright blurbs
-                  if (pTxt.length > 40 && !pTxt.toLowerCase().includes('droits d’auteur') && !pTxt.includes('contact@') && !pTxt.includes('RBS LABZ')) {
+                  if (pTxt.length > 40 && !pTxt.toLowerCase().includes('droits d\'auteur') && !pTxt.includes('contact@') && !pTxt.includes('RBS LABZ')) {
                       editionBio += pTxt + '\n\n';
                   }
               });
               editionBio = editionBio.trim();
 
-              _$(el).find('[style*=font-family]').each((_, span) => {
+              // Extract typography from the edition page
+              _$('[style*=font-family]').each((_, span) => {
                   const style = _$(span).attr('style') || '';
                   const match = style.match(/font-family:\s*([^;]+);/);
                   if (match) {
@@ -107,8 +154,10 @@ async function migrateFestival() {
                   }
               });
               editionTypography = [...new Set(editionTypography)];
-          } catch (e) {
-              console.log(`Failed to fetch specific page ${specificUrl}`);
+
+              console.log(`  ✅ Gallery: ${gallery.length} images, Bio: ${editionBio.length} chars`);
+          } catch (e: any) {
+              console.log(`  ❌ Failed to fetch specific page ${specificUrl}: ${e.message}`);
           }
       }
 

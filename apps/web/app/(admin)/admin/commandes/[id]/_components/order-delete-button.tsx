@@ -21,11 +21,12 @@ export function OrderDeleteButton({ orderId, orderNumber }: OrderDeleteButtonPro
   const handleDelete = () => {
     startTransition(async () => {
       try {
-        await deleteOrder(orderId);
+        const result = await deleteOrder(orderId);
+        if (!result.success) { toast.error(result.error); return; }
         toast.success('Commande supprimée');
         router.push('/admin/commandes');
-      } catch {
-        toast.error('Erreur lors de la suppression');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression');
       }
     });
   };

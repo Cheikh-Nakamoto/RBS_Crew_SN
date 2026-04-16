@@ -35,6 +35,7 @@ type Handlers struct {
 	AdminFestival *handler.AdminFestivalHandler
 	AdminPress    *handler.AdminPressHandler
 	Media         *handler.MediaHandler
+	Cart          *handler.CartHandler
 }
 
 func NewRouter(cfg *config.Config, h *Handlers) chi.Router {
@@ -144,6 +145,14 @@ func NewRouter(cfg *config.Config, h *Handlers) chi.Router {
 
 		// Payments
 		r.Post("/payments/create-checkout", h.Payments.CreateCheckout)
+
+		// Cart — server-side per-user cart stored in Redis
+		r.Get("/cart", h.Cart.Get)
+		r.Post("/cart/items", h.Cart.AddItem)
+		r.Patch("/cart/items/{productId}", h.Cart.UpdateQuantity)
+		r.Delete("/cart/items/{productId}", h.Cart.RemoveItem)
+		r.Delete("/cart", h.Cart.Clear)
+		r.Post("/cart/sync", h.Cart.Sync)
 	})
 
 	// ── Admin Routes ─────────────────────────────────────────────────────────

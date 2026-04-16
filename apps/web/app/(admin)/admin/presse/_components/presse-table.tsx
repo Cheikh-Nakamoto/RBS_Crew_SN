@@ -58,11 +58,12 @@ export function PresseTable({ data, pagination }: { data: AdminPressMention[]; p
     if (!deleteId) return;
     startDeleting(async () => {
       try {
-        await deletePresse(deleteId);
+        const result = await deletePresse(deleteId);
+        if (!result.success) { toast.error(result.error); return; }
         toast.success('Mention supprimée');
         setDeleteId(null);
-      } catch {
-        toast.error('Erreur lors de la suppression');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression');
       }
     });
   };

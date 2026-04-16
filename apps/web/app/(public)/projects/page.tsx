@@ -1,6 +1,8 @@
 import { api } from '@/lib/api';
 import type { ApiResponse } from '@rbs/types';
 import Image from 'next/image';
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { ErrorState } from '@/components/ui/error-state';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -51,9 +53,10 @@ console.log('Fetching projects data...');
             const isLarge = i % 5 === 0 || i % 5 === 3; // alternating large items
 
             return (
-              <div
+              <Link
                 key={project.id}
-                className={`group break-inside-avoid bg-white/4 rounded-2xl overflow-hidden border border-white/8 hover:border-[oklch(0.72_0.19_48/40%)] transition-all duration-300 card-hover`}
+                href={`/projects/${project.slug}`}
+                className={`group break-inside-avoid bg-white/4 rounded-2xl overflow-hidden border border-white/8 hover:border-[oklch(0.72_0.19_48/40%)] transition-all duration-300 card-hover block`}
                 style={{ animationDelay: `${i * 60}ms` }}
               >
                 {project.featuredImageUrl ? (
@@ -69,7 +72,8 @@ console.log('Fetching projects data...');
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover transition-transform duration-700 group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                    <div className="absolute inset-0 bg-[oklch(0.72_0.19_48/0%)] group-hover:bg-[oklch(0.72_0.19_48/8%)] transition-colors duration-300" />
                     {/* Index number */}
                     <div className="absolute top-3 left-3 font-display text-xs text-white/40 bg-black/40 backdrop-blur-sm rounded-md px-2 py-0.5">
                       {String(i + 1).padStart(2, '0')}
@@ -81,7 +85,7 @@ console.log('Fetching projects data...');
                   </div>
                 )}
 
-                <div className="p-5 space-y-1.5">
+                <div className="p-5 space-y-2">
                   <h3 className="font-semibold text-white group-hover:text-[oklch(0.72_0.19_48)] transition-colors duration-200 line-clamp-2">
                     {t?.title}
                   </h3>
@@ -93,8 +97,12 @@ console.log('Fetching projects data...');
                   {t?.summary && (
                     <p className="text-sm text-white/40 line-clamp-2 leading-relaxed">{t.summary}</p>
                   )}
+                  <div className="flex items-center gap-1.5 pt-1 text-xs text-white/30 group-hover:text-[oklch(0.72_0.19_48)] transition-colors duration-200">
+                    <span>Voir le projet</span>
+                    <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+                  </div>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>

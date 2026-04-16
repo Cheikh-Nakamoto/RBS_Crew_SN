@@ -5,5 +5,5 @@ export const metadata = { title: 'Modifier' };
 export default async function EditPagesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const data = await fetchAdminPage(id);
-  return <TranslatableEntityForm mode="edit" backHref="/admin/pages" entityLabel="pages" showImage={true} initialData={data as unknown as Parameters<typeof TranslatableEntityForm>[0]["initialData"]} onCreate={() => Promise.resolve()} onUpdate={updatePages} />;
+  return <TranslatableEntityForm mode="edit" backHref="/admin/pages" entityLabel="pages" showImage={false} initialData={data as unknown as Parameters<typeof TranslatableEntityForm>[0]["initialData"]} onUpdate={updatePages} />;
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { formatXOF, formatDate } from '@/lib/format';
+import { useAuthedFetch } from '@/lib/use-authed-fetch';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -66,6 +67,7 @@ export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { count } = useCart();
+  const { authedFetch } = useAuthedFetch();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'addresses'>('profile');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -110,10 +112,7 @@ export default function ProfilePage() {
   async function fetchOrders() {
     setLoading(true);
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-      const res = await fetch(`${API_URL}/orders/my`, {
-        headers: { Authorization: `Bearer ${session!.accessToken}` },
-      });
+      const res = await authedFetch('/orders/my');
       if (res.ok) {
         const data = await res.json();
         setOrders(data.data || data || []);
@@ -127,10 +126,7 @@ export default function ProfilePage() {
   async function fetchAddresses() {
     setLoading(true);
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-      const res = await fetch(`${API_URL}/users/me/addresses`, {
-        headers: { Authorization: `Bearer ${session!.accessToken}` },
-      });
+      const res = await authedFetch('/users/me/addresses');
       if (res.ok) {
         const data = await res.json();
         setAddresses(data.data || data || []);
@@ -143,13 +139,8 @@ export default function ProfilePage() {
 
   async function handleSaveProfile() {
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-      const res = await fetch(`${API_URL}/users/me`, {
+      const res = await authedFetch('/users/me', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session!.accessToken}`,
-        },
         body: JSON.stringify({
           firstName: profileForm.firstName,
           lastName: profileForm.lastName,

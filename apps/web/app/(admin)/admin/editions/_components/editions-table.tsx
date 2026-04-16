@@ -24,6 +24,6 @@ export function EditionsTable({ data, pagination }: { data: any[]; pagination: P
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, startDeleting] = useTransition();
   const handlePageChange = (page: number) => { const p = new URLSearchParams(searchParams.toString()); p.set('page', String(page)); router.push(`${pathname}?${p.toString()}`); };
-  const confirmDelete = () => { if (!deleteId) return; startDeleting(async () => { try { await deleteEditions(deleteId); toast.success('Élément supprimé'); setDeleteId(null); } catch { toast.error('Erreur'); } }); };
+  const confirmDelete = () => { if (!deleteId) return; startDeleting(async () => { try { const result = await deleteEditions(deleteId); if (!result.success) { toast.error(result.error); return; } toast.success('Élément supprimé'); setDeleteId(null); } catch (err) { toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression'); } }); };
   return (<><div className="space-y-4"><DataTableToolbar /><DataTable columns={getColumns(setDeleteId)} data={data} pagination={pagination} onPageChange={handlePageChange} /></div><DeleteConfirmDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)} onConfirm={confirmDelete} isDeleting={isDeleting} /></>);
 }

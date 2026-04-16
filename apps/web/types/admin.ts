@@ -66,8 +66,8 @@ export interface AdminProduct {
 // ─── Category ────────────────────────────────────────────────────
 export interface AdminCategory {
   id: string;
+  slug: string;
   parentId?: string;
-  imageUrl?: string;
   translations: AdminTranslation[];
   createdAt: string;
 }
@@ -75,6 +75,7 @@ export interface AdminCategory {
 // ─── Tag ─────────────────────────────────────────────────────────
 export interface AdminTag {
   id: string;
+  slug: string;
   translations: AdminTranslation[];
   createdAt: string;
 }
@@ -165,6 +166,8 @@ export interface AdminArtist {
   id: string;
   slug: string;
   avatarUrl?: string;
+  featuredImageUrl?: string;
+  gallery: string[];
   isPublished: boolean;
   translations: AdminTranslation[];
   createdAt: string;
@@ -172,11 +175,12 @@ export interface AdminArtist {
 
 export interface AdminFestivalEdition {
   id: string;
+  slug: string;
   year: number;
   location?: string;
-  startDate?: string;
-  endDate?: string;
   isPublished: boolean;
+  featuredImageUrl?: string;
+  gallery: string[];
   translations: AdminTranslation[];
   createdAt: string;
 }

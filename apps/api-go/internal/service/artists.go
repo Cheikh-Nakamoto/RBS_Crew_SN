@@ -189,8 +189,20 @@ func (s *ArtistsService) AdminUpdate(ctx context.Context, id string, input model
 	if input.IsPublished {
 		status.ProductStatus = db.ProductStatusPUBLISHED
 	}
+
+	// Extraire le slug depuis la première traduction non-vide
+	var newSlug *string
+	for _, t := range input.Translations {
+		if t.Slug != "" {
+			s := t.Slug
+			newSlug = &s
+			break
+		}
+	}
+
 	a, err := s.repo.Update(ctx, db.UpdateArtistParams{
 		ID:               id,
+		Slug:             newSlug,
 		FeaturedImageUrl: input.FeaturedImageURL,
 		Status:           status,
 	})

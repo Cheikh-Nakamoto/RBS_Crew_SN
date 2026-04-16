@@ -20,6 +20,7 @@ import { MediaUpload } from './media-upload';
 import { GalleryUpload } from './gallery-upload';
 
 import { simpleTranslatableSchema, type SimpleTranslatableFormValues } from '@/lib/admin/schemas';
+import type { ActionResult } from '@/lib/admin/errors';
 
 const DEFAULT_TRANSLATIONS = LOCALES.map(({ code }) => ({
   locale: code,
@@ -36,11 +37,11 @@ export interface TranslatableEntityFormProps {
   mode: 'create' | 'edit';
   backHref: string;
   entityLabel: string;
-  backHref: string;
-  entityLabel: string;
   showImage?: boolean;
   showGallery?: boolean;
   showContent?: boolean;
+  showDescription?: boolean;
+  showShortDescription?: boolean;
   showMeta?: boolean;
   initialData?: {
     id?: string;
@@ -73,6 +74,8 @@ export function TranslatableEntityForm({
   showImage = false,
   showGallery = false,
   showContent = true,
+  showDescription = true,
+  showShortDescription = true,
   showMeta = true,
   initialData,
   onCreate,
@@ -120,15 +123,23 @@ export function TranslatableEntityForm({
     startTransition(async () => {
       try {
         if (mode === 'create') {
-          await onCreate?.(payload);
+          const result = await onCreate?.(payload);
+          if (result && typeof result === 'object' && 'success' in result && !(result as ActionResult).success) {
+            toast.error((result as { success: false; error: string }).error);
+            return;
+          }
           toast.success(`${entityLabel} créé(e) avec succès`);
         } else {
-          await onUpdate?.(initialData!.id as string, payload);
+          const result = await onUpdate?.(initialData!.id as string, payload);
+          if (result && typeof result === 'object' && 'success' in result && !(result as ActionResult).success) {
+            toast.error((result as { success: false; error: string }).error);
+            return;
+          }
           toast.success(`${entityLabel} mis(e) à jour`);
         }
         router.push(backHref);
-      } catch {
-        toast.error('Une erreur est survenue');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Une erreur est survenue');
       }
     });
   };
@@ -174,6 +185,8 @@ export function TranslatableEntityForm({
                     control={control}
                     index={index}
                     showContent={showContent}
+                    showDescription={showDescription}
+                    showShortDescription={showShortDescription}
                     showMeta={showMeta}
                   />
                 )}

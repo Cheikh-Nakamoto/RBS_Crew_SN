@@ -90,11 +90,12 @@ export function QuotesTable({ data, pagination }: QuotesTableProps) {
     if (!deleteId) return;
     startDeleting(async () => {
       try {
-        await deleteQuote(deleteId);
+        const result = await deleteQuote(deleteId);
+        if (!result.success) { toast.error(result.error); return; }
         toast.success('Devis supprimé');
         setDeleteId(null);
-      } catch {
-        toast.error('Erreur lors de la suppression');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression');
       }
     });
   };

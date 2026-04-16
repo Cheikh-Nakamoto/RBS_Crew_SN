@@ -68,11 +68,12 @@ export function CategoriesTable({ data, pagination }: { data: AdminCategory[]; p
     if (!deleteId) return;
     startDeleting(async () => {
       try {
-        await deleteCategory(deleteId);
+        const result = await deleteCategory(deleteId);
+        if (!result.success) { toast.error(result.error); return; }
         toast.success('Catégorie supprimée');
         setDeleteId(null);
-      } catch {
-        toast.error('Erreur lors de la suppression');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression');
       }
     });
   };

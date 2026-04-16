@@ -200,8 +200,13 @@ func toProjectResponse(p *db.Project, translations []db.ProjectTranslation) mode
 		t := p.CompletedAt.Time
 		completedAt = &t
 	}
+	var gallery []string
+	if len(p.Gallery) > 0 {
+		_ = json.Unmarshal(p.Gallery, &gallery)
+	}
 	return model.ProjectResponse{
 		ID: p.ID, Slug: p.Slug, FeaturedImageURL: p.FeaturedImageUrl,
+		Gallery:     gallery,
 		CompletedAt: completedAt, ClientName: p.ClientName,
 		Status: string(p.Status), Translations: trans,
 		CreatedAt: p.CreatedAt.Time,

@@ -83,8 +83,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       session.accessToken = token.accessToken as string;
-      (session.user as typeof session.user & { role: string; id: string }).role = token.role as string;
-      (session.user as typeof session.user & { role: string; id: string }).id = token.userId as string;
+      session.user.role = token.role as string;
+      session.user.id = token.userId as string;
+      // Expose token error to the client so it can redirect to /login
+      if (token.error) {
+        session.error = token.error as 'RefreshTokenError';
+      }
       return session;
     },
   },

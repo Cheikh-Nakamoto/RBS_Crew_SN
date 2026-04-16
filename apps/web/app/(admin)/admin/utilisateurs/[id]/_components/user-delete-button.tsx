@@ -21,11 +21,12 @@ export function UserDeleteButton({ userId, userName }: UserDeleteButtonProps) {
   const handleDelete = () => {
     startTransition(async () => {
       try {
-        await deleteUser(userId);
+        const result = await deleteUser(userId);
+        if (!result.success) { toast.error(result.error); return; }
         toast.success('Utilisateur supprimé');
         router.push('/admin/utilisateurs');
-      } catch {
-        toast.error('Erreur lors de la suppression');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression');
       }
     });
   };

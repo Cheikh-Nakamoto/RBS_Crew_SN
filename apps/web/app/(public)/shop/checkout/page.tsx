@@ -7,12 +7,14 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import { formatXOF } from '@/lib/format';
+import { useAuthedFetch } from '@/lib/use-authed-fetch';
 import { ArrowLeft, Minus, Plus, Trash2, ShoppingBag, Lock, ArrowRight, CreditCard, Smartphone } from 'lucide-react';
 
 export default function CheckoutPage() {
   const { items, removeItem, updateQuantity, total, count, clearCart } = useCart();
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { authedFetch } = useAuthedFetch();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'WAVE' | 'ORANGE_MONEY' | 'STRIPE' | 'PAYPAL'>('WAVE');
@@ -69,15 +71,9 @@ export default function CheckoutPage() {
     setError(null);
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-
       // 1. Create order
-      const orderRes = await fetch(`${API_URL}/orders`, {
+      const orderRes = await authedFetch('/orders', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${(session as any).accessToken}`,
-        },
         body: JSON.stringify({
           items: items.map((item) => ({
             productId: item.productId,
@@ -103,12 +99,8 @@ export default function CheckoutPage() {
       const order = await orderRes.json();
 
       // 2. Create checkout with selected payment method
-      const checkoutRes = await fetch(`${API_URL}/payments/create-checkout`, {
+      const checkoutRes = await authedFetch('/payments/create-checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${(session as any).accessToken}`,
-        },
         body: JSON.stringify({
           orderId: order.id,
           paymentMethod,
@@ -129,8 +121,8 @@ export default function CheckoutPage() {
       if (checkout.url) {
         window.location.href = checkout.url;
       }
-    } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Une erreur est survenue');
     } finally {
       setLoading(false);
     }

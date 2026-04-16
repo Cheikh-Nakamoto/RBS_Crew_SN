@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Archivo_Black, Inter } from 'next/font/google';
 import './globals.css';
 import { SessionProvider } from 'next-auth/react';
+import { TokenGuard } from '@/components/auth/token-guard';
 
 const archivoBlack = Archivo_Black({
   subsets: ['latin'],
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="min-h-full flex flex-col bg-background text-foreground noise-overlay">
         <SessionProvider>
+          <TokenGuard />
           {children}
         </SessionProvider>
       </body>

@@ -30,11 +30,12 @@ export function OrderStatusForm({ orderId, currentStatus }: OrderStatusFormProps
   const handleUpdate = () => {
     startTransition(async () => {
       try {
-        await updateOrderStatus(orderId, { status });
+        const result = await updateOrderStatus(orderId, { status });
+        if (!result.success) { toast.error(result.error); return; }
         toast.success('Statut mis à jour');
         router.refresh();
-      } catch {
-        toast.error('Erreur lors de la mise à jour');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la mise à jour');
       }
     });
   };

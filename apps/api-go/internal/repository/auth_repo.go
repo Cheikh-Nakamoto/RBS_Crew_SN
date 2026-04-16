@@ -57,6 +57,11 @@ func (r *AuthRepository) DeleteUserSessions(ctx context.Context, userID string) 
 	return r.q.DeleteUserSessions(ctx, userID)
 }
 
+func (r *AuthRepository) DeleteSession(ctx context.Context, id string) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM "UserSession" WHERE "id" = $1`, id)
+	return err
+}
+
 func (r *AuthRepository) SetPasswordResetToken(ctx context.Context, email string, token *string, expiry pgtype.Timestamp) error {
 	return r.q.SetPasswordResetToken(ctx, db.SetPasswordResetTokenParams{
 		Email:            email,

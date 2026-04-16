@@ -38,6 +38,10 @@ func (c *Client) Get(ctx context.Context, key string) (string, error) {
 	return c.client.Get(ctx, key).Result()
 }
 
+func (c *Client) Delete(ctx context.Context, key string) error {
+	return c.client.Del(ctx, key).Err()
+}
+
 func (c *Client) DeletePattern(ctx context.Context, pattern string) error {
 	iter := c.client.Scan(ctx, 0, pattern, 0).Iterator()
 	for iter.Next(ctx) {

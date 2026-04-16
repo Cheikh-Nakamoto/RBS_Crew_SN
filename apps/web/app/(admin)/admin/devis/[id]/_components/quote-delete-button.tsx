@@ -21,11 +21,12 @@ export function QuoteDeleteButton({ quoteId, quoteName }: QuoteDeleteButtonProps
   const handleDelete = () => {
     startTransition(async () => {
       try {
-        await deleteQuote(quoteId);
+        const result = await deleteQuote(quoteId);
+        if (!result.success) { toast.error(result.error); return; }
         toast.success('Devis supprimé');
         router.push('/admin/devis');
-      } catch {
-        toast.error('Erreur lors de la suppression');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression');
       }
     });
   };

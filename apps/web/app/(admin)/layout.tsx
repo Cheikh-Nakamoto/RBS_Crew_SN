@@ -13,11 +13,10 @@ export default async function AdminRootLayout({
 
   if (!session) redirect('/login');
 
-  // Handle expired refresh token
-  const tokenError = (session as { error?: string }).error;
-  if (tokenError === 'RefreshTokenError') redirect('/login');
+  // Le middleware a déjà filtré, mais on garde cette garde SSR au cas où
+  if (session.error === 'RefreshTokenError') redirect('/login?reason=session_expired');
 
-  const role = (session.user as { role?: string })?.role;
+  const role = session.user?.role;
   if (role !== 'ADMIN' && role !== 'EDITOR') redirect('/');
 
   return (

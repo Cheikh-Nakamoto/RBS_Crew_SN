@@ -111,11 +111,12 @@ export function OrdersTable({ data, pagination }: OrdersTableProps) {
     if (!deleteId) return;
     startDeleting(async () => {
       try {
-        await deleteOrder(deleteId);
+        const result = await deleteOrder(deleteId);
+        if (!result.success) { toast.error(result.error); return; }
         toast.success('Commande supprimée');
         setDeleteId(null);
-      } catch {
-        toast.error('Erreur lors de la suppression');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression');
       }
     });
   };

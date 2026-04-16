@@ -93,6 +93,7 @@ func run() error {
 	quotesSvc := service.NewQuotesService(quotesRepo)
 	ordersSvc := service.NewOrdersService(ordersRepo, productsRepo)
 	usersSvc := service.NewUsersService(usersRepo)
+	cartSvc := service.NewCartService(redisClient)
 
 	// ── Payment providers ────────────────────────────────────────────────────
 	var paymentProviders []payment.Provider
@@ -143,6 +144,7 @@ func run() error {
 		AdminFestival: handler.NewAdminFestivalHandler(festivalSvc),
 		AdminPress:    handler.NewAdminPressHandler(pressSvc),
 		Media:         handler.NewMediaHandler(cfg.R2AccountID, cfg.R2AccessKey, cfg.R2SecretKey, cfg.R2Bucket, cfg.R2PublicURL),
+		Cart:          handler.NewCartHandler(cartSvc),
 	}
 
 	// ── HTTP Server ──────────────────────────────────────────────────────────

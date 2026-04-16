@@ -104,15 +104,17 @@ export function ProductForm({ mode, initialData, categories, tags }: ProductForm
     startTransition(async () => {
       try {
         if (mode === 'create') {
-          await createProduct(payload);
+          const result = await createProduct(payload);
+          if (!result.success) { toast.error(result.error); return; }
           toast.success('Produit créé avec succès');
         } else {
-          await updateProduct(initialData!.id, payload);
+          const result = await updateProduct(initialData!.id, payload);
+          if (!result.success) { toast.error(result.error); return; }
           toast.success('Produit mis à jour');
         }
         router.push('/admin/produits');
       } catch (err) {
-        toast.error('Une erreur est survenue');
+        toast.error(err instanceof Error ? err.message : 'Une erreur est survenue');
         console.error(err);
       }
     });

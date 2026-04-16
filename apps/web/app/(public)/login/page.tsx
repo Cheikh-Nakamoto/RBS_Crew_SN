@@ -1,15 +1,29 @@
 'use client';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { LogIn, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { LogIn, Eye, EyeOff, AlertCircle, Clock } from 'lucide-react';
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Récupérer et valider le callbackUrl (uniquement URLs relatives du même site)
+  const rawCallback = searchParams.get('callbackUrl') ?? '/';
+  const callbackUrl = rawCallback.startsWith('/') ? rawCallback : '/';
+  const sessionExpired = searchParams.get('reason') === 'session_expired';
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -27,7 +41,7 @@ export default function LoginPage() {
       setStatus('error');
       setErrorMsg('Email ou mot de passe incorrect.');
     } else {
-      router.push('/');
+      router.push(callbackUrl);
       router.refresh();
     }
   }
@@ -73,6 +87,13 @@ export default function LoginPage() {
         {/* Card */}
         <div className="glass rounded-2xl border border-white/10 p-8 space-y-6">
           <h1 className="font-display text-2xl text-white">Bienvenue</h1>
+
+          {sessionExpired && (
+            <div className="flex items-center gap-3 rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3">
+              <Clock className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <p className="text-sm text-amber-300">Votre session a expiré. Veuillez vous reconnecter.</p>
+            </div>
+          )}
 
           {status === 'error' && (
             <div className="flex items-center gap-3 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3">
@@ -152,7 +173,7 @@ export default function LoginPage() {
           {/* Google Sign In */}
           <button
             type="button"
-            onClick={() => signIn('google', { callbackUrl: '/' })}
+            onClick={() => signIn('google', { callbackUrl })}
             className="w-full flex items-center justify-center gap-3 px-5 py-3.5 rounded-xl bg-white/6 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-200 text-sm font-semibold text-white/80 hover:text-white"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">

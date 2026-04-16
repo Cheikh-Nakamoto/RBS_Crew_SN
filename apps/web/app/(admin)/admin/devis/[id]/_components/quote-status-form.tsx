@@ -26,11 +26,12 @@ export function QuoteStatusForm({ quoteId, currentStatus }: QuoteStatusFormProps
   const handleUpdate = () => {
     startTransition(async () => {
       try {
-        await updateQuoteStatus(quoteId, status);
+        const result = await updateQuoteStatus(quoteId, status);
+        if (!result.success) { toast.error(result.error); return; }
         toast.success('Statut mis à jour');
         router.refresh();
-      } catch {
-        toast.error('Erreur lors de la mise à jour');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la mise à jour');
       }
     });
   };

@@ -18,6 +18,8 @@ interface LocaleTabPanelProps {
   index: number;
   showContent?: boolean;
   showMeta?: boolean;
+  showDescription?: boolean;
+  showShortDescription?: boolean;
   contentRows?: number;
 }
 
@@ -26,6 +28,8 @@ export function LocaleTabPanel({
   index,
   showContent = true,
   showMeta = true,
+  showDescription = true,
+  showShortDescription = true,
   contentRows = 8,
 }: LocaleTabPanelProps) {
   return (
@@ -72,24 +76,48 @@ export function LocaleTabPanel({
       />
 
       {/* Short description */}
-      <FormField
-        control={control}
-        name={`translations.${index}.shortDescription`}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="text-white/70">Description courte</FormLabel>
-            <FormControl>
-              <Textarea
-                {...field}
-                rows={2}
-                placeholder="Courte description..."
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50 resize-none"
-              />
-            </FormControl>
-            <FormMessage className="text-red-400 text-xs" />
-          </FormItem>
-        )}
-      />
+      {showShortDescription && (
+        <FormField
+          control={control}
+          name={`translations.${index}.shortDescription`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-white/70">Description courte</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  rows={2}
+                  placeholder="Courte description..."
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50 resize-none"
+                />
+              </FormControl>
+              <FormMessage className="text-red-400 text-xs" />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {/* Bio / Description */}
+      {showDescription && (
+        <FormField
+          control={control}
+          name={`translations.${index}.description`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-white/70">Bio / Description</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  rows={5}
+                  placeholder="Bio, description longue..."
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50 resize-none"
+                />
+              </FormControl>
+              <FormMessage className="text-red-400 text-xs" />
+            </FormItem>
+          )}
+        />
+      )}
 
       {/* Content */}
       {showContent && (

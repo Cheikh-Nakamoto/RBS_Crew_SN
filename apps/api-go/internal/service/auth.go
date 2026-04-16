@@ -111,6 +111,11 @@ func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (*model
 		return nil, types.Unauthorized("Invalid credentials")
 	}
 
+	// Nettoyage : lors d'une reconnexion (saisie manuelle des identifiants),
+	// on purge toutes les sessions de cet utilisateur pour éviter l'accumulation
+	// (ce qui cause des ralentissements majeurs sur la boucle de Refresh)
+	_ = s.repo.DeleteUserSessions(ctx, user.ID)
+
 	return s.issueTokens(ctx, user.ID, user.Email, string(user.Role))
 }
 
@@ -139,16 +144,23 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*model.
 
 	// Check if this refresh token matches any stored hash (same as NestJS Promise.any)
 	matched := false
+	matchedSessionID := ""
 	for _, session := range sessions {
 		hash := sha256.Sum256([]byte(refreshToken))
 		hexHash := hex.EncodeToString(hash[:])
 		if bcrypt.CompareHashAndPassword([]byte(session.TokenHash), []byte(hexHash)) == nil {
 			matched = true
+			matchedSessionID = session.ID
 			break
 		}
 	}
 	if !matched {
 		return nil, types.Unauthorized("Session expired or revoked")
+	}
+
+	// Supprimer l'ancienne session pour ne pas laisser de sessions orphelines (qui causent le lag)
+	if matchedSessionID != "" {
+		_ = s.repo.DeleteSession(ctx, matchedSessionID)
 	}
 
 	return s.issueTokens(ctx, claims.Subject, claims.Email, claims.Role)

@@ -15,6 +15,7 @@ type ProjectResponse struct {
 	ID               string               `json:"id"`
 	Slug             string               `json:"slug"`
 	FeaturedImageURL *string              `json:"featuredImageUrl"`
+	Gallery          []string             `json:"gallery"`
 	CompletedAt      *time.Time           `json:"completedAt"`
 	ClientName       *string              `json:"clientName"`
 	Status           string               `json:"status"`

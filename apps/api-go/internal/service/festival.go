@@ -75,7 +75,7 @@ func (s *FestivalService) toAdminResponse(ctx context.Context, f *db.FestivalEdi
 	for _, t := range translations {
 		trans = append(trans, model.AdminFestivalTranslation{
 			Locale: string(t.Locale), Title: t.ThemeName, Slug: f.Slug,
-			ThemeName: t.ThemeName, Summary: t.Summary, Content: t.Content,
+			ThemeName: &t.ThemeName, Summary: t.Summary, Content: t.Content,
 		})
 	}
 	var gallery []string

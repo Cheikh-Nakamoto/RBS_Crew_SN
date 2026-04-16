@@ -27,11 +27,12 @@ export function UserRoleForm({ userId, currentRole }: UserRoleFormProps) {
   const handleUpdate = () => {
     startTransition(async () => {
       try {
-        await updateUserRole(userId, { role });
+        const result = await updateUserRole(userId, { role });
+        if (!result.success) { toast.error(result.error); return; }
         toast.success('Rôle mis à jour');
         router.refresh();
-      } catch {
-        toast.error('Erreur lors de la mise à jour');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la mise à jour');
       }
     });
   };

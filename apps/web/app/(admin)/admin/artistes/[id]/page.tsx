@@ -5,5 +5,5 @@ export const metadata = { title: 'Modifier' };
 export default async function EditArtistesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const data = await fetchAdminArtist(id);
-  return <TranslatableEntityForm mode="edit" backHref="/admin/artistes" entityLabel="artistes" showImage={true} showGallery={true} initialData={data as unknown as Parameters<typeof TranslatableEntityForm>[0]["initialData"]} onCreate={() => Promise.resolve()} onUpdate={updateArtistes} />;
+  return <TranslatableEntityForm mode="edit" backHref="/admin/artistes" entityLabel="artistes" showContent={false} showShortDescription={false} showImage={true} showGallery={true} initialData={data as unknown as Parameters<typeof TranslatableEntityForm>[0]["initialData"]} onUpdate={updateArtistes} />;
 }

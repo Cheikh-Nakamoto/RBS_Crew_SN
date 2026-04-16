@@ -4,14 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "generate": "npx prisma generate --schema=../apps/api/prisma/schema.prisma",
     "products": "tsx extract-products.ts",
     "artists": "tsx extract-artists.ts",
     "projects": "tsx extract-projects.ts",
     "festival": "tsx extract-festival.ts",
     "press": "tsx extract-press.ts",
     "all": "tsx run-all.ts",
-    "upload-s3": "tsx upload-s3.ts"
+    "upload-s3": "tsx upload-s3.ts",
+    "import-db": "tsx import-db.ts"
   },
   "keywords": [],
   "author": "",

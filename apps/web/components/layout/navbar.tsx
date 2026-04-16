@@ -3,7 +3,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useCart } from '@/lib/cart-store';
 import {
@@ -29,182 +30,146 @@ const links = [
   { href: '/labz',     label: 'Labz',     icon: Beaker },
 ];
 
+// Framer Motion v12 : ease doit être un tuple [n,n,n,n], pas number[]
+const EASE_OUT = [0, 0, 0.2, 1] as [number, number, number, number];
+const EASE_IN  = [0.4, 0, 1, 1] as [number, number, number, number];
+
+const drawerVariants: Variants = {
+  closed: { opacity: 0, y: -8, transition: { duration: 0.2, ease: EASE_IN } },
+  open:   { opacity: 1, y: 0,  transition: { duration: 0.25, ease: EASE_OUT } },
+};
+
+const itemVariants: Variants = {
+  closed: { opacity: 0, x: -12 },
+  open:   { opacity: 1, x: 0 },
+};
+
 export function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const { count, setIsOpen: openCart } = useCart();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const navId = useId();
+  const mobileNavId = `mobile-nav-${navId}`;
 
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
 
-  // Detect scroll for navbar elevation
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handler, { passive: true });
     return () => window.removeEventListener('scroll', handler);
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
+
   return (
     <>
-      <header
+      <motion.header
+        initial={{ y: -64, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.45, ease: EASE_OUT }}
         className={cn(
-          'fixed w-full top-0 z-50 transition-all duration-300',
-          scrolled ? 'bg-black/90 shadow-lg' : 'bg-transparent'
+          'fixed w-full top-0 z-50 transition-[background-color,box-shadow,backdrop-filter] duration-300',
+          scrolled
+            ? 'bg-black/90 shadow-[0_1px_0_oklch(1_0_0/8%)] backdrop-blur-xl'
+            : 'bg-transparent'
         )}
       >
-        <div className="max-w-[90rem] mx-auto px-6 h-20 flex flex-col justify-end pb-4 border-b border-white/20">
-          <div className="flex items-center justify-between relative">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 group relative z-10 w-48">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-600"></span>
-              <span className="font-display font-bold tracking-[0.2em] text-white uppercase text-sm">
-                RBS CREW
-              </span>
-              {/* Red Line extending from logo like in maquette */}
-              <span className="absolute -bottom-[17px] left-0 w-32 h-[2px] bg-red-600"></span>
-            </Link>
+        {/* ── h-16 = 64px, inner div relative pour positionner la nav absolue ── */}
+        <div className="max-w-[90rem] mx-auto px-6 border-b border-white/10">
+          <div className="relative h-16 flex items-center justify-between">
 
-            {/* Desktop nav */}
-            <nav className="hidden md:flex items-center gap-10 absolute left-1/2 -translate-x-1/2" aria-label="Navigation principale">
-              <Link href="/" className={cn('text-xs font-semibold tracking-wider transition-colors uppercase', pathname === '/' ? 'text-white' : 'text-white/60 hover:text-white')}>
-                Home
-              </Link>
-              {links.map(({ href, label }) => {
-                const active = pathname.startsWith(href);
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={cn(
-                      'text-xs font-semibold tracking-wider transition-colors uppercase',
-                      active ? 'text-white' : 'text-white/60 hover:text-white'
-                    )}
-                  >
-                    {label}
-                  </Link>
-                );
-              })}
-            </nav>
-
-            {/* Cart + Auth / Hamburger */}
-            <div className="flex items-center gap-4 z-10 w-48 justify-end">
-              {/* Cart icon */}
-              <button
-                onClick={() => openCart(true)}
-                className="relative p-1.5 text-white/70 hover:text-white transition-colors"
-                aria-label="Ouvrir le panier"
-              >
-                <ShoppingBag className="w-5 h-5" />
-                {count > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none animate-pulse">
-                    {count > 9 ? '9+' : count}
-                  </span>
-                )}
-              </button>
-
-              {session ? (
-                <>
-                  <Link
-                    href="/profile"
-                    className="hidden md:flex items-center gap-2 text-xs font-semibold text-white/60 hover:text-white transition-colors uppercase tracking-wider"
-                  >
-                    Profil
-                  </Link>
-                  <button
-                    onClick={() => signOut()}
-                    className="hidden md:flex items-center gap-2 text-xs font-semibold text-white/60 hover:text-white transition-colors uppercase tracking-wider"
-                  >
-                    Déconnexion
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    href="/login"
-                    className="hidden md:flex items-center gap-2 text-xs font-semibold text-white/60 hover:text-white transition-colors uppercase tracking-wider"
-                  >
-                    Connexion
-                  </Link>
-                  <Link
-                    href="/register"
-                    className="hidden md:flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors uppercase tracking-wider"
-                  >
-                    Inscription
-                  </Link>
-                </>
-              )}
-              
-              <button
-                className="md:hidden p-1 text-white/80 hover:text-white"
-                onClick={() => setMobileOpen((v) => !v)}
-              >
-                <Menu className="w-6 h-6" />
-              </button>
+          {/* Logo */}
+          <Link
+            href="/"
+            className="flex items-center gap-2 group relative z-10 shrink-0 transition-transform hover:scale-105 duration-300"
+            aria-label="RBS Crew SN — accueil"
+          >
+            <div className="bg-white rounded-full shadow-[0_4px_20px_rgba(255,255,255,0.15)] flex items-center justify-center ring-1 ring-white/10 w-[55px] h-[55px] md:w-[63px] md:h-[63px] transition-all relative overflow-hidden">
+              <Image
+                src="/logo.png"
+                alt="RBS CREW"
+                width={144}
+                height={44}
+                className="object-cover object-center h-full w-full scale-125 pt-1"
+                priority
+              />
             </div>
-          </div>
-        </div>
-      </header>
+          </Link>
 
-      {/* Mobile drawer overlay */}
-      <div
-        className={cn(
-          'fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 md:hidden',
-          mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
-        )}
-        onClick={() => setMobileOpen(false)}
-        aria-hidden="true"
-      />
+          {/* Desktop nav — centré absolument dans le div relative */}
+          <nav
+            className="hidden md:flex items-center gap-8 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+            aria-label="Navigation principale"
+          >
+            <Link
+              href="/"
+              className={cn(
+                'text-xs font-semibold tracking-wider transition-colors uppercase link-underline',
+                pathname === '/' ? 'text-white' : 'text-white/60 hover:text-white'
+              )}
+            >
+              Home
+            </Link>
+            {links.map(({ href, label }) => {
+              const active = pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    'text-xs font-semibold tracking-wider transition-colors uppercase link-underline',
+                    active ? 'text-white' : 'text-white/60 hover:text-white'
+                  )}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
 
-      {/* Mobile drawer */}
-      <nav
-        aria-label="Navigation mobile"
-        className={cn(
-          'fixed top-16 left-0 right-0 z-40 md:hidden',
-          'bg-background/95 backdrop-blur-xl border-b border-white/8',
-          'transition-all duration-300 overflow-hidden',
-          mobileOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0',
-        )}
-      >
-        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-1">
-          {links.map(({ href, label, icon: Icon }, i) => {
-            const active = pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                style={{ animationDelay: `${i * 50}ms` }}
-                className={cn(
-                  'flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200',
-                  active
-                    ? 'bg-[oklch(0.72_0.19_48/15%)] text-white border border-[oklch(0.72_0.19_48/30%)]'
-                    : 'text-white/65 hover:text-white hover:bg-white/6',
+          {/* Right side — cart + auth + hamburger */}
+          <div className="flex items-center gap-3 z-10 shrink-0">
+            {/* Cart */}
+            <button
+              onClick={() => openCart(true)}
+              className="relative p-2 text-white/70 hover:text-white transition-colors rounded-lg hover:bg-white/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label={`Ouvrir le panier${count > 0 ? ` (${count} article${count > 1 ? 's' : ''})` : ''}`}
+            >
+              <ShoppingBag className="w-5 h-5" />
+              <AnimatePresence>
+                {count > 0 && (
+                  <motion.span
+                    key="cart-badge"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                    className="absolute top-0.5 right-0.5 bg-[var(--rbs-red)] text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none shadow-[0_0_8px_var(--rbs-red)]"
+                  >
+                    {count > 9 ? '9+' : count}
+                  </motion.span>
                 )}
-              >
-                <Icon className={cn('w-5 h-5', active ? 'text-[oklch(0.65_0.18_18)]' : 'text-white/40')} />
-                {label}
-              </Link>
-            );
-          })}
+              </AnimatePresence>
+            </button>
 
-          <div className="border-t border-white/8 mt-2 pt-2">
+            {/* Auth — desktop */}
             {session ? (
               <>
                 <Link
                   href="/profile"
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-white/70 hover:text-white hover:bg-white/6 transition-all"
+                  className="hidden md:flex items-center gap-2 text-xs font-semibold text-white/60 hover:text-white transition-colors uppercase tracking-wider min-h-[44px]"
                 >
-                  <LogIn className="w-5 h-5 text-white/40" />
-                  Mon profil
+                  Profil
                 </Link>
                 <button
-                  onClick={() => { signOut(); setMobileOpen(false); }}
-                  className="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-white/60 hover:text-white hover:bg-white/6 transition-all"
+                  onClick={() => signOut({ callbackUrl: '/' })}
+                  className="hidden md:flex items-center gap-2 text-xs font-semibold text-white/60 hover:text-white transition-colors uppercase tracking-wider min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded"
                 >
-                  <LogOut className="w-5 h-5 text-white/40" />
                   Déconnexion
                 </button>
               </>
@@ -212,23 +177,193 @@ export function Navbar() {
               <>
                 <Link
                   href="/login"
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-white/70 hover:text-white hover:bg-white/6 transition-all"
+                  className="hidden md:flex items-center text-xs font-semibold text-white/60 hover:text-white transition-colors uppercase tracking-wider min-h-[44px]"
                 >
-                  <LogIn className="w-5 h-5 text-white/40" />
                   Connexion
                 </Link>
                 <Link
                   href="/register"
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-red-400 hover:text-red-300 hover:bg-red-600/10 transition-all"
+                  className="hidden md:flex items-center gap-2 text-xs font-semibold px-4 py-2 min-h-[44px] rounded-lg bg-[var(--rbs-red)] hover:bg-[var(--rbs-red-light)] shadow-[var(--shadow-glow-red)] hover:shadow-[var(--shadow-glow-red-strong)] text-white transition-all uppercase tracking-wider focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rbs-red)]/60"
                 >
-                  <UserPlus className="w-5 h-5 text-red-400/60" />
-                  Créer un compte
+                  Inscription
                 </Link>
               </>
             )}
+
+            {/* Hamburger */}
+            <button
+              className="md:hidden p-2 text-white/80 hover:text-white rounded-lg hover:bg-white/8 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 min-w-[44px] min-h-[44px] flex items-center justify-center"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-expanded={mobileOpen}
+              aria-controls={mobileNavId}
+              aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                {mobileOpen ? (
+                  <motion.span
+                    key="close"
+                    initial={{ rotate: -90, opacity: 0 }}
+                    animate={{ rotate: 0, opacity: 1 }}
+                    exit={{ rotate: 90, opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <X className="w-5 h-5" />
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="open"
+                    initial={{ rotate: 90, opacity: 0 }}
+                    animate={{ rotate: 0, opacity: 1 }}
+                    exit={{ rotate: -90, opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <Menu className="w-5 h-5" />
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </button>
           </div>
-        </div>
-      </nav>
+          </div>{/* /relative h-16 */}
+        </div>{/* /max-w */}
+      </motion.header>
+
+      {/* Mobile backdrop */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm md:hidden"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Mobile drawer — top-16 aligns with h-16 header */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.nav
+            key="drawer"
+            id={mobileNavId}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation mobile"
+            variants={drawerVariants}
+            initial="closed"
+            animate="open"
+            exit="closed"
+            className="fixed top-16 left-0 right-0 z-40 md:hidden bg-[oklch(0.07_0.008_20)/98] backdrop-blur-2xl border-b border-white/10 max-h-[calc(100dvh-4rem)] overflow-y-auto"
+          >
+            <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-1">
+              <motion.div
+                variants={itemVariants}
+                transition={{ delay: 0, duration: 0.2, ease: EASE_OUT }}
+              >
+                <Link
+                  href="/"
+                  className={cn(
+                    'flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-150 min-h-[44px]',
+                    pathname === '/'
+                      ? 'bg-[var(--rbs-red)]/15 text-white border border-[var(--rbs-red)]/30'
+                      : 'text-white/65 hover:text-white hover:bg-white/6'
+                  )}
+                >
+                  Home
+                </Link>
+              </motion.div>
+
+              {links.map(({ href, label, icon: Icon }, i) => {
+                const active = pathname.startsWith(href);
+                return (
+                  <motion.div
+                    key={href}
+                    variants={itemVariants}
+                    transition={{ delay: (i + 1) * 0.04, duration: 0.2, ease: EASE_OUT }}
+                  >
+                    <Link
+                      href={href}
+                      className={cn(
+                        'flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-150 min-h-[44px]',
+                        active
+                          ? 'bg-[var(--rbs-red)]/15 text-white border border-[var(--rbs-red)]/30'
+                          : 'text-white/65 hover:text-white hover:bg-white/6'
+                      )}
+                    >
+                      <Icon
+                        className={cn('w-5 h-5', active ? 'text-[var(--rbs-red)]' : 'text-white/40')}
+                        aria-hidden="true"
+                      />
+                      {label}
+                    </Link>
+                  </motion.div>
+                );
+              })}
+
+              <div className="border-t border-white/8 mt-2 pt-2">
+                {session ? (
+                  <>
+                    <motion.div
+                      variants={itemVariants}
+                      transition={{ delay: (links.length + 1) * 0.04, duration: 0.2, ease: EASE_OUT }}
+                    >
+                      <Link
+                        href="/profile"
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-white/70 hover:text-white hover:bg-white/6 transition-all min-h-[44px]"
+                      >
+                        <LogIn className="w-5 h-5 text-white/40" aria-hidden="true" />
+                        Mon profil
+                      </Link>
+                    </motion.div>
+                    <motion.div
+                      variants={itemVariants}
+                      transition={{ delay: (links.length + 2) * 0.04, duration: 0.2, ease: EASE_OUT }}
+                    >
+                      <button
+                        onClick={() => signOut({ callbackUrl: '/' }).then(() => setMobileOpen(false))}
+                        className="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-white/60 hover:text-white hover:bg-white/6 transition-all min-h-[44px]"
+                      >
+                        <LogOut className="w-5 h-5 text-white/40" aria-hidden="true" />
+                        Déconnexion
+                      </button>
+                    </motion.div>
+                  </>
+                ) : (
+                  <>
+                    <motion.div
+                      variants={itemVariants}
+                      transition={{ delay: (links.length + 1) * 0.04, duration: 0.2, ease: EASE_OUT }}
+                    >
+                      <Link
+                        href="/login"
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-white/70 hover:text-white hover:bg-white/6 transition-all min-h-[44px]"
+                      >
+                        <LogIn className="w-5 h-5 text-white/40" aria-hidden="true" />
+                        Connexion
+                      </Link>
+                    </motion.div>
+                    <motion.div
+                      variants={itemVariants}
+                      transition={{ delay: (links.length + 2) * 0.04, duration: 0.2, ease: EASE_OUT }}
+                    >
+                      <Link
+                        href="/register"
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-[var(--rbs-red)] hover:text-white hover:bg-[var(--rbs-red)]/20 transition-all min-h-[44px]"
+                      >
+                        <UserPlus className="w-5 h-5 text-[var(--rbs-red)]/60" aria-hidden="true" />
+                        Créer un compte
+                      </Link>
+                    </motion.div>
+                  </>
+                )}
+              </div>
+            </div>
+          </motion.nav>
+        )}
+      </AnimatePresence>
     </>
   );
 }

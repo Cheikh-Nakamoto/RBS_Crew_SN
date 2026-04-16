@@ -29,7 +29,7 @@ type AdminFestivalTranslation struct {
 	Locale    string  `json:"locale"`
 	Title     string  `json:"title"`
 	Slug      string  `json:"slug"`
-	ThemeName string  `json:"themeName"`
+	ThemeName *string `json:"themeName,omitempty"`
 	Summary   *string `json:"description"`
 	Content   *string `json:"content"`
 }

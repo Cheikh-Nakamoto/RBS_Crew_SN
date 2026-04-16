@@ -17,7 +17,6 @@ export default async function EditCategoriePage({ params }: { params: Promise<{ 
       showContent={false}
       showMeta={false}
       initialData={category as unknown as Parameters<typeof TranslatableEntityForm>[0]['initialData']}
-      onCreate={() => Promise.resolve()}
       onUpdate={updateCategory}
     />
   );

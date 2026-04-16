@@ -262,11 +262,12 @@ func (q *Queries) ListArtists(ctx context.Context, arg ListArtistsParams) ([]Lis
 
 const updateArtist = `-- name: UpdateArtist :one
 UPDATE "Artist"
-SET "city" = COALESCE($2, "city"),
-    "country" = COALESCE($3, "country"),
-    "featuredImageUrl" = COALESCE($4, "featuredImageUrl"),
-    "avatarUrl" = COALESCE($5, "avatarUrl"),
-    "status" = COALESCE($6::"ProductStatus", "status"),
+SET "slug" = COALESCE($2, "slug"),
+    "city" = COALESCE($3, "city"),
+    "country" = COALESCE($4, "country"),
+    "featuredImageUrl" = COALESCE($5, "featuredImageUrl"),
+    "avatarUrl" = COALESCE($6, "avatarUrl"),
+    "status" = COALESCE($7::"ProductStatus", "status"),
     "updatedAt" = NOW()
 WHERE "id" = $1
 RETURNING id, slug, city, country, status, "wpId", "createdAt", "updatedAt", "avatarUrl", "featuredImageUrl", "instagramUrl"
@@ -274,6 +275,7 @@ RETURNING id, slug, city, country, status, "wpId", "createdAt", "updatedAt", "av
 
 type UpdateArtistParams struct {
 	ID               string            `json:"id"`
+	Slug             *string           `json:"slug"`
 	City             *string           `json:"city"`
 	Country          *string           `json:"country"`
 	FeaturedImageUrl *string           `json:"featured_image_url"`
@@ -284,6 +286,7 @@ type UpdateArtistParams struct {
 func (q *Queries) UpdateArtist(ctx context.Context, arg UpdateArtistParams) (Artist, error) {
 	row := q.db.QueryRow(ctx, updateArtist,
 		arg.ID,
+		arg.Slug,
 		arg.City,
 		arg.Country,
 		arg.FeaturedImageUrl,

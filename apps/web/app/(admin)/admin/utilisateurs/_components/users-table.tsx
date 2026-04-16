@@ -75,11 +75,12 @@ export function UsersTable({ data, pagination }: UsersTableProps) {
     if (!deleteId) return;
     startDeleting(async () => {
       try {
-        await deleteUser(deleteId);
+        const result = await deleteUser(deleteId);
+        if (!result.success) { toast.error(result.error); return; }
         toast.success('Utilisateur supprimé');
         setDeleteId(null);
-      } catch {
-        toast.error('Erreur lors de la suppression');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression');
       }
     });
   };

@@ -7,7 +7,10 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
-    "test": "turbo test"
+    "test": "turbo test",
+    "migrate:all": "npm run all --prefix migration-scripts",
+    "migrate:upload": "npm run upload-s3 --prefix migration-scripts",
+    "migrate:import": "npm run import-db --prefix migration-scripts"
   },
   "repository": {
     "type": "git",
