@@ -34,7 +34,7 @@ console.log('Fetching projects data...');
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-32 pb-16">
       <SectionHeader
         eyebrow="Portfolio"
         title="Nos Projets"

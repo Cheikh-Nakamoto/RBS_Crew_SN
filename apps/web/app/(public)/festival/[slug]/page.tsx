@@ -41,7 +41,7 @@ export default async function FestivalEditionPage({ params }: { params: Promise<
 
   if (fetchError || !edition) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-32 pb-16">
         <Link href="/festival" className="inline-flex items-center gap-2 text-white/50 hover:text-white transition-colors mb-8">
           <ArrowLeft className="w-4 h-4" />
           Retour aux éditions
@@ -106,7 +106,14 @@ export default async function FestivalEditionPage({ params }: { params: Promise<
           
           {/* Main Biography Column */}
           <div className="lg:col-span-8 bg-[#0a0a0a] rounded-t-3xl sm:rounded-3xl pt-8 sm:p-8 md:p-10 border-t border-x-0 sm:border border-white/10 shadow-2xl">
-            <div className="prose prose-invert prose-lg max-w-none prose-p:leading-relaxed prose-p:text-white/70 prose-strong:text-white prose-a:text-[oklch(0.72_0.19_48)]">
+            <style dangerouslySetInnerHTML={{__html: `
+              .rich-text-content * { color: rgba(255, 255, 255, 0.8) !important; }
+              .rich-text-content strong, .rich-text-content strong *,
+              .rich-text-content h1, .rich-text-content h2, .rich-text-content h3, 
+              .rich-text-content h4, .rich-text-content h5, .rich-text-content h6 { color: white !important; }
+              .rich-text-content a, .rich-text-content a * { color: oklch(0.72 0.19 48) !important; }
+            `}} />
+            <div className="rich-text-content prose prose-invert prose-lg max-w-none prose-p:leading-relaxed">
               {t?.content ? (
                 // Safe basic split formatting for standard paragraphs
                 t.content.split('\n\n').map((paragraph, i) => {

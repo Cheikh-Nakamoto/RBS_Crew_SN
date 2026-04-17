@@ -738,3 +738,16 @@
     animation: none !important;
   }
 }
+
+/* ── Graffiti Cursor ─────────────────────────── */
+
+@keyframes paintDrop {
+  0%   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, calc(-50% + 20px)) scale(0.3); opacity: 0; }
+}
+
+@keyframes paintBurst {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  60%  { opacity: 0.8; }
+  100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+}

@@ -74,7 +74,7 @@ export default function LabzPage() {
   // ── Success screen ─────────────────────────────────────────────────────────
   if (status === 'success') {
     return (
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 flex flex-col items-center text-center gap-6">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-24 pb-16 flex flex-col items-center text-center gap-6">
         <div className="w-20 h-20 rounded-3xl bg-[oklch(0.65_0.20_140/15%)] border border-[oklch(0.65_0.20_140/30%)] flex items-center justify-center">
           <CheckCircle2 className="w-10 h-10 text-[oklch(0.75_0.15_140)]" />
         </div>
@@ -94,7 +94,7 @@ export default function LabzPage() {
 
   // ── Form ──────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-32 pb-12">
       <SectionHeader
         eyebrow="Collaboration B2B"
         title="RBS Labz"

@@ -128,28 +128,13 @@ export default async function HomePage() {
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section className="relative min-h-screen flex flex-col justify-center overflow-hidden pt-16">
         <HeroBackground images={heroImages} interval={5000} />
-        <div className="absolute inset-0 bg-black/45 z-[2]" />
+        <div className="absolute inset-0 bg-black/45 z-[2] pointer-events-none" />
 
         <div className="relative z-[10] w-full max-w-[90rem] mx-auto px-6 grid grid-cols-12 gap-6 items-center">
-          {/* Vertical indicator — desktop */}
-          <div className="col-span-2 hidden md:flex flex-col items-start gap-4">
-            <span className="font-display text-4xl font-bold text-white tracking-wider">03</span>
-            <div className="w-[2px] h-32 bg-white/40 ml-4" />
-          </div>
-
-          <div className="col-span-12 md:col-span-9 flex flex-col gap-4">
-            <div className="flex flex-col gap-1 text-white/70 text-xs font-semibold tracking-widest uppercase mb-4">
-              <span>#rbscrew #graffitiafrica #dakar</span>
-              <span>@rbscrewsn @dakar @lastwall</span>
-            </div>
-
-            <p className="text-white/60 text-xs font-semibold uppercase tracking-[0.4em] mb-2">
-              E V E N T   A R C H I V E
-            </p>
-
-            <h1 className="font-display text-7xl md:text-8xl lg:text-[7rem] leading-[0.9] tracking-tight text-white mb-6 uppercase text-balance">
+          <div className="col-span-12 md:col-span-10 flex flex-col gap-6 items-start justify-center">
+            <h1 className="font-display text-7xl md:text-8xl lg:text-[7rem] lg:text-[8rem] font-bold leading-[0.9] tracking-tighter text-white uppercase text-balance drop-shadow-2xl">
               Graffiti <br />
-              <span className="text-white">From Dakar</span>
+              <span className="text-white/90">From Dakar</span>
             </h1>
 
             <p className="text-white/80 max-w-md text-sm leading-relaxed mb-8 md:bg-transparent md:p-0 bg-black/20 p-4 rounded backdrop-blur-sm md:backdrop-blur-none">
@@ -170,40 +155,6 @@ export default async function HomePage() {
               >
                 Festival <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </Link>
-            </div>
-          </div>
-
-          <div className="col-span-1 hidden md:flex flex-col items-end">
-            <div className="w-6 h-6 border-b border-r border-white/50 rotate-45 mt-10" />
-          </div>
-        </div>
-
-        {/* Bottom bar */}
-        <div className="absolute bottom-10 inset-x-0 z-[10]">
-          <div className="max-w-[90rem] mx-auto px-6 flex flex-col gap-4">
-            <div className="w-full h-px bg-white/20 mb-4 hidden md:block" />
-            <div className="grid grid-cols-12 gap-6 items-end">
-              <div className="col-span-12 md:col-span-4 hidden md:block">
-                <h3 className="text-white text-xs font-bold uppercase mb-2">Graffiti Challenge</h3>
-                <p className="text-white/50 text-xs leading-relaxed max-w-xs text-balance">
-                  Le Last Wall Tour est un festival international réunissant des créateurs talentueux
-                  pour transformer l'espace public.
-                </p>
-              </div>
-              <div className="col-span-12 md:col-span-5 hidden md:block">
-                <h3 className="text-white text-xs font-bold uppercase mb-2">About Our Art</h3>
-                <p className="text-white/50 text-xs leading-relaxed max-w-xs text-balance">
-                  Une approche unique mêlant identité africaine et codes du graffiti contemporain
-                  dans chaque fresque et sérigraphie.
-                </p>
-              </div>
-              <div className="col-span-12 md:col-span-3 flex items-center justify-start md:justify-end gap-4">
-                <span className="text-white font-bold text-xl">27</span>
-                <div className="flex-1 md:max-w-[100px] h-[2px] bg-white relative">
-                  <div className="absolute inset-y-0 right-0 w-1/2 bg-white/30" />
-                </div>
-                <span className="text-white/60 font-bold text-xl">06</span>
-              </div>
             </div>
           </div>
         </div>
@@ -321,7 +272,7 @@ export default async function HomePage() {
           alt="Festival Last Wall Tour — vue panoramique"
           sizes="100vw"
         />
-        <div className="absolute inset-0 bg-gradient-to-tr from-black/90 via-black/40 to-transparent z-[2]" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-black/90 via-black/40 to-transparent z-[2] pointer-events-none" />
 
         <div className="relative z-[10] w-full max-w-[90rem] mx-auto px-6 grid grid-cols-12 gap-6 pb-20 items-end">
           {/* Thumbnail — desktop */}
