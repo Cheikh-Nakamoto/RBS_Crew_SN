@@ -83,9 +83,15 @@ func (s *FestivalService) toAdminResponse(ctx context.Context, f *db.FestivalEdi
 		_ = json.Unmarshal(f.Gallery, &gallery)
 	}
 	return model.AdminFestivalResponse{
-		ID: f.ID, Slug: f.Slug, Year: f.Year, Location: f.City,
-		IsPublished:      f.Status == db.ProductStatusPUBLISHED,
+		ID:            f.ID,
+		Slug:          f.Slug,
+		EditionNumber: f.EditionNumber,
+		Year:          f.Year,
+		City:          f.City,
+		Country:       f.Country,
+		IsPublished:   f.Status == db.ProductStatusPUBLISHED,
 		FeaturedImageUrl: f.MainImage,
+		HeroImage:        f.HeroImage,
 		Gallery:          gallery,
 		Translations:     trans,
 		CreatedAt:        f.CreatedAt.Time,
@@ -137,11 +143,17 @@ func (s *FestivalService) AdminCreate(ctx context.Context, input model.AdminFest
 	if input.IsPublished {
 		status = db.ProductStatusPUBLISHED
 	}
+	country := "SN"
+	if input.Country != nil && *input.Country != "" {
+		country = *input.Country
+	}
 	galleryJSON, _ := json.Marshal(input.Gallery)
 	f, err := s.repo.Create(ctx, db.CreateFestivalEditionParams{
 		ID: uuid.New().String(), Slug: slug,
-		Year: year, Country: "SN", Status: status,
-		City: input.Location, MainImage: input.MainImage,
+		EditionNumber: input.EditionNumber,
+		Year: year, Country: country, Status: status,
+		City: input.City, MainImage: input.MainImage,
+		HeroImage: input.HeroImage,
 		Gallery: galleryJSON, Typography: []byte("[]"),
 	})
 	if err != nil {
@@ -165,9 +177,18 @@ func (s *FestivalService) AdminUpdate(ctx context.Context, id string, input mode
 		status.ProductStatus = db.ProductStatusPUBLISHED
 	}
 	galleryJSON, _ := json.Marshal(input.Gallery)
+	editionNum := &input.EditionNumber
+	inputYear := &input.Year
 	f, err := s.repo.Update(ctx, db.UpdateFestivalEditionParams{
-		ID: id, City: input.Location, Status: status, MainImage: input.MainImage,
-		Gallery: galleryJSON,
+		ID:            id,
+		EditionNumber: editionNum,
+		Year:          inputYear,
+		City:          input.City,
+		Country:       input.Country,
+		Status:        status,
+		MainImage:     input.MainImage,
+		HeroImage:     input.HeroImage,
+		Gallery:       galleryJSON,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

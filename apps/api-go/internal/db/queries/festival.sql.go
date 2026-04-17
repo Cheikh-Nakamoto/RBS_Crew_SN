@@ -226,32 +226,38 @@ func (q *Queries) ListFestivalEditions(ctx context.Context, arg ListFestivalEdit
 
 const updateFestivalEdition = `-- name: UpdateFestivalEdition :one
 UPDATE "FestivalEdition"
-SET "city" = COALESCE($2, "city"),
-    "country" = COALESCE($3, "country"),
-    "status" = COALESCE($4::"ProductStatus", "status"),
-    "mainImage" = COALESCE($5, "mainImage"),
-    "heroImage" = COALESCE($6, "heroImage"),
-    "gallery" = COALESCE($7, "gallery"),
-    "typography" = COALESCE($8, "typography"),
-    "updatedAt" = NOW()
+SET "editionNumber" = COALESCE($2, "editionNumber"),
+    "year"          = COALESCE($3, "year"),
+    "city"          = COALESCE($4, "city"),
+    "country"       = COALESCE($5, "country"),
+    "status"        = COALESCE($6::"ProductStatus", "status"),
+    "mainImage"     = COALESCE($7, "mainImage"),
+    "heroImage"     = COALESCE($8, "heroImage"),
+    "gallery"       = COALESCE($9, "gallery"),
+    "typography"    = COALESCE($10, "typography"),
+    "updatedAt"     = NOW()
 WHERE "id" = $1
 RETURNING id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "createdAt", "updatedAt"
 `
 
 type UpdateFestivalEditionParams struct {
-	ID         string            `json:"id"`
-	City       *string           `json:"city"`
-	Country    *string           `json:"country"`
-	Status     NullProductStatus `json:"status"`
-	MainImage  *string           `json:"mainImage"`
-	HeroImage  *string           `json:"heroImage"`
-	Gallery    []byte            `json:"gallery"`
-	Typography []byte            `json:"typography"`
+	ID            string            `json:"id"`
+	EditionNumber *int32            `json:"edition_number"`
+	Year          *int32            `json:"year"`
+	City          *string           `json:"city"`
+	Country       *string           `json:"country"`
+	Status        NullProductStatus `json:"status"`
+	MainImage     *string           `json:"mainImage"`
+	HeroImage     *string           `json:"heroImage"`
+	Gallery       []byte            `json:"gallery"`
+	Typography    []byte            `json:"typography"`
 }
 
 func (q *Queries) UpdateFestivalEdition(ctx context.Context, arg UpdateFestivalEditionParams) (FestivalEdition, error) {
 	row := q.db.QueryRow(ctx, updateFestivalEdition,
 		arg.ID,
+		arg.EditionNumber,
+		arg.Year,
 		arg.City,
 		arg.Country,
 		arg.Status,

@@ -2,7 +2,7 @@ import { api } from '@/lib/api';
 import type { ApiResponse } from '@rbs/types';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, MapPin } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { ErrorState } from '@/components/ui/error-state';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -11,6 +11,7 @@ interface ProjectItem {
   id: string;
   slug: string;
   clientName?: string;
+  country?: string;
   completedAt?: string;
   featuredImageUrl?: string;
   translations: Array<{ locale: string; title: string; summary?: string }>;
@@ -92,6 +93,12 @@ console.log('Fetching projects data...');
                   {project.clientName && (
                     <p className="text-xs text-[oklch(0.72_0.19_48)] uppercase tracking-wider">
                       {project.clientName}
+                    </p>
+                  )}
+                  {project.country && (
+                    <p className="flex items-center gap-1 text-xs text-white/50">
+                      <MapPin className="w-3 h-3 shrink-0" />
+                      {project.country}
                     </p>
                   )}
                   {t?.summary && (

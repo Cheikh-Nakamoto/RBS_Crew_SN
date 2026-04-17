@@ -38,8 +38,11 @@ type AdminArtistTranslation struct {
 type AdminArtistResponse struct {
 	ID               string                   `json:"id"`
 	Slug             string                   `json:"slug"`
+	City             *string                  `json:"city"`
+	Country          *string                  `json:"country"`
 	AvatarURL        *string                  `json:"avatarUrl"`
 	FeaturedImageURL *string                  `json:"featuredImageUrl"`
+	InstagramUrl     *string                  `json:"instagramUrl"`
 	Gallery          []string                 `json:"gallery"`
 	IsPublished      bool                     `json:"isPublished"`
 	Translations     []AdminArtistTranslation `json:"translations"`
@@ -47,7 +50,11 @@ type AdminArtistResponse struct {
 }
 
 type AdminArtistInput struct {
+	City             *string  `json:"city"`
+	Country          *string  `json:"country"`
+	AvatarURL        *string  `json:"avatarUrl"`
 	FeaturedImageURL *string  `json:"featuredImageUrl"`
+	InstagramUrl     *string  `json:"instagramUrl"`
 	Gallery          []string `json:"gallery"`
 	IsPublished      bool     `json:"isPublished"`
 	Translations     []struct {

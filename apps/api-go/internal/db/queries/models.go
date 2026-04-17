@@ -515,6 +515,7 @@ type Project struct {
 	Slug             string           `json:"slug"`
 	CompletedAt      pgtype.Timestamp `json:"completedAt"`
 	ClientName       *string          `json:"clientName"`
+	Country          *string          `json:"country"`
 	Status           ProductStatus    `json:"status"`
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`

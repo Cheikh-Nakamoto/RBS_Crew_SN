@@ -77,6 +77,7 @@ func run() error {
 	quotesRepo := repository.NewQuotesRepository(pool)
 	ordersRepo := repository.NewOrdersRepository(pool)
 	usersRepo := repository.NewUsersRepository(pool)
+	activityLogRepo := repository.NewActivityLogRepository(pool)
 
 	// ── Services ─────────────────────────────────────────────────────────────
 	mailSvc := mail.NewMailService(cfg)
@@ -145,10 +146,11 @@ func run() error {
 		AdminPress:    handler.NewAdminPressHandler(pressSvc),
 		Media:         handler.NewMediaHandler(cfg.R2AccountID, cfg.R2AccessKey, cfg.R2SecretKey, cfg.R2Bucket, cfg.R2PublicURL),
 		Cart:          handler.NewCartHandler(cartSvc),
+		ActivityLogs:  handler.NewActivityLogsHandler(activityLogRepo),
 	}
 
 	// ── HTTP Server ──────────────────────────────────────────────────────────
-	r := router.NewRouter(cfg, handlers)
+	r := router.NewRouter(cfg, handlers, activityLogRepo)
 	srv := &http.Server{
 		Addr:         ":" + cfg.APIPort,
 		Handler:      r,

@@ -16,6 +16,7 @@ import {
   Users,
   Music,
   ChevronRight,
+  Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { NavGroup } from '@/types/admin';
@@ -57,6 +58,12 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Utilisateurs',
     items: [
       { href: '/admin/utilisateurs', label: 'Utilisateurs', icon: Users, adminOnly: true },
+    ],
+  },
+  {
+    label: 'Système',
+    items: [
+      { href: '/admin/activite', label: "Journal d'activité", icon: Activity, adminOnly: true },
     ],
   },
 ];

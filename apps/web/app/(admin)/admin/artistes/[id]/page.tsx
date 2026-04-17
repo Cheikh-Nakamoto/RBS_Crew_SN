@@ -1,9 +1,9 @@
 import { fetchAdminArtist } from '@/lib/admin/queries';
-import { TranslatableEntityForm } from '@/components/admin/forms/translatable-entity-form';
+import { ArtistForm } from '@/components/admin/forms/artist-form';
 import { updateArtistes } from '../actions';
 export const metadata = { title: 'Modifier' };
 export default async function EditArtistesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const data = await fetchAdminArtist(id);
-  return <TranslatableEntityForm mode="edit" backHref="/admin/artistes" entityLabel="artistes" showContent={false} showShortDescription={false} showImage={true} showGallery={true} initialData={data as unknown as Parameters<typeof TranslatableEntityForm>[0]["initialData"]} onUpdate={updateArtistes} />;
+  return <ArtistForm mode="edit" backHref="/admin/artistes" initialData={data} onUpdate={updateArtistes} />;
 }

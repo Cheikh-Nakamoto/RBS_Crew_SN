@@ -101,12 +101,32 @@ export const simpleTranslatableSchema = z.object({
 
 export type SimpleTranslatableFormValues = z.infer<typeof simpleTranslatableSchema>;
 
+// ─── Artist ──────────────────────────────────────────────────────
+export const artistSchema = simpleTranslatableSchema.extend({
+  city: z.string().optional(),
+  country: z.string().optional(),
+  avatarUrl: z.string().optional(),
+  instagramUrl: z.string().optional(),
+});
+
+export type ArtistFormValues = z.infer<typeof artistSchema>;
+
+// ─── Project ─────────────────────────────────────────────────────
+export const projectSchema = simpleTranslatableSchema.extend({
+  completedAt: z.string().optional(),
+  clientName: z.string().optional(),
+  country: z.string().optional(),
+});
+
+export type ProjectFormValues = z.infer<typeof projectSchema>;
+
 // ─── Festival Edition ────────────────────────────────────────────
 export const festivalEditionSchema = simpleTranslatableSchema.extend({
+  editionNumber: z.coerce.number().int().min(1),
   year: z.coerce.number().int().min(2000).max(2100),
-  location: z.string().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional().default('SN'),
+  heroImage: z.string().optional(),
 });
 
 export type FestivalEditionFormValues = z.infer<typeof festivalEditionSchema>;

@@ -2,12 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import type { Resolver, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { useTransition } from 'react';
-import { ArrowLeft, Globe, Save, CalendarDays, MapPin, Hash, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Globe, Save, CalendarDays, Briefcase, MapPin } from 'lucide-react';
 import Link from 'next/link';
 
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
@@ -19,8 +18,9 @@ import { LocaleTabPanel } from './locale-tab-panel';
 import { MediaUpload } from './media-upload';
 import { GalleryUpload } from './gallery-upload';
 
-import { festivalEditionSchema, type FestivalEditionFormValues } from '@/lib/admin/schemas';
+import { projectSchema, type ProjectFormValues } from '@/lib/admin/schemas';
 import type { ActionResult } from '@/lib/admin/errors';
+import type { AdminProject } from '@/types/admin';
 
 const DEFAULT_TRANSLATIONS = LOCALES.map(({ code }) => ({
   locale: code,
@@ -33,61 +33,32 @@ const DEFAULT_TRANSLATIONS = LOCALES.map(({ code }) => ({
   metaDescription: '',
 }));
 
-export interface FestivalEditionFormProps {
+export interface ProjectFormProps {
   mode: 'create' | 'edit';
   backHref: string;
-  initialData?: {
-    id?: string;
-    editionNumber?: number;
-    year?: number;
-    city?: string;
-    country?: string;
-    featuredImageUrl?: string;
-    heroImage?: string;
-    gallery?: string[];
-    isPublished?: boolean;
-    translations?: Array<{
-      locale: string;
-      title: string;
-      slug: string;
-      description?: string;
-      shortDescription?: string;
-      content?: string;
-      metaTitle?: string;
-      metaDescription?: string;
-    }>;
-    [key: string]: unknown;
-  };
+  initialData?: AdminProject;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onCreate?: (data: any) => Promise<unknown>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onUpdate?: (id: string, data: any) => Promise<unknown>;
 }
 
-export function FestivalEditionForm({
-  mode,
-  backHref,
-  initialData,
-  onCreate,
-  onUpdate,
-}: FestivalEditionFormProps) {
+export function ProjectForm({ mode, backHref, initialData, onCreate, onUpdate }: ProjectFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const form = useForm<FestivalEditionFormValues>({
-    resolver: zodResolver(festivalEditionSchema) as Resolver<FestivalEditionFormValues>,
+  const form = useForm<ProjectFormValues>({
+    resolver: zodResolver(projectSchema) as Resolver<ProjectFormValues>,
     defaultValues: {
-      editionNumber: initialData?.editionNumber ?? 1,
-      year: initialData?.year ?? new Date().getFullYear(),
-      city: initialData?.city ?? '',
-      country: initialData?.country ?? 'SN',
       featuredImageUrl: initialData?.featuredImageUrl ?? '',
-      heroImage: initialData?.heroImage ?? '',
       gallery: initialData?.gallery ?? [],
+      completedAt: initialData?.completedAt ?? '',
+      clientName: initialData?.clientName ?? '',
+      country: initialData?.country ?? '',
       isPublished: initialData?.isPublished ?? false,
       translations: initialData?.translations?.length
         ? LOCALES.map(({ code }) => {
-            const existing = initialData.translations!.find((t) => t.locale === code);
+            const existing = initialData.translations.find((t) => t.locale === code);
             return {
               locale: code,
               title: existing?.title ?? '',
@@ -107,9 +78,11 @@ export function FestivalEditionForm({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const control = form.control as unknown as Control<any>;
 
-  const onSubmit = (data: FestivalEditionFormValues) => {
+  const onSubmit = (data: ProjectFormValues) => {
     const payload = {
       ...data,
+      completedAt: data.completedAt || undefined,
+      clientName: data.clientName || undefined,
       translations: data.translations.filter(
         (t) => t.title.trim() !== '' && t.slug.trim() !== '',
       ),
@@ -122,14 +95,14 @@ export function FestivalEditionForm({
             toast.error((result as { success: false; error: string }).error);
             return;
           }
-          toast.success('Édition créée avec succès');
+          toast.success('Projet créé avec succès');
         } else {
-          const result = await onUpdate?.(initialData!.id as string, payload);
+          const result = await onUpdate?.(initialData!.id, payload);
           if (result && typeof result === 'object' && 'success' in result && !(result as ActionResult).success) {
             toast.error((result as { success: false; error: string }).error);
             return;
           }
-          toast.success('Édition mise à jour');
+          toast.success('Projet mis à jour');
         }
         router.push(backHref);
       } catch (err) {
@@ -148,7 +121,7 @@ export function FestivalEditionForm({
               <Link href={backHref}><ArrowLeft className="h-5 w-5" /></Link>
             </Button>
             <h1 className="text-lg font-black text-white">
-              {mode === 'create' ? 'Nouvelle édition du festival' : 'Modifier l\'édition'}
+              {mode === 'create' ? 'Nouveau projet' : 'Modifier le projet'}
             </h1>
           </div>
           <Button
@@ -179,7 +152,7 @@ export function FestivalEditionForm({
                     control={control}
                     index={index}
                     showContent={true}
-                    showMeta={false}
+                    showMeta={true}
                   />
                 )}
               />
@@ -205,74 +178,24 @@ export function FestivalEditionForm({
 
           {/* Sidebar */}
           <div className="space-y-5">
-            {/* Edition info */}
+            {/* Project info */}
             <div className="rounded-xl border border-white/10 bg-white/3 p-5 space-y-4">
-              <p className="text-sm font-semibold text-white">Informations de l&apos;édition</p>
+              <p className="text-sm font-semibold text-white">Informations du projet</p>
 
-              {/* Edition number */}
               <FormField
                 control={control}
-                name="editionNumber"
+                name="clientName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-xs text-white/60 flex items-center gap-1.5">
-                      <Hash className="h-3.5 w-3.5 text-[var(--rbs-red)]" />
-                      Numéro d&apos;édition <span className="text-[var(--rbs-red)]">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        min={1}
-                        placeholder="8"
-                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-400 text-xs" />
-                  </FormItem>
-                )}
-              />
-
-              {/* Year */}
-              <FormField
-                control={control}
-                name="year"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs text-white/60 flex items-center gap-1.5">
-                      <CalendarDays className="h-3.5 w-3.5 text-[var(--rbs-red)]" />
-                      Année <span className="text-[var(--rbs-red)]">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        min={2000}
-                        max={2100}
-                        placeholder="2025"
-                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-400 text-xs" />
-                  </FormItem>
-                )}
-              />
-
-              {/* City */}
-              <FormField
-                control={control}
-                name="city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs text-white/60 flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5 text-[var(--rbs-red)]" />
-                      Ville
+                      <Briefcase className="h-3.5 w-3.5 text-[var(--rbs-red)]" />
+                      Client / Commanditaire
                     </FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         value={field.value ?? ''}
-                        placeholder="Dakar"
+                        placeholder="Nom du client"
                         className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
                       />
                     </FormControl>
@@ -281,7 +204,28 @@ export function FestivalEditionForm({
                 )}
               />
 
-              {/* Country */}
+              <FormField
+                control={control}
+                name="completedAt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-white/60 flex items-center gap-1.5">
+                      <CalendarDays className="h-3.5 w-3.5 text-[var(--rbs-red)]" />
+                      Date de réalisation
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        type="date"
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-400 text-xs" />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={control}
                 name="country"
@@ -294,8 +238,8 @@ export function FestivalEditionForm({
                     <FormControl>
                       <Input
                         {...field}
-                        value={field.value ?? 'SN'}
-                        placeholder="SN"
+                        value={field.value ?? ''}
+                        placeholder="Sénégal"
                         className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
                       />
                     </FormControl>
@@ -305,47 +249,9 @@ export function FestivalEditionForm({
               />
             </div>
 
-            {/* Hero image */}
+            {/* Featured image */}
             <div className="rounded-xl border border-white/10 bg-white/3 p-5 space-y-3">
-              <p className="text-sm font-semibold text-white flex items-center gap-2">
-                <ImageIcon className="h-4 w-4 text-[var(--rbs-red)]" />
-                Image hero (principale)
-              </p>
-              <FormField
-                control={control}
-                name="heroImage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <MediaUpload value={field.value} onChange={field.onChange} />
-                    </FormControl>
-                    <FormMessage className="text-red-400 text-xs" />
-                  </FormItem>
-                )}
-              />
-              <p className="text-xs text-white/30">Ou entrez une URL :</p>
-              <FormField
-                control={control}
-                name="heroImage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        value={field.value ?? ''}
-                        placeholder="https://..."
-                        className="bg-white/5 border-white/10 text-white text-xs placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-400 text-xs" />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Featured image (fallback) */}
-            <div className="rounded-xl border border-white/10 bg-white/3 p-5 space-y-3">
-              <p className="text-sm font-semibold text-white">Image vedette (fallback)</p>
+              <p className="text-sm font-semibold text-white">Image vedette</p>
               <FormField
                 control={control}
                 name="featuredImageUrl"

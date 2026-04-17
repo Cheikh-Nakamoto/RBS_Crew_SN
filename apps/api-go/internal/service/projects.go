@@ -79,9 +79,17 @@ func (s *ProjectsService) toAdminResponse(ctx context.Context, p *db.Project) mo
 	if len(p.Gallery) > 0 {
 		_ = json.Unmarshal(p.Gallery, &gallery)
 	}
+	var completedAt *time.Time
+	if p.CompletedAt.Valid {
+		t := p.CompletedAt.Time
+		completedAt = &t
+	}
 	return model.AdminProjectResponse{
 		ID: p.ID, Slug: p.Slug, FeaturedImageURL: p.FeaturedImageUrl,
 		Gallery:      gallery,
+		CompletedAt:  completedAt,
+		ClientName:   p.ClientName,
+		Country:      p.Country,
 		IsPublished:  p.Status == db.ProductStatusPUBLISHED,
 		Translations: trans, CreatedAt: p.CreatedAt.Time,
 	}
@@ -133,6 +141,9 @@ func (s *ProjectsService) AdminCreate(ctx context.Context, input model.AdminProj
 		ID: uuid.New().String(), Slug: slug,
 		FeaturedImageUrl: input.FeaturedImageURL,
 		Gallery:          galleryJSON,
+		CompletedAt:      parseCompletedAt(input.CompletedAt),
+		ClientName:       input.ClientName,
+		Country:          input.Country,
 		Status:           status,
 	})
 	if err != nil {
@@ -159,7 +170,10 @@ func (s *ProjectsService) AdminUpdate(ctx context.Context, id string, input mode
 	p, err := s.repo.Update(ctx, db.UpdateProjectParams{
 		ID: id, FeaturedImageUrl: input.FeaturedImageURL,
 		Gallery:     galleryJSON,
-		CompletedAt: pgtype.Timestamp{}, Status: status,
+		CompletedAt: parseCompletedAt(input.CompletedAt),
+		ClientName:  input.ClientName,
+		Country:     input.Country,
+		Status:      status,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -184,6 +198,18 @@ func (s *ProjectsService) AdminDelete(ctx context.Context, id string) *types.App
 		return types.InternalError("Failed to delete project")
 	}
 	return nil
+}
+
+func parseCompletedAt(s *string) pgtype.Timestamp {
+	if s == nil || *s == "" {
+		return pgtype.Timestamp{}
+	}
+	for _, layout := range []string{"2006-01-02T15:04:05Z07:00", "2006-01-02", "2006"} {
+		if t, err := time.Parse(layout, *s); err == nil {
+			return pgtype.Timestamp{Time: t, Valid: true}
+		}
+	}
+	return pgtype.Timestamp{}
 }
 
 func toProjectResponse(p *db.Project, translations []db.ProjectTranslation) model.ProjectResponse {

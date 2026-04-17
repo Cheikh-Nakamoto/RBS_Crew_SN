@@ -38,12 +38,14 @@ RETURNING *;
 
 -- name: UpdateArtist :one
 UPDATE "Artist"
-SET "city" = COALESCE(sqlc.narg('city'), "city"),
-    "country" = COALESCE(sqlc.narg('country'), "country"),
+SET "slug"             = COALESCE(sqlc.narg('slug'), "slug"),
+    "city"             = COALESCE(sqlc.narg('city'), "city"),
+    "country"          = COALESCE(sqlc.narg('country'), "country"),
     "featuredImageUrl" = COALESCE(sqlc.narg('featured_image_url'), "featuredImageUrl"),
-    "avatarUrl" = COALESCE(sqlc.narg('avatar_url'), "avatarUrl"),
-    "status" = COALESCE(sqlc.narg('status')::"ProductStatus", "status"),
-    "updatedAt" = NOW()
+    "avatarUrl"        = COALESCE(sqlc.narg('avatar_url'), "avatarUrl"),
+    "instagramUrl"     = COALESCE(sqlc.narg('instagram_url'), "instagramUrl"),
+    "status"           = COALESCE(sqlc.narg('status')::"ProductStatus", "status"),
+    "updatedAt"        = NOW()
 WHERE "id" = $1
 RETURNING *;
 

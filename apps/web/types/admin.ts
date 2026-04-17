@@ -155,7 +155,12 @@ export interface AdminService {
 
 export interface AdminProject {
   id: string;
+  slug: string;
   featuredImageUrl?: string;
+  gallery: string[];
+  completedAt?: string;
+  clientName?: string;
+  country?: string;
   isPublished: boolean;
   translations: AdminTranslation[];
   createdAt: string;
@@ -165,8 +170,11 @@ export interface AdminProject {
 export interface AdminArtist {
   id: string;
   slug: string;
+  city?: string;
+  country?: string;
   avatarUrl?: string;
   featuredImageUrl?: string;
+  instagramUrl?: string;
   gallery: string[];
   isPublished: boolean;
   translations: AdminTranslation[];
@@ -176,10 +184,13 @@ export interface AdminArtist {
 export interface AdminFestivalEdition {
   id: string;
   slug: string;
+  editionNumber: number;
   year: number;
-  location?: string;
+  city?: string;
+  country?: string;
   isPublished: boolean;
   featuredImageUrl?: string;
+  heroImage?: string;
   gallery: string[];
   translations: AdminTranslation[];
   createdAt: string;

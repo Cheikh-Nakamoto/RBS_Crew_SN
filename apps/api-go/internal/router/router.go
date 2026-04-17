@@ -5,6 +5,7 @@ import (
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/handler"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/middleware"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/payment"
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/repository"
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/time/rate"
 )
@@ -33,12 +34,13 @@ type Handlers struct {
 	AdminPages    *handler.AdminPagesHandler
 	AdminServices *handler.AdminServicesHandler
 	AdminFestival *handler.AdminFestivalHandler
-	AdminPress    *handler.AdminPressHandler
+	AdminPress        *handler.AdminPressHandler
+	ActivityLogs      *handler.ActivityLogsHandler
 	Media         *handler.MediaHandler
 	Cart          *handler.CartHandler
 }
 
-func NewRouter(cfg *config.Config, h *Handlers) chi.Router {
+func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.ActivityLogRepository) chi.Router {
 	r := chi.NewRouter()
 
 	// ── Global Middlewares ──────────────────────────────────────────────────
@@ -159,6 +161,7 @@ func NewRouter(cfg *config.Config, h *Handlers) chi.Router {
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequireAuth(cfg.JWTSecret))
 		r.Use(middleware.RequireRoles("ADMIN", "EDITOR"))
+		r.Use(middleware.ActivityLogger(activityRepo))
 
 		// Orders admin
 		r.Get("/admin/orders", h.Orders.FindAll)
@@ -243,6 +246,9 @@ func NewRouter(cfg *config.Config, h *Handlers) chi.Router {
 
 		// Media upload
 		r.Post("/admin/media", h.Media.Upload)
+
+		// Activity logs
+		r.Get("/admin/activity-logs", h.ActivityLogs.List)
 	})
 
 	return r

@@ -104,8 +104,10 @@ func (s *ArtistsService) toAdminArtistResponse(ctx context.Context, a *db.Artist
 		gallery = append(gallery, aw.ImageUrl)
 	}
 	return model.AdminArtistResponse{
-		ID: a.ID, Slug: a.Slug, AvatarURL: a.AvatarUrl,
+		ID: a.ID, Slug: a.Slug, City: a.City, Country: a.Country,
+		AvatarURL:        a.AvatarUrl,
 		FeaturedImageURL: a.FeaturedImageUrl,
+		InstagramUrl:     a.InstagramUrl,
 		Gallery:          gallery,
 		IsPublished:      a.Status == db.ProductStatusPUBLISHED,
 		Translations:     trans, CreatedAt: a.CreatedAt.Time,
@@ -156,6 +158,9 @@ func (s *ArtistsService) AdminCreate(ctx context.Context, input model.AdminArtis
 	a, err := s.repo.Create(ctx, db.CreateArtistParams{
 		ID:               uuid.New().String(),
 		Slug:             slug,
+		City:             input.City,
+		Country:          input.Country,
+		AvatarUrl:        input.AvatarURL,
 		FeaturedImageUrl: input.FeaturedImageURL,
 		Status:           status,
 	})
@@ -203,7 +208,11 @@ func (s *ArtistsService) AdminUpdate(ctx context.Context, id string, input model
 	a, err := s.repo.Update(ctx, db.UpdateArtistParams{
 		ID:               id,
 		Slug:             newSlug,
+		City:             input.City,
+		Country:          input.Country,
+		AvatarUrl:        input.AvatarURL,
 		FeaturedImageUrl: input.FeaturedImageURL,
+		InstagramUrl:     input.InstagramUrl,
 		Status:           status,
 	})
 	if err != nil {

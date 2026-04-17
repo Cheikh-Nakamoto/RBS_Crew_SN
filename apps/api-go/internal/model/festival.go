@@ -37,22 +37,28 @@ type AdminFestivalTranslation struct {
 type AdminFestivalResponse struct {
 	ID               string                     `json:"id"`
 	Slug             string                     `json:"slug"`
+	EditionNumber    int32                      `json:"editionNumber"`
 	Year             int32                      `json:"year"`
-	Location         *string                    `json:"location"`
+	City             *string                    `json:"city"`
+	Country          string                     `json:"country"`
 	IsPublished      bool                       `json:"isPublished"`
 	FeaturedImageUrl *string                    `json:"featuredImageUrl"`
+	HeroImage        *string                    `json:"heroImage"`
 	Gallery          []string                   `json:"gallery"`
 	Translations     []AdminFestivalTranslation `json:"translations"`
 	CreatedAt        time.Time                  `json:"createdAt"`
 }
 
 type AdminFestivalInput struct {
-	IsPublished  bool     `json:"isPublished"`
-	Year         int32    `json:"year"`
-	Location     *string  `json:"location"`
-	MainImage    *string  `json:"featuredImageUrl"`
-	Gallery      []string `json:"gallery"`
-	Translations []struct {
+	IsPublished   bool     `json:"isPublished"`
+	EditionNumber int32    `json:"editionNumber"`
+	Year          int32    `json:"year"`
+	City          *string  `json:"city"`
+	Country       *string  `json:"country"`
+	MainImage     *string  `json:"featuredImageUrl"`
+	HeroImage     *string  `json:"heroImage"`
+	Gallery       []string `json:"gallery"`
+	Translations  []struct {
 		Locale      string  `json:"locale"`
 		Title       string  `json:"title"`
 		Slug        string  `json:"slug"`

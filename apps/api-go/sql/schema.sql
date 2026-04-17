@@ -324,12 +324,28 @@ CREATE TABLE "ServiceTranslation" (
 );
 
 -- CreateTable
+CREATE TABLE "ActivityLog" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "userEmail" TEXT NOT NULL,
+    "method" TEXT NOT NULL,
+    "path" TEXT NOT NULL,
+    "entityType" TEXT NOT NULL DEFAULT '',
+    "entityId" TEXT,
+    "statusCode" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ActivityLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Project" (
     "id" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "featuredImageId" TEXT,
     "completedAt" TIMESTAMP(3),
     "clientName" TEXT,
+    "country" TEXT,
     "status" "ProductStatus" NOT NULL DEFAULT 'PUBLISHED',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

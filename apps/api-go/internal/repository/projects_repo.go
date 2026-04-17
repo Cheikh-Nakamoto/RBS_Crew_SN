@@ -27,7 +27,7 @@ type AdminListProjectRow struct {
 
 func (r *ProjectsRepository) AdminList(ctx context.Context, limit, offset int32) ([]AdminListProjectRow, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, slug, "completedAt", "clientName", status, "createdAt", "updatedAt", "featuredImageUrl", COUNT(*) OVER() AS total_count
+		`SELECT id, slug, "completedAt", "clientName", country, status, "createdAt", "updatedAt", "featuredImageUrl", COUNT(*) OVER() AS total_count
 		 FROM "Project"
 		 ORDER BY "createdAt" DESC
 		 LIMIT $1 OFFSET $2`, limit, offset)
@@ -39,7 +39,7 @@ func (r *ProjectsRepository) AdminList(ctx context.Context, limit, offset int32)
 	for rows.Next() {
 		var row AdminListProjectRow
 		if err := rows.Scan(
-			&row.ID, &row.Slug, &row.CompletedAt, &row.ClientName,
+			&row.ID, &row.Slug, &row.CompletedAt, &row.ClientName, &row.Country,
 			&row.Status, &row.CreatedAt, &row.UpdatedAt, &row.FeaturedImageUrl,
 			&row.TotalCount,
 		); err != nil {

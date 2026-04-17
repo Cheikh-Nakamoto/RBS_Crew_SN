@@ -38,6 +38,9 @@ type AdminProjectResponse struct {
 	Slug             string                    `json:"slug"`
 	FeaturedImageURL *string                   `json:"featuredImageUrl"`
 	Gallery          []string                  `json:"gallery"`
+	CompletedAt      *time.Time                `json:"completedAt"`
+	ClientName       *string                   `json:"clientName"`
+	Country          *string                   `json:"country"`
 	IsPublished      bool                      `json:"isPublished"`
 	Translations     []AdminProjectTranslation `json:"translations"`
 	CreatedAt        time.Time                 `json:"createdAt"`
@@ -46,6 +49,9 @@ type AdminProjectResponse struct {
 type AdminProjectInput struct {
 	FeaturedImageURL *string  `json:"featuredImageUrl"`
 	Gallery          []string `json:"gallery"`
+	CompletedAt      *string  `json:"completedAt"`
+	ClientName       *string  `json:"clientName"`
+	Country          *string  `json:"country"`
 	IsPublished      bool     `json:"isPublished"`
 	Translations     []struct {
 		Locale          string  `json:"locale"`

@@ -262,13 +262,14 @@ func (q *Queries) ListArtists(ctx context.Context, arg ListArtistsParams) ([]Lis
 
 const updateArtist = `-- name: UpdateArtist :one
 UPDATE "Artist"
-SET "slug" = COALESCE($2, "slug"),
-    "city" = COALESCE($3, "city"),
-    "country" = COALESCE($4, "country"),
+SET "slug"             = COALESCE($2, "slug"),
+    "city"             = COALESCE($3, "city"),
+    "country"          = COALESCE($4, "country"),
     "featuredImageUrl" = COALESCE($5, "featuredImageUrl"),
-    "avatarUrl" = COALESCE($6, "avatarUrl"),
-    "status" = COALESCE($7::"ProductStatus", "status"),
-    "updatedAt" = NOW()
+    "avatarUrl"        = COALESCE($6, "avatarUrl"),
+    "instagramUrl"     = COALESCE($7, "instagramUrl"),
+    "status"           = COALESCE($8::"ProductStatus", "status"),
+    "updatedAt"        = NOW()
 WHERE "id" = $1
 RETURNING id, slug, city, country, status, "wpId", "createdAt", "updatedAt", "avatarUrl", "featuredImageUrl", "instagramUrl"
 `
@@ -280,6 +281,7 @@ type UpdateArtistParams struct {
 	Country          *string           `json:"country"`
 	FeaturedImageUrl *string           `json:"featured_image_url"`
 	AvatarUrl        *string           `json:"avatar_url"`
+	InstagramUrl     *string           `json:"instagram_url"`
 	Status           NullProductStatus `json:"status"`
 }
 
@@ -291,6 +293,7 @@ func (q *Queries) UpdateArtist(ctx context.Context, arg UpdateArtistParams) (Art
 		arg.Country,
 		arg.FeaturedImageUrl,
 		arg.AvatarUrl,
+		arg.InstagramUrl,
 		arg.Status,
 	)
 	var i Artist

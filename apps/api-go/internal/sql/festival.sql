@@ -28,14 +28,16 @@ RETURNING *;
 
 -- name: UpdateFestivalEdition :one
 UPDATE "FestivalEdition"
-SET "city" = COALESCE(sqlc.narg('city'), "city"),
-    "country" = COALESCE(sqlc.narg('country'), "country"),
-    "status" = COALESCE(sqlc.narg('status')::"ProductStatus", "status"),
-    "mainImage" = COALESCE(sqlc.narg('mainImage'), "mainImage"),
-    "heroImage" = COALESCE(sqlc.narg('heroImage'), "heroImage"),
-    "gallery" = COALESCE(sqlc.narg('gallery'), "gallery"),
-    "typography" = COALESCE(sqlc.narg('typography'), "typography"),
-    "updatedAt" = NOW()
+SET "editionNumber" = COALESCE(sqlc.narg('edition_number'), "editionNumber"),
+    "year"          = COALESCE(sqlc.narg('year'), "year"),
+    "city"          = COALESCE(sqlc.narg('city'), "city"),
+    "country"       = COALESCE(sqlc.narg('country'), "country"),
+    "status"        = COALESCE(sqlc.narg('status')::"ProductStatus", "status"),
+    "mainImage"     = COALESCE(sqlc.narg('mainImage'), "mainImage"),
+    "heroImage"     = COALESCE(sqlc.narg('heroImage'), "heroImage"),
+    "gallery"       = COALESCE(sqlc.narg('gallery'), "gallery"),
+    "typography"    = COALESCE(sqlc.narg('typography'), "typography"),
+    "updatedAt"     = NOW()
 WHERE "id" = $1
 RETURNING *;
 
