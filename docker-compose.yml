@@ -71,6 +71,9 @@ services:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://rbs-crew.cheikhmodiouf.org/backend}
       INTERNAL_API_URL: http://nestjs-api:4000
       NODE_ENV: ${NODE_ENV:-production}
+      AUTH_URL: ${AUTH_URL:-https://rbs-crew.cheikhmodiouf.org}
+      AUTH_TRUST_HOST: "true"
+      AUTH_SECRET: ${AUTH_SECRET:-super_secret_dev_key_only_123}
 
 
 volumes:
