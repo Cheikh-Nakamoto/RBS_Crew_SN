@@ -49,7 +49,9 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-jwt-refresh-change-me}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
       API_PORT: 4000
-      NODE_ENV: ${NODE_ENV:-development}
+      APP_ENV: ${APP_ENV:-production}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://rbs-crew.cheikhmodiouf.org}
+      APP_URL: ${APP_URL:-https://rbs-crew.cheikhmodiouf.org}
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
@@ -66,23 +68,10 @@ services:
     depends_on:
       - nestjs-api
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost/api
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://rbs-crew.cheikhmodiouf.org/backend}
       INTERNAL_API_URL: http://nestjs-api:4000
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: ${NODE_ENV:-production}
 
-  nginx:
-    image: nginx:1.25-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./infra/nginx/redirects:/etc/nginx/redirects:ro
-    depends_on:
-      - nextjs-web
-      - nestjs-api
 
 volumes:
   pgdata:
