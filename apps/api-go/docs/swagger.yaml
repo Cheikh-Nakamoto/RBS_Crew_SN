@@ -1,5 +1,14 @@
 definitions:
-  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.LoginRequest:
+  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.AuthResponse:
+    properties:
+      accessToken:
+        type: string
+      refreshToken:
+        type: string
+      user:
+        $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.UserResponse'
+    type: object
+  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.LoginRequest:
     properties:
       email:
         type: string
@@ -9,14 +18,14 @@ definitions:
     - email
     - password
     type: object
-  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.RefreshRequest:
+  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.RefreshRequest:
     properties:
       refreshToken:
         type: string
     required:
     - refreshToken
     type: object
-  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.RegisterRequest:
+  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.RegisterRequest:
     properties:
       email:
         type: string
@@ -32,14 +41,14 @@ definitions:
     - email
     - password
     type: object
-  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.TokenPair:
+  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.TokenPair:
     properties:
       accessToken:
         type: string
       refreshToken:
         type: string
     type: object
-  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.UserResponse:
+  github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.UserResponse:
     properties:
       createdAt:
         type: string
@@ -78,14 +87,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.LoginRequest'
+          $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.LoginRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.TokenPair'
+            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.TokenPair'
         "401":
           description: Unauthorized
           schema:
@@ -117,7 +126,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.UserResponse'
+            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.UserResponse'
         "401":
           description: Unauthorized
           schema:
@@ -137,14 +146,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.RefreshRequest'
+          $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.RefreshRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.TokenPair'
+            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.TokenPair'
         "401":
           description: Unauthorized
           schema:
@@ -162,14 +171,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.RegisterRequest'
+          $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.RegisterRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.UserResponse'
+            $ref: '#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.AuthResponse'
         "400":
           description: Bad Request
           schema:

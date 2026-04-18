@@ -8,9 +8,11 @@ interface GalleryUploadProps {
   className?: string;
 }
 
-export function GalleryUpload({ value = [], onChange, className }: GalleryUploadProps) {
+export function GalleryUpload({ value, onChange, className }: GalleryUploadProps) {
+  const safeValue = Array.isArray(value) ? value : [];
+
   const handleSlotChange = (index: number, newUrl: string | undefined) => {
-    const newGallery = [...value];
+    const newGallery = [...safeValue];
     if (newUrl === undefined) {
       newGallery.splice(index, 1);
     } else {
@@ -21,13 +23,13 @@ export function GalleryUpload({ value = [], onChange, className }: GalleryUpload
 
   const handleAdd = (newUrl: string | undefined) => {
     if (newUrl) {
-      onChange([...value, newUrl]);
+      onChange([...safeValue, newUrl]);
     }
   };
 
   return (
     <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 ${className || ''}`}>
-      {value.map((url, index) => (
+      {safeValue.map((url, index) => (
         <MediaUpload
           key={`${url}-${index}`}
           value={url}

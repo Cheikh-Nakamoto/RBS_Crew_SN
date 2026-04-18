@@ -1,9 +1,18 @@
 import { api } from '@/lib/api';
 import type { ApiResponse } from '@rbs/types';
 import { ErrorState } from '@/components/ui/error-state';
-import { MapPin, Calendar, ArrowLeft } from 'lucide-react';
+import { MapPin, Calendar, ArrowLeft, ExternalLink, Play, Building2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { FestivalGallery } from '@/components/composite/festival-gallery';
+
+interface FestivalArtist {
+  artistId: string;
+  artistName: string;
+  artistSlug: string;
+  artistAvatarUrl?: string;
+  role: string;
+  stageOrder: number;
+}
 
 interface FestivalEditionItem {
   id: string;
@@ -16,6 +25,13 @@ interface FestivalEditionItem {
   heroImage?: string;
   gallery?: string[];
   typography?: string[];
+  startDate?: string;
+  endDate?: string;
+  venue?: string;
+  venueAddress?: string;
+  ticketUrl?: string;
+  videoUrl?: string;
+  artists?: FestivalArtist[];
   translations: Array<{ locale: string; themeName: string; summary?: string; content?: string }>;
 }
 
@@ -145,10 +161,110 @@ export default async function FestivalEditionPage({ params }: { params: Promise<
                     <span className="text-white font-medium">{edition.city}</span>
                   </li>
                 )}
+                {(edition.startDate || edition.endDate) && (
+                  <li className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/50">Dates</span>
+                    <span className="text-white font-medium flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-[oklch(0.72_0.19_48)]" />
+                      {edition.startDate ? new Date(edition.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+                      {edition.endDate && edition.startDate !== edition.endDate && ` → ${new Date(edition.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`}
+                    </span>
+                  </li>
+                )}
+                {edition.venue && (
+                  <li className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/50">Lieu</span>
+                    <span className="text-white font-medium flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-[oklch(0.72_0.19_48)]" />
+                      {edition.venue}
+                    </span>
+                    {edition.venueAddress && <span className="text-white/40 text-xs pl-5">{edition.venueAddress}</span>}
+                  </li>
+                )}
               </ul>
+
+              {edition.ticketUrl && (
+                <div className="mt-6">
+                  <a
+                    href={edition.ticketUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-[oklch(0.72_0.19_48)] text-black font-semibold text-sm rounded-xl hover:brightness-110 transition-all"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Billetterie
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Video Section */}
+        {edition.videoUrl && (
+          <div className="mt-16 sm:mt-20">
+            <div className="flex items-end justify-between border-b border-white/10 pb-4 mb-8">
+              <div>
+                <h2 className="text-3xl sm:text-4xl font-display text-white mb-2 flex items-center gap-3">
+                  <Play className="w-7 h-7 text-[oklch(0.72_0.19_48)]" />
+                  Vidéo
+                </h2>
+              </div>
+            </div>
+            <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/10">
+              <iframe
+                src={edition.videoUrl.replace('watch?v=', 'embed/')}
+                title="Festival video"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Lineup Section */}
+        {edition.artists && edition.artists.length > 0 && (
+          <div className="mt-16 sm:mt-20">
+            <div className="flex items-end justify-between border-b border-white/10 pb-4 mb-8">
+              <div>
+                <h2 className="text-3xl sm:text-4xl font-display text-white mb-2 flex items-center gap-3">
+                  <Users className="w-7 h-7 text-[oklch(0.72_0.19_48)]" />
+                  Lineup
+                </h2>
+                <p className="text-white/50 text-sm">Les artistes de cette édition.</p>
+              </div>
+              <span className="hidden sm:inline-flex px-3 py-1 bg-white/5 border border-white/10 rounded-full font-mono text-xs text-white/50">
+                {edition.artists.length} artistes
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {edition.artists.map((artist) => (
+                <Link
+                  key={artist.artistId}
+                  href={`/crew/${artist.artistSlug}`}
+                  className="group flex flex-col items-center gap-3 text-center p-4 rounded-2xl bg-white/3 border border-white/8 hover:border-[oklch(0.72_0.19_48/40%)] hover:bg-white/6 transition-all duration-300"
+                >
+                  <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white/10 group-hover:border-[oklch(0.72_0.19_48)] transition-colors">
+                    {artist.artistAvatarUrl ? (
+                      <img src={artist.artistAvatarUrl} alt={artist.artistName} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                        <span className="text-white/40 text-xl font-display">{artist.artistName?.[0]}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-white text-sm font-semibold leading-tight group-hover:text-[oklch(0.72_0.19_48)] transition-colors">{artist.artistName}</p>
+                    {artist.role !== 'performer' && (
+                      <p className="text-white/40 text-xs mt-0.5 capitalize">{artist.role}</p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Gallery Section Component */}
         {edition.gallery && edition.gallery.length > 0 && (

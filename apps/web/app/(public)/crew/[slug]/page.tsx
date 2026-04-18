@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { MapPin, ArrowLeft } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
+import { ArtistGallery } from '@/components/composite/artist-gallery';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -17,6 +18,16 @@ interface ArtistDetail {
   featuredImageUrl?: string;
   avatarUrl?: string;
   instagramUrl?: string;
+  genre?: string;
+  nationality?: string;
+  facebookUrl?: string;
+  twitterUrl?: string;
+  youtubeUrl?: string;
+  tiktokUrl?: string;
+  websiteUrl?: string;
+  spotifyUrl?: string;
+  soundcloudUrl?: string;
+  videoUrl?: string;
   translations: Array<{ locale: string; name: string; bio?: string }>;
   artworks?: Array<{ position: number; imageUrl: string }>;
 }
@@ -70,39 +81,47 @@ export default async function ArtistPage({ params }: Props) {
             <h1 className="font-display text-5xl sm:text-6xl text-white leading-tight mt-3">
               {t?.name}
             </h1>
-            <div className="flex flex-wrap items-center gap-4 mt-4">
+            <div className="flex flex-wrap items-center gap-3 mt-4">
               {artist.city && (
                 <p className="flex items-center gap-2 text-white/45">
                   <MapPin className="w-4 h-4 text-[oklch(0.72_0.19_48)]" />
                   {artist.city}{artist.country ? `, ${artist.country}` : ''}
                 </p>
               )}
-              {artist.instagramUrl && (
+              {artist.genre && (
+                <span className="px-3 py-1 bg-white/10 border border-white/10 rounded-full text-xs text-white/70 font-medium">
+                  {artist.genre}
+                </span>
+              )}
+              {artist.nationality && (
+                <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-white/50">
+                  {artist.nationality}
+                </span>
+              )}
+            </div>
+
+            {/* Social links */}
+            <div className="flex flex-wrap gap-2 mt-4">
+              {([
+                { url: artist.instagramUrl, label: 'Instagram', color: 'oklch(0.60 0.25 345)' },
+                { url: artist.tiktokUrl, label: 'TikTok', color: 'white' },
+                { url: artist.facebookUrl, label: 'Facebook', color: 'oklch(0.65 0.15 240)' },
+                { url: artist.twitterUrl, label: 'X', color: 'white' },
+                { url: artist.youtubeUrl, label: 'YouTube', color: 'oklch(0.60 0.22 25)' },
+                { url: artist.spotifyUrl, label: 'Spotify', color: 'oklch(0.72 0.22 142)' },
+                { url: artist.soundcloudUrl, label: 'SoundCloud', color: 'oklch(0.70 0.20 40)' },
+                { url: artist.websiteUrl, label: 'Site web', color: 'white' },
+              ]).filter(s => s.url).map(({ url, label }) => (
                 <a
-                  href={artist.instagramUrl}
+                  key={label}
+                  href={url!}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm font-medium text-white shadow-xl bg-gradient-to-r hover:to-[oklch(0.72_0.19_48)] hover:from-[oklch(0.60_0.25_345)] from-white/10 to-white/5 px-4 py-2 rounded-full border border-white/10 transition-all duration-300 hover:scale-105 group"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/10 transition-all duration-200"
                 >
-                  <svg
-                    className="w-4 h-4 text-[oklch(0.60_0.25_345)] group-hover:text-white transition-colors"
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-                  </svg>
-                  Instagram
+                  {label}
                 </a>
-              )}
+              ))}
             </div>
           </div>
 
@@ -117,6 +136,22 @@ export default async function ArtistPage({ params }: Props) {
           ) : (
             <p className="text-white/30 italic">Biographie à venir.</p>
           )}
+
+          {/* Video embed */}
+          {artist.videoUrl && (
+            <div className="mt-8">
+              <p className="text-sm text-white/40 mb-3 uppercase tracking-widest font-mono">Vidéo</p>
+              <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/10">
+                <iframe
+                  src={artist.videoUrl.replace('watch?v=', 'embed/')}
+                  title={`Vidéo de ${t?.name}`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -129,29 +164,7 @@ export default async function ArtistPage({ params }: Props) {
             subtitle={`Découvrez les créations artistiques de ${t?.name}.`}
             className="mb-12"
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {artist.artworks.map((artwork, idx) => (
-              <div
-                key={artwork.imageUrl}
-                className="relative group overflow-hidden rounded-2xl bg-white/5 border border-white/5 hover:border-[oklch(0.72_0.19_48/40%)] transition-all duration-300 aspect-square shadow-lg"
-                style={{ animationDelay: `${idx * 100}ms` }}
-              >
-                <Image
-                  src={artwork.imageUrl}
-                  alt={`Artwork ${idx + 1}`}
-                  fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                  className="object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#09090b]/90 via-[#09090b]/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-end pb-8">
-                  <span className="text-white/90 font-display text-lg tracking-wide translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                    Agrandir
-                  </span>
-                  <div className="w-8 h-px bg-[oklch(0.72_0.19_48)] mt-3 opacity-0 group-hover:opacity-100 transition-all duration-700 delay-100 scale-x-0 group-hover:scale-x-100" />
-                </div>
-              </div>
-            ))}
-          </div>
+          <ArtistGallery artworks={artist.artworks} />
         </div>
       )}
     </div>

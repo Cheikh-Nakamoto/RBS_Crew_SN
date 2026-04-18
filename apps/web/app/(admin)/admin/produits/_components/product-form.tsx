@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 import type { Resolver, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -64,7 +64,7 @@ export function ProductForm({ mode, initialData, categories, tags }: ProductForm
       stock: initialData?.stock ?? 0,
       status: (initialData?.status as ProductFormValues['status']) ?? 'DRAFT',
       featuredImageUrl: initialData?.featuredImageUrl ?? '',
-      gallery: initialData?.gallery ?? [],
+      gallery: initialData?.images?.map((i) => i.imageUrl) ?? [],
       categoryIds: initialData?.categories?.map((c: { id: string }) => c.id) ?? [],
       tagIds: initialData?.tags.map((t) => t.id) ?? [],
       translations: initialData?.translations.length

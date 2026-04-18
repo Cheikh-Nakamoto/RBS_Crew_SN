@@ -43,9 +43,14 @@ func (q *Queries) ClearArtistArtworks(ctx context.Context, artistid string) erro
 }
 
 const createArtist = `-- name: CreateArtist :one
-INSERT INTO "Artist" ("id", "slug", "city", "country", "featuredImageUrl", "avatarUrl", "status", "createdAt", "updatedAt")
-VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-RETURNING id, slug, city, country, status, "wpId", "createdAt", "updatedAt", "avatarUrl", "featuredImageUrl", "instagramUrl"
+INSERT INTO "Artist" (
+    "id", "slug", "city", "country", "featuredImageUrl", "avatarUrl", "status",
+    "genre", "nationality", "facebookUrl", "twitterUrl", "youtubeUrl",
+    "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl",
+    "createdAt", "updatedAt"
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW())
+RETURNING id, slug, city, country, "avatarUrl", "featuredImageUrl", "instagramUrl", genre, nationality, "facebookUrl", "twitterUrl", "youtubeUrl", "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl", status, "wpId", "createdAt", "updatedAt"
 `
 
 type CreateArtistParams struct {
@@ -56,6 +61,16 @@ type CreateArtistParams struct {
 	FeaturedImageUrl *string       `json:"featuredImageUrl"`
 	AvatarUrl        *string       `json:"avatarUrl"`
 	Status           ProductStatus `json:"status"`
+	Genre            *string       `json:"genre"`
+	Nationality      *string       `json:"nationality"`
+	FacebookUrl      *string       `json:"facebookUrl"`
+	TwitterUrl       *string       `json:"twitterUrl"`
+	YoutubeUrl       *string       `json:"youtubeUrl"`
+	TiktokUrl        *string       `json:"tiktokUrl"`
+	WebsiteUrl       *string       `json:"websiteUrl"`
+	SpotifyUrl       *string       `json:"spotifyUrl"`
+	SoundcloudUrl    *string       `json:"soundcloudUrl"`
+	VideoUrl         *string       `json:"videoUrl"`
 }
 
 func (q *Queries) CreateArtist(ctx context.Context, arg CreateArtistParams) (Artist, error) {
@@ -67,6 +82,16 @@ func (q *Queries) CreateArtist(ctx context.Context, arg CreateArtistParams) (Art
 		arg.FeaturedImageUrl,
 		arg.AvatarUrl,
 		arg.Status,
+		arg.Genre,
+		arg.Nationality,
+		arg.FacebookUrl,
+		arg.TwitterUrl,
+		arg.YoutubeUrl,
+		arg.TiktokUrl,
+		arg.WebsiteUrl,
+		arg.SpotifyUrl,
+		arg.SoundcloudUrl,
+		arg.VideoUrl,
 	)
 	var i Artist
 	err := row.Scan(
@@ -74,13 +99,23 @@ func (q *Queries) CreateArtist(ctx context.Context, arg CreateArtistParams) (Art
 		&i.Slug,
 		&i.City,
 		&i.Country,
+		&i.AvatarUrl,
+		&i.FeaturedImageUrl,
+		&i.InstagramUrl,
+		&i.Genre,
+		&i.Nationality,
+		&i.FacebookUrl,
+		&i.TwitterUrl,
+		&i.YoutubeUrl,
+		&i.TiktokUrl,
+		&i.WebsiteUrl,
+		&i.SpotifyUrl,
+		&i.SoundcloudUrl,
+		&i.VideoUrl,
 		&i.Status,
 		&i.WpId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.AvatarUrl,
-		&i.FeaturedImageUrl,
-		&i.InstagramUrl,
 	)
 	return i, err
 }
@@ -95,7 +130,7 @@ func (q *Queries) DeleteArtist(ctx context.Context, id string) error {
 }
 
 const getArtistArtworks = `-- name: GetArtistArtworks :many
-SELECT id, "artistId", position, "imageUrl" FROM "ArtistArtwork" WHERE "artistId" = $1 ORDER BY "position" ASC
+SELECT id, "artistId", "imageUrl", position FROM "ArtistArtwork" WHERE "artistId" = $1 ORDER BY "position" ASC
 `
 
 func (q *Queries) GetArtistArtworks(ctx context.Context, artistid string) ([]ArtistArtwork, error) {
@@ -110,8 +145,8 @@ func (q *Queries) GetArtistArtworks(ctx context.Context, artistid string) ([]Art
 		if err := rows.Scan(
 			&i.ID,
 			&i.ArtistId,
-			&i.Position,
 			&i.ImageUrl,
+			&i.Position,
 		); err != nil {
 			return nil, err
 		}
@@ -124,7 +159,7 @@ func (q *Queries) GetArtistArtworks(ctx context.Context, artistid string) ([]Art
 }
 
 const getArtistByID = `-- name: GetArtistByID :one
-SELECT id, slug, city, country, status, "wpId", "createdAt", "updatedAt", "avatarUrl", "featuredImageUrl", "instagramUrl" FROM "Artist" WHERE "id" = $1
+SELECT id, slug, city, country, "avatarUrl", "featuredImageUrl", "instagramUrl", genre, nationality, "facebookUrl", "twitterUrl", "youtubeUrl", "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl", status, "wpId", "createdAt", "updatedAt" FROM "Artist" WHERE "id" = $1
 `
 
 func (q *Queries) GetArtistByID(ctx context.Context, id string) (Artist, error) {
@@ -135,19 +170,29 @@ func (q *Queries) GetArtistByID(ctx context.Context, id string) (Artist, error) 
 		&i.Slug,
 		&i.City,
 		&i.Country,
+		&i.AvatarUrl,
+		&i.FeaturedImageUrl,
+		&i.InstagramUrl,
+		&i.Genre,
+		&i.Nationality,
+		&i.FacebookUrl,
+		&i.TwitterUrl,
+		&i.YoutubeUrl,
+		&i.TiktokUrl,
+		&i.WebsiteUrl,
+		&i.SpotifyUrl,
+		&i.SoundcloudUrl,
+		&i.VideoUrl,
 		&i.Status,
 		&i.WpId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.AvatarUrl,
-		&i.FeaturedImageUrl,
-		&i.InstagramUrl,
 	)
 	return i, err
 }
 
 const getArtistBySlug = `-- name: GetArtistBySlug :one
-SELECT id, slug, city, country, status, "wpId", "createdAt", "updatedAt", "avatarUrl", "featuredImageUrl", "instagramUrl" FROM "Artist" WHERE "slug" = $1
+SELECT id, slug, city, country, "avatarUrl", "featuredImageUrl", "instagramUrl", genre, nationality, "facebookUrl", "twitterUrl", "youtubeUrl", "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl", status, "wpId", "createdAt", "updatedAt" FROM "Artist" WHERE "slug" = $1
 `
 
 func (q *Queries) GetArtistBySlug(ctx context.Context, slug string) (Artist, error) {
@@ -158,13 +203,23 @@ func (q *Queries) GetArtistBySlug(ctx context.Context, slug string) (Artist, err
 		&i.Slug,
 		&i.City,
 		&i.Country,
+		&i.AvatarUrl,
+		&i.FeaturedImageUrl,
+		&i.InstagramUrl,
+		&i.Genre,
+		&i.Nationality,
+		&i.FacebookUrl,
+		&i.TwitterUrl,
+		&i.YoutubeUrl,
+		&i.TiktokUrl,
+		&i.WebsiteUrl,
+		&i.SpotifyUrl,
+		&i.SoundcloudUrl,
+		&i.VideoUrl,
 		&i.Status,
 		&i.WpId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.AvatarUrl,
-		&i.FeaturedImageUrl,
-		&i.InstagramUrl,
 	)
 	return i, err
 }
@@ -200,7 +255,7 @@ func (q *Queries) GetArtistTranslations(ctx context.Context, artistid string) ([
 }
 
 const listArtists = `-- name: ListArtists :many
-SELECT a.id, a.slug, a.city, a.country, a.status, a."wpId", a."createdAt", a."updatedAt", a."avatarUrl", a."featuredImageUrl", a."instagramUrl", COUNT(*) OVER() AS total_count
+SELECT a.id, a.slug, a.city, a.country, a."avatarUrl", a."featuredImageUrl", a."instagramUrl", a.genre, a.nationality, a."facebookUrl", a."twitterUrl", a."youtubeUrl", a."tiktokUrl", a."websiteUrl", a."spotifyUrl", a."soundcloudUrl", a."videoUrl", a.status, a."wpId", a."createdAt", a."updatedAt", COUNT(*) OVER() AS total_count
 FROM "Artist" a
 WHERE a."status" = 'PUBLISHED'::"ProductStatus"
 ORDER BY a."createdAt" DESC
@@ -217,13 +272,23 @@ type ListArtistsRow struct {
 	Slug             string           `json:"slug"`
 	City             *string          `json:"city"`
 	Country          *string          `json:"country"`
+	AvatarUrl        *string          `json:"avatarUrl"`
+	FeaturedImageUrl *string          `json:"featuredImageUrl"`
+	InstagramUrl     *string          `json:"instagramUrl"`
+	Genre            *string          `json:"genre"`
+	Nationality      *string          `json:"nationality"`
+	FacebookUrl      *string          `json:"facebookUrl"`
+	TwitterUrl       *string          `json:"twitterUrl"`
+	YoutubeUrl       *string          `json:"youtubeUrl"`
+	TiktokUrl        *string          `json:"tiktokUrl"`
+	WebsiteUrl       *string          `json:"websiteUrl"`
+	SpotifyUrl       *string          `json:"spotifyUrl"`
+	SoundcloudUrl    *string          `json:"soundcloudUrl"`
+	VideoUrl         *string          `json:"videoUrl"`
 	Status           ProductStatus    `json:"status"`
 	WpId             *int32           `json:"wpId"`
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
-	AvatarUrl        *string          `json:"avatarUrl"`
-	FeaturedImageUrl *string          `json:"featuredImageUrl"`
-	InstagramUrl     *string          `json:"instagramUrl"`
 	TotalCount       int64            `json:"total_count"`
 }
 
@@ -241,13 +306,23 @@ func (q *Queries) ListArtists(ctx context.Context, arg ListArtistsParams) ([]Lis
 			&i.Slug,
 			&i.City,
 			&i.Country,
+			&i.AvatarUrl,
+			&i.FeaturedImageUrl,
+			&i.InstagramUrl,
+			&i.Genre,
+			&i.Nationality,
+			&i.FacebookUrl,
+			&i.TwitterUrl,
+			&i.YoutubeUrl,
+			&i.TiktokUrl,
+			&i.WebsiteUrl,
+			&i.SpotifyUrl,
+			&i.SoundcloudUrl,
+			&i.VideoUrl,
 			&i.Status,
 			&i.WpId,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.AvatarUrl,
-			&i.FeaturedImageUrl,
-			&i.InstagramUrl,
 			&i.TotalCount,
 		); err != nil {
 			return nil, err
@@ -262,16 +337,26 @@ func (q *Queries) ListArtists(ctx context.Context, arg ListArtistsParams) ([]Lis
 
 const updateArtist = `-- name: UpdateArtist :one
 UPDATE "Artist"
-SET "slug"             = COALESCE($2, "slug"),
-    "city"             = COALESCE($3, "city"),
-    "country"          = COALESCE($4, "country"),
+SET "slug"          = COALESCE($2, "slug"),
+    "city"          = COALESCE($3, "city"),
+    "country"       = COALESCE($4, "country"),
     "featuredImageUrl" = COALESCE($5, "featuredImageUrl"),
-    "avatarUrl"        = COALESCE($6, "avatarUrl"),
-    "instagramUrl"     = COALESCE($7, "instagramUrl"),
-    "status"           = COALESCE($8::"ProductStatus", "status"),
-    "updatedAt"        = NOW()
+    "avatarUrl"     = COALESCE($6, "avatarUrl"),
+    "instagramUrl"  = COALESCE($7, "instagramUrl"),
+    "genre"         = COALESCE($8, "genre"),
+    "nationality"   = COALESCE($9, "nationality"),
+    "facebookUrl"   = COALESCE($10, "facebookUrl"),
+    "twitterUrl"    = COALESCE($11, "twitterUrl"),
+    "youtubeUrl"    = COALESCE($12, "youtubeUrl"),
+    "tiktokUrl"     = COALESCE($13, "tiktokUrl"),
+    "websiteUrl"    = COALESCE($14, "websiteUrl"),
+    "spotifyUrl"    = COALESCE($15, "spotifyUrl"),
+    "soundcloudUrl" = COALESCE($16, "soundcloudUrl"),
+    "videoUrl"      = COALESCE($17, "videoUrl"),
+    "status"        = COALESCE($18::"ProductStatus", "status"),
+    "updatedAt"     = NOW()
 WHERE "id" = $1
-RETURNING id, slug, city, country, status, "wpId", "createdAt", "updatedAt", "avatarUrl", "featuredImageUrl", "instagramUrl"
+RETURNING id, slug, city, country, "avatarUrl", "featuredImageUrl", "instagramUrl", genre, nationality, "facebookUrl", "twitterUrl", "youtubeUrl", "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl", status, "wpId", "createdAt", "updatedAt"
 `
 
 type UpdateArtistParams struct {
@@ -282,6 +367,16 @@ type UpdateArtistParams struct {
 	FeaturedImageUrl *string           `json:"featured_image_url"`
 	AvatarUrl        *string           `json:"avatar_url"`
 	InstagramUrl     *string           `json:"instagram_url"`
+	Genre            *string           `json:"genre"`
+	Nationality      *string           `json:"nationality"`
+	FacebookUrl      *string           `json:"facebookUrl"`
+	TwitterUrl       *string           `json:"twitterUrl"`
+	YoutubeUrl       *string           `json:"youtubeUrl"`
+	TiktokUrl        *string           `json:"tiktokUrl"`
+	WebsiteUrl       *string           `json:"websiteUrl"`
+	SpotifyUrl       *string           `json:"spotifyUrl"`
+	SoundcloudUrl    *string           `json:"soundcloudUrl"`
+	VideoUrl         *string           `json:"videoUrl"`
 	Status           NullProductStatus `json:"status"`
 }
 
@@ -294,6 +389,16 @@ func (q *Queries) UpdateArtist(ctx context.Context, arg UpdateArtistParams) (Art
 		arg.FeaturedImageUrl,
 		arg.AvatarUrl,
 		arg.InstagramUrl,
+		arg.Genre,
+		arg.Nationality,
+		arg.FacebookUrl,
+		arg.TwitterUrl,
+		arg.YoutubeUrl,
+		arg.TiktokUrl,
+		arg.WebsiteUrl,
+		arg.SpotifyUrl,
+		arg.SoundcloudUrl,
+		arg.VideoUrl,
 		arg.Status,
 	)
 	var i Artist
@@ -302,13 +407,23 @@ func (q *Queries) UpdateArtist(ctx context.Context, arg UpdateArtistParams) (Art
 		&i.Slug,
 		&i.City,
 		&i.Country,
+		&i.AvatarUrl,
+		&i.FeaturedImageUrl,
+		&i.InstagramUrl,
+		&i.Genre,
+		&i.Nationality,
+		&i.FacebookUrl,
+		&i.TwitterUrl,
+		&i.YoutubeUrl,
+		&i.TiktokUrl,
+		&i.WebsiteUrl,
+		&i.SpotifyUrl,
+		&i.SoundcloudUrl,
+		&i.VideoUrl,
 		&i.Status,
 		&i.WpId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.AvatarUrl,
-		&i.FeaturedImageUrl,
-		&i.InstagramUrl,
 	)
 	return i, err
 }

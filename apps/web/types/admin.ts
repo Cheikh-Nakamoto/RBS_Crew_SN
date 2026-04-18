@@ -167,6 +167,17 @@ export interface AdminProject {
 }
 
 // ─── Festival ────────────────────────────────────────────────────
+export interface AdminFestivalArtist {
+  artistId: string;
+  artistName: string;
+  artistSlug: string;
+  artistAvatarUrl?: string;
+  artistFeaturedImageUrl?: string;
+  role: string;
+  stageOrder: number;
+  performanceDate?: string;
+}
+
 export interface AdminArtist {
   id: string;
   slug: string;
@@ -175,6 +186,16 @@ export interface AdminArtist {
   avatarUrl?: string;
   featuredImageUrl?: string;
   instagramUrl?: string;
+  genre?: string;
+  nationality?: string;
+  facebookUrl?: string;
+  twitterUrl?: string;
+  youtubeUrl?: string;
+  tiktokUrl?: string;
+  websiteUrl?: string;
+  spotifyUrl?: string;
+  soundcloudUrl?: string;
+  videoUrl?: string;
   gallery: string[];
   isPublished: boolean;
   translations: AdminTranslation[];
@@ -192,6 +213,13 @@ export interface AdminFestivalEdition {
   featuredImageUrl?: string;
   heroImage?: string;
   gallery: string[];
+  startDate?: string;
+  endDate?: string;
+  venue?: string;
+  venueAddress?: string;
+  ticketUrl?: string;
+  videoUrl?: string;
+  artists?: AdminFestivalArtist[];
   translations: AdminTranslation[];
   createdAt: string;
 }

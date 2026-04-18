@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 import type { Resolver, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -195,7 +195,7 @@ export function TranslatableEntityForm({
 
             {showGallery && (
               <div className="mt-6 rounded-xl border border-white/10 bg-white/3 p-5 space-y-4">
-                <p className="text-sm font-semibold text-white">Galerie d'images</p>
+                <p className="text-sm font-semibold text-white">Galerie d&apos;images</p>
                 <FormField
                   control={control}
                   name="gallery"

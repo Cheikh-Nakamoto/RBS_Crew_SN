@@ -102,11 +102,23 @@ export const simpleTranslatableSchema = z.object({
 export type SimpleTranslatableFormValues = z.infer<typeof simpleTranslatableSchema>;
 
 // ─── Artist ──────────────────────────────────────────────────────
+const urlOptional = z.string().url({ message: 'URL invalide' }).optional().or(z.literal(''));
+
 export const artistSchema = simpleTranslatableSchema.extend({
   city: z.string().optional(),
   country: z.string().optional(),
   avatarUrl: z.string().optional(),
-  instagramUrl: z.string().optional(),
+  instagramUrl: urlOptional,
+  genre: z.string().optional(),
+  nationality: z.string().optional(),
+  facebookUrl: urlOptional,
+  twitterUrl: urlOptional,
+  youtubeUrl: urlOptional,
+  tiktokUrl: urlOptional,
+  websiteUrl: urlOptional,
+  spotifyUrl: urlOptional,
+  soundcloudUrl: urlOptional,
+  videoUrl: urlOptional,
 });
 
 export type ArtistFormValues = z.infer<typeof artistSchema>;
@@ -127,6 +139,12 @@ export const festivalEditionSchema = simpleTranslatableSchema.extend({
   city: z.string().optional(),
   country: z.string().optional().default('SN'),
   heroImage: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  venue: z.string().optional(),
+  venueAddress: z.string().optional(),
+  ticketUrl: urlOptional,
+  videoUrl: urlOptional,
 });
 
 export type FestivalEditionFormValues = z.infer<typeof festivalEditionSchema>;

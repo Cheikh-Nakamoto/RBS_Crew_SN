@@ -27,7 +27,11 @@ type AdminListArtistRow struct {
 
 func (r *ArtistsRepository) AdminList(ctx context.Context, limit, offset int32) ([]AdminListArtistRow, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, slug, city, country, status, "wpId", "createdAt", "updatedAt", "avatarUrl", "featuredImageUrl", "instagramUrl", COUNT(*) OVER() AS total_count
+		`SELECT id, slug, city, country, status, "wpId", "createdAt", "updatedAt",
+		        "avatarUrl", "featuredImageUrl", "instagramUrl",
+		        "genre", "nationality", "facebookUrl", "twitterUrl", "youtubeUrl",
+		        "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl",
+		        COUNT(*) OVER() AS total_count
 		 FROM "Artist"
 		 ORDER BY "createdAt" DESC
 		 LIMIT $1 OFFSET $2`, limit, offset)
@@ -42,6 +46,9 @@ func (r *ArtistsRepository) AdminList(ctx context.Context, limit, offset int32) 
 			&row.ID, &row.Slug, &row.City, &row.Country, &row.Status,
 			&row.WpId, &row.CreatedAt, &row.UpdatedAt,
 			&row.AvatarUrl, &row.FeaturedImageUrl, &row.InstagramUrl,
+			&row.Genre, &row.Nationality,
+			&row.FacebookUrl, &row.TwitterUrl, &row.YoutubeUrl,
+			&row.TiktokUrl, &row.WebsiteUrl, &row.SpotifyUrl, &row.SoundcloudUrl, &row.VideoUrl,
 			&row.TotalCount,
 		); err != nil {
 			return nil, err

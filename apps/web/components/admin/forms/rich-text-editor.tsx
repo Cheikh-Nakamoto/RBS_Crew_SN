@@ -124,7 +124,7 @@ export function RichTextEditor({
   const setLink = useCallback(() => {
     if (!editor) return;
     const prev = editor.getAttributes('link').href as string;
-    // eslint-disable-next-line no-alert
+     
     const url = window.prompt('URL du lien :', prev ?? 'https://');
     if (url === null) return;
     if (url === '') {

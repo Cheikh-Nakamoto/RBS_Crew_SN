@@ -14,7 +14,7 @@ import (
 const createPressMention = `-- name: CreatePressMention :one
 INSERT INTO "PressMention" ("id", "title", "source", "sourceUrl", "logoUrl", "featuredImageUrl", "excerpt", "date", "createdAt")
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-RETURNING id, title, source, "sourceUrl", "logoUrl", excerpt, date, "createdAt", "featuredImageUrl"
+RETURNING id, title, source, "sourceUrl", "logoUrl", "featuredImageUrl", excerpt, date, "createdAt"
 `
 
 type CreatePressMentionParams struct {
@@ -46,10 +46,10 @@ func (q *Queries) CreatePressMention(ctx context.Context, arg CreatePressMention
 		&i.Source,
 		&i.SourceUrl,
 		&i.LogoUrl,
+		&i.FeaturedImageUrl,
 		&i.Excerpt,
 		&i.Date,
 		&i.CreatedAt,
-		&i.FeaturedImageUrl,
 	)
 	return i, err
 }
@@ -64,7 +64,7 @@ func (q *Queries) DeletePressMention(ctx context.Context, id string) error {
 }
 
 const getPressMentionByID = `-- name: GetPressMentionByID :one
-SELECT id, title, source, "sourceUrl", "logoUrl", excerpt, date, "createdAt", "featuredImageUrl" FROM "PressMention" WHERE "id" = $1
+SELECT id, title, source, "sourceUrl", "logoUrl", "featuredImageUrl", excerpt, date, "createdAt" FROM "PressMention" WHERE "id" = $1
 `
 
 func (q *Queries) GetPressMentionByID(ctx context.Context, id string) (PressMention, error) {
@@ -76,16 +76,16 @@ func (q *Queries) GetPressMentionByID(ctx context.Context, id string) (PressMent
 		&i.Source,
 		&i.SourceUrl,
 		&i.LogoUrl,
+		&i.FeaturedImageUrl,
 		&i.Excerpt,
 		&i.Date,
 		&i.CreatedAt,
-		&i.FeaturedImageUrl,
 	)
 	return i, err
 }
 
 const listPressMentions = `-- name: ListPressMentions :many
-SELECT id, title, source, "sourceUrl", "logoUrl", excerpt, date, "createdAt", "featuredImageUrl", COUNT(*) OVER() AS total_count
+SELECT id, title, source, "sourceUrl", "logoUrl", "featuredImageUrl", excerpt, date, "createdAt", COUNT(*) OVER() AS total_count
 FROM "PressMention"
 ORDER BY "date" DESC NULLS LAST, "createdAt" DESC
 LIMIT $1 OFFSET $2
@@ -102,10 +102,10 @@ type ListPressMentionsRow struct {
 	Source           string           `json:"source"`
 	SourceUrl        string           `json:"sourceUrl"`
 	LogoUrl          *string          `json:"logoUrl"`
+	FeaturedImageUrl *string          `json:"featuredImageUrl"`
 	Excerpt          *string          `json:"excerpt"`
 	Date             pgtype.Timestamp `json:"date"`
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
-	FeaturedImageUrl *string          `json:"featuredImageUrl"`
 	TotalCount       int64            `json:"total_count"`
 }
 
@@ -124,10 +124,10 @@ func (q *Queries) ListPressMentions(ctx context.Context, arg ListPressMentionsPa
 			&i.Source,
 			&i.SourceUrl,
 			&i.LogoUrl,
+			&i.FeaturedImageUrl,
 			&i.Excerpt,
 			&i.Date,
 			&i.CreatedAt,
-			&i.FeaturedImageUrl,
 			&i.TotalCount,
 		); err != nil {
 			return nil, err
@@ -150,7 +150,7 @@ SET "title" = COALESCE($2, "title"),
     "excerpt" = $7,
     "date" = $8
 WHERE "id" = $1
-RETURNING id, title, source, "sourceUrl", "logoUrl", excerpt, date, "createdAt", "featuredImageUrl"
+RETURNING id, title, source, "sourceUrl", "logoUrl", "featuredImageUrl", excerpt, date, "createdAt"
 `
 
 type UpdatePressMentionParams struct {
@@ -182,10 +182,10 @@ func (q *Queries) UpdatePressMention(ctx context.Context, arg UpdatePressMention
 		&i.Source,
 		&i.SourceUrl,
 		&i.LogoUrl,
+		&i.FeaturedImageUrl,
 		&i.Excerpt,
 		&i.Date,
 		&i.CreatedAt,
-		&i.FeaturedImageUrl,
 	)
 	return i, err
 }

@@ -27,7 +27,9 @@ type AdminListFestivalRow struct {
 
 func (r *FestivalRepository) AdminList(ctx context.Context, limit, offset int32) ([]AdminListFestivalRow, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "createdAt", "updatedAt", COUNT(*) OVER() AS total_count
+		`SELECT id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "createdAt", "updatedAt",
+		        "startDate", "endDate", venue, "venueAddress", "ticketUrl", "videoUrl",
+		        COUNT(*) OVER() AS total_count
 		 FROM "FestivalEdition"
 		 ORDER BY "year" DESC, "editionNumber" DESC
 		 LIMIT $1 OFFSET $2`, limit, offset)
@@ -43,6 +45,8 @@ func (r *FestivalRepository) AdminList(ctx context.Context, limit, offset int32)
 			&row.City, &row.Country, &row.Status, &row.WpId,
 			&row.MainImage, &row.HeroImage, &row.Gallery, &row.Typography,
 			&row.CreatedAt, &row.UpdatedAt,
+			&row.StartDate, &row.EndDate,
+			&row.Venue, &row.VenueAddress, &row.TicketUrl, &row.VideoUrl,
 			&row.TotalCount,
 		); err != nil {
 			return nil, err
@@ -95,4 +99,29 @@ func (r *FestivalRepository) Update(ctx context.Context, params db.UpdateFestiva
 
 func (r *FestivalRepository) Delete(ctx context.Context, id string) error {
 	return r.q.DeleteFestivalEdition(ctx, id)
+}
+
+// ── FestivalArtist (lineup) ───────────────────────────────────────────────────
+
+func (r *FestivalRepository) ListArtists(ctx context.Context, festivalID string) ([]db.ListFestivalArtistsRow, error) {
+	return r.q.ListFestivalArtists(ctx, festivalID)
+}
+
+func (r *FestivalRepository) AddArtist(ctx context.Context, params db.AddFestivalArtistParams) (*db.FestivalArtist, error) {
+	fa, err := r.q.AddFestivalArtist(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return &fa, nil
+}
+
+func (r *FestivalRepository) RemoveArtist(ctx context.Context, festivalID, artistID string) error {
+	return r.q.RemoveFestivalArtist(ctx, db.RemoveFestivalArtistParams{
+		FestivalEditionId: festivalID,
+		ArtistId:          artistID,
+	})
+}
+
+func (r *FestivalRepository) ClearArtists(ctx context.Context, festivalID string) error {
+	return r.q.ClearFestivalArtists(ctx, festivalID)
 }

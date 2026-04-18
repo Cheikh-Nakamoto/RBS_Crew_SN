@@ -6,7 +6,7 @@ import type { Resolver, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { useTransition } from 'react';
-import { ArrowLeft, Globe, Save, MapPin, Link2, User } from 'lucide-react';
+import { ArrowLeft, Globe, Save, MapPin, Link2, User, Music2, Video } from 'lucide-react';
 import Link from 'next/link';
 
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
@@ -55,6 +55,16 @@ export function ArtistForm({ mode, backHref, initialData, onCreate, onUpdate }: 
       avatarUrl: initialData?.avatarUrl ?? '',
       featuredImageUrl: initialData?.featuredImageUrl ?? '',
       instagramUrl: initialData?.instagramUrl ?? '',
+      genre: initialData?.genre ?? '',
+      nationality: initialData?.nationality ?? '',
+      facebookUrl: initialData?.facebookUrl ?? '',
+      twitterUrl: initialData?.twitterUrl ?? '',
+      youtubeUrl: initialData?.youtubeUrl ?? '',
+      tiktokUrl: initialData?.tiktokUrl ?? '',
+      websiteUrl: initialData?.websiteUrl ?? '',
+      spotifyUrl: initialData?.spotifyUrl ?? '',
+      soundcloudUrl: initialData?.soundcloudUrl ?? '',
+      videoUrl: initialData?.videoUrl ?? '',
       gallery: initialData?.gallery ?? [],
       isPublished: initialData?.isPublished ?? false,
       translations: initialData?.translations?.length
@@ -240,6 +250,114 @@ export function ArtistForm({ mode, backHref, initialData, onCreate, onUpdate }: 
                         {...field}
                         value={field.value ?? ''}
                         placeholder="https://instagram.com/..."
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-400 text-xs" />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Discipline */}
+            <div className="rounded-xl border border-white/10 bg-white/3 p-5 space-y-4">
+              <p className="text-sm font-semibold text-white flex items-center gap-2">
+                <Music2 className="h-4 w-4 text-[var(--rbs-red)]" />
+                Discipline
+              </p>
+              <FormField
+                control={control}
+                name="genre"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-white/60">Genre / Discipline</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        placeholder="Graffiti, Rap, DJ, Danse..."
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-400 text-xs" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={control}
+                name="nationality"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-white/60">Nationalité</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        placeholder="Sénégalais, Français..."
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-400 text-xs" />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Réseaux sociaux */}
+            <div className="rounded-xl border border-white/10 bg-white/3 p-5 space-y-4">
+              <p className="text-sm font-semibold text-white flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-[var(--rbs-red)]" />
+                Réseaux sociaux
+              </p>
+              {([
+                { name: 'instagramUrl', label: 'Instagram', placeholder: 'https://instagram.com/...' },
+                { name: 'tiktokUrl', label: 'TikTok', placeholder: 'https://tiktok.com/@...' },
+                { name: 'facebookUrl', label: 'Facebook', placeholder: 'https://facebook.com/...' },
+                { name: 'twitterUrl', label: 'X / Twitter', placeholder: 'https://x.com/...' },
+                { name: 'youtubeUrl', label: 'YouTube', placeholder: 'https://youtube.com/...' },
+                { name: 'spotifyUrl', label: 'Spotify', placeholder: 'https://open.spotify.com/...' },
+                { name: 'soundcloudUrl', label: 'SoundCloud', placeholder: 'https://soundcloud.com/...' },
+                { name: 'websiteUrl', label: 'Site web', placeholder: 'https://...' },
+              ] as const).map(({ name, label, placeholder }) => (
+                <FormField
+                  key={name}
+                  control={control}
+                  name={name}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs text-white/60">{label}</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value ?? ''}
+                          placeholder={placeholder}
+                          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
+                        />
+                      </FormControl>
+                      <FormMessage className="text-red-400 text-xs" />
+                    </FormItem>
+                  )}
+                />
+              ))}
+            </div>
+
+            {/* Vidéo */}
+            <div className="rounded-xl border border-white/10 bg-white/3 p-5 space-y-4">
+              <p className="text-sm font-semibold text-white flex items-center gap-2">
+                <Video className="h-4 w-4 text-[var(--rbs-red)]" />
+                Vidéo
+              </p>
+              <FormField
+                control={control}
+                name="videoUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-white/60">URL YouTube / Vimeo</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        placeholder="https://youtube.com/..."
                         className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
                       />
                     </FormControl>

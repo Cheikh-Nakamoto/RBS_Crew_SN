@@ -152,7 +152,7 @@ export function CartDrawer() {
               <span className="text-xl font-bold text-white">{formatXOF(total)}</span>
             </div>
             <p className="text-[10px] text-white/30">
-              Frais de livraison calculés à l'étape suivante.
+              Frais de livraison calculés à l&apos;étape suivante.
             </p>
             <Link
               href="/shop/checkout"

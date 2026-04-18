@@ -163,8 +163,8 @@ export function GraffitiCursor() {
     const { gl, halfFloatTexType, supportLinearFiltering, formatRGBA, formatRG, formatR } = ctx;
     if (!formatRGBA || !formatRG || !formatR) return;
 
-    let dyeRes  = supportLinearFiltering ? FLUID_CONFIG.dyeResolution : 512;
-    let shading = supportLinearFiltering ? FLUID_CONFIG.shading : false;
+    const dyeRes  = supportLinearFiltering ? FLUID_CONFIG.dyeResolution : 512;
+    const shading = supportLinearFiltering ? FLUID_CONFIG.shading : false;
 
     /* --- Shaders GLSL ----------------------------------- */
     function compile(type: number, src: string): WebGLShader {
@@ -202,7 +202,7 @@ export function GraffitiCursor() {
         gl_Position = vec4(aPosition,0.0,1.0);
       }`);
 
-    const copyFS   = compile(gl.FRAGMENT_SHADER, `precision mediump float; precision mediump sampler2D; varying highp vec2 vUv; uniform sampler2D uTexture; void main(){ gl_FragColor = texture2D(uTexture,vUv); }`);
+
     const clearFS  = compile(gl.FRAGMENT_SHADER, `precision mediump float; precision mediump sampler2D; varying highp vec2 vUv; uniform sampler2D uTexture; uniform float value; void main(){ gl_FragColor = value*texture2D(uTexture,vUv); }`);
     const splatFS  = compile(gl.FRAGMENT_SHADER, `precision highp float; precision highp sampler2D; varying vec2 vUv; uniform sampler2D uTarget; uniform float aspectRatio; uniform vec3 color; uniform vec2 point; uniform float radius; void main(){ vec2 p=vUv-point.xy; p.x*=aspectRatio; vec3 splat=exp(-dot(p,p)/radius)*color; vec3 base=texture2D(uTarget,vUv).xyz; gl_FragColor=vec4(base+splat,1.0); }`);
     const divFS    = compile(gl.FRAGMENT_SHADER, `precision mediump float; precision mediump sampler2D; varying highp vec2 vUv; varying highp vec2 vL; varying highp vec2 vR; varying highp vec2 vT; varying highp vec2 vB; uniform sampler2D uVelocity; void main(){ float L=texture2D(uVelocity,vL).x; float R=texture2D(uVelocity,vR).x; float T=texture2D(uVelocity,vT).y; float B=texture2D(uVelocity,vB).y; vec2 C=texture2D(uVelocity,vUv).xy; if(vL.x<0.0){L=-C.x;} if(vR.x>1.0){R=-C.x;} if(vT.y>1.0){T=-C.y;} if(vB.y<0.0){B=-C.y;} gl_FragColor=vec4(0.5*(R-L+T-B),0.0,0.0,1.0); }`);
@@ -251,7 +251,7 @@ export function GraffitiCursor() {
         gl_FragColor=vec4(c,a);
       }`;
 
-    const copyP   = makeProgram(baseVS, copyFS);
+
     const clearP  = makeProgram(baseVS, clearFS);
     const splatP  = makeProgram(baseVS, splatFS);
     const advP    = makeProgram(baseVS, advFS);
@@ -326,11 +326,11 @@ export function GraffitiCursor() {
     const dyeR   = getRes(dyeRes);
     const flt    = supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
 
-    let dye      = createDFBO(dyeR.width, dyeR.height, formatRGBA.internalFormat, formatRGBA.format, flt);
-    let velocity = createDFBO(simRes.width, simRes.height, formatRG.internalFormat, formatRG.format, flt);
-    let divFBO   = createFBO(simRes.width, simRes.height, formatR.internalFormat, formatR.format, gl.NEAREST);
-    let curlFBO  = createFBO(simRes.width, simRes.height, formatR.internalFormat, formatR.format, gl.NEAREST);
-    let pressure = createDFBO(simRes.width, simRes.height, formatR.internalFormat, formatR.format, gl.NEAREST);
+    const dye      = createDFBO(dyeR.width, dyeR.height, formatRGBA.internalFormat, formatRGBA.format, flt);
+    const velocity = createDFBO(simRes.width, simRes.height, formatRG.internalFormat, formatRG.format, flt);
+    const divFBO   = createFBO(simRes.width, simRes.height, formatR.internalFormat, formatR.format, gl.NEAREST);
+    const curlFBO  = createFBO(simRes.width, simRes.height, formatR.internalFormat, formatR.format, gl.NEAREST);
+    const pressure = createDFBO(simRes.width, simRes.height, formatR.internalFormat, formatR.format, gl.NEAREST);
 
     /* --- Canvas resize ---------------------------------- */
     function resizeCanvas() {

@@ -13,8 +13,8 @@ import (
 
 const createProject = `-- name: CreateProject :one
 INSERT INTO "Project" ("id", "slug", "featuredImageUrl", "gallery", "completedAt", "clientName", "country", "status", "createdAt", "updatedAt")
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-RETURNING id, slug, "completedAt", "clientName", country, status, "createdAt", "updatedAt", "featuredImageUrl", gallery
+VALUES ($1, $2, $3, $4, $5, $6, $8, $7, NOW(), NOW())
+RETURNING id, slug, "featuredImageUrl", gallery, "completedAt", "clientName", country, status, "createdAt", "updatedAt"
 `
 
 type CreateProjectParams struct {
@@ -24,8 +24,8 @@ type CreateProjectParams struct {
 	Gallery          []byte           `json:"gallery"`
 	CompletedAt      pgtype.Timestamp `json:"completedAt"`
 	ClientName       *string          `json:"clientName"`
-	Country          *string          `json:"country"`
 	Status           ProductStatus    `json:"status"`
+	Country          *string          `json:"country"`
 }
 
 func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error) {
@@ -36,21 +36,21 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 		arg.Gallery,
 		arg.CompletedAt,
 		arg.ClientName,
-		arg.Country,
 		arg.Status,
+		arg.Country,
 	)
 	var i Project
 	err := row.Scan(
 		&i.ID,
 		&i.Slug,
+		&i.FeaturedImageUrl,
+		&i.Gallery,
 		&i.CompletedAt,
 		&i.ClientName,
 		&i.Country,
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.FeaturedImageUrl,
-		&i.Gallery,
 	)
 	return i, err
 }
@@ -65,7 +65,7 @@ func (q *Queries) DeleteProject(ctx context.Context, id string) error {
 }
 
 const getProjectByID = `-- name: GetProjectByID :one
-SELECT id, slug, "completedAt", "clientName", country, status, "createdAt", "updatedAt", "featuredImageUrl", gallery FROM "Project" WHERE "id" = $1
+SELECT id, slug, "featuredImageUrl", gallery, "completedAt", "clientName", country, status, "createdAt", "updatedAt" FROM "Project" WHERE "id" = $1
 `
 
 func (q *Queries) GetProjectByID(ctx context.Context, id string) (Project, error) {
@@ -74,20 +74,20 @@ func (q *Queries) GetProjectByID(ctx context.Context, id string) (Project, error
 	err := row.Scan(
 		&i.ID,
 		&i.Slug,
+		&i.FeaturedImageUrl,
+		&i.Gallery,
 		&i.CompletedAt,
 		&i.ClientName,
 		&i.Country,
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.FeaturedImageUrl,
-		&i.Gallery,
 	)
 	return i, err
 }
 
 const getProjectBySlug = `-- name: GetProjectBySlug :one
-SELECT id, slug, "completedAt", "clientName", country, status, "createdAt", "updatedAt", "featuredImageUrl", gallery FROM "Project" WHERE "slug" = $1
+SELECT id, slug, "featuredImageUrl", gallery, "completedAt", "clientName", country, status, "createdAt", "updatedAt" FROM "Project" WHERE "slug" = $1
 `
 
 func (q *Queries) GetProjectBySlug(ctx context.Context, slug string) (Project, error) {
@@ -96,14 +96,14 @@ func (q *Queries) GetProjectBySlug(ctx context.Context, slug string) (Project, e
 	err := row.Scan(
 		&i.ID,
 		&i.Slug,
+		&i.FeaturedImageUrl,
+		&i.Gallery,
 		&i.CompletedAt,
 		&i.ClientName,
 		&i.Country,
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.FeaturedImageUrl,
-		&i.Gallery,
 	)
 	return i, err
 }
@@ -142,7 +142,7 @@ func (q *Queries) GetProjectTranslations(ctx context.Context, projectid string) 
 }
 
 const listProjects = `-- name: ListProjects :many
-SELECT p.id, p.slug, p."completedAt", p."clientName", p.country, p.status, p."createdAt", p."updatedAt", p."featuredImageUrl", p.gallery, COUNT(*) OVER() AS total_count
+SELECT p.id, p.slug, p."featuredImageUrl", p.gallery, p."completedAt", p."clientName", p.country, p.status, p."createdAt", p."updatedAt", COUNT(*) OVER() AS total_count
 FROM "Project" p
 WHERE p."status" = 'PUBLISHED'::"ProductStatus"
 ORDER BY p."completedAt" DESC NULLS LAST, p."createdAt" DESC
@@ -157,14 +157,14 @@ type ListProjectsParams struct {
 type ListProjectsRow struct {
 	ID               string           `json:"id"`
 	Slug             string           `json:"slug"`
+	FeaturedImageUrl *string          `json:"featuredImageUrl"`
+	Gallery          []byte           `json:"gallery"`
 	CompletedAt      pgtype.Timestamp `json:"completedAt"`
 	ClientName       *string          `json:"clientName"`
 	Country          *string          `json:"country"`
 	Status           ProductStatus    `json:"status"`
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
-	FeaturedImageUrl *string          `json:"featuredImageUrl"`
-	Gallery          []byte           `json:"gallery"`
 	TotalCount       int64            `json:"total_count"`
 }
 
@@ -180,14 +180,14 @@ func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]L
 		if err := rows.Scan(
 			&i.ID,
 			&i.Slug,
+			&i.FeaturedImageUrl,
+			&i.Gallery,
 			&i.CompletedAt,
 			&i.ClientName,
 			&i.Country,
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.FeaturedImageUrl,
-			&i.Gallery,
 			&i.TotalCount,
 		); err != nil {
 			return nil, err
@@ -210,7 +210,7 @@ SET "featuredImageUrl" = COALESCE($2, "featuredImageUrl"),
     "status" = COALESCE($7::"ProductStatus", "status"),
     "updatedAt" = NOW()
 WHERE "id" = $1
-RETURNING id, slug, "completedAt", "clientName", country, status, "createdAt", "updatedAt", "featuredImageUrl", gallery
+RETURNING id, slug, "featuredImageUrl", gallery, "completedAt", "clientName", country, status, "createdAt", "updatedAt"
 `
 
 type UpdateProjectParams struct {
@@ -237,14 +237,14 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 	err := row.Scan(
 		&i.ID,
 		&i.Slug,
+		&i.FeaturedImageUrl,
+		&i.Gallery,
 		&i.CompletedAt,
 		&i.ClientName,
 		&i.Country,
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.FeaturedImageUrl,
-		&i.Gallery,
 	)
 	return i, err
 }

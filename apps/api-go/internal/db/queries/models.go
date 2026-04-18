@@ -277,6 +277,18 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 	return string(ns.UserRole), nil
 }
 
+type ActivityLog struct {
+	ID         string           `json:"id"`
+	UserId     string           `json:"userId"`
+	UserEmail  string           `json:"userEmail"`
+	Method     string           `json:"method"`
+	Path       string           `json:"path"`
+	EntityType string           `json:"entityType"`
+	EntityId   *string          `json:"entityId"`
+	StatusCode int32            `json:"statusCode"`
+	CreatedAt  pgtype.Timestamp `json:"createdAt"`
+}
+
 type Address struct {
 	ID         string  `json:"id"`
 	UserId     string  `json:"userId"`
@@ -297,20 +309,30 @@ type Artist struct {
 	Slug             string           `json:"slug"`
 	City             *string          `json:"city"`
 	Country          *string          `json:"country"`
+	AvatarUrl        *string          `json:"avatarUrl"`
+	FeaturedImageUrl *string          `json:"featuredImageUrl"`
+	InstagramUrl     *string          `json:"instagramUrl"`
+	Genre            *string          `json:"genre"`
+	Nationality      *string          `json:"nationality"`
+	FacebookUrl      *string          `json:"facebookUrl"`
+	TwitterUrl       *string          `json:"twitterUrl"`
+	YoutubeUrl       *string          `json:"youtubeUrl"`
+	TiktokUrl        *string          `json:"tiktokUrl"`
+	WebsiteUrl       *string          `json:"websiteUrl"`
+	SpotifyUrl       *string          `json:"spotifyUrl"`
+	SoundcloudUrl    *string          `json:"soundcloudUrl"`
+	VideoUrl         *string          `json:"videoUrl"`
 	Status           ProductStatus    `json:"status"`
 	WpId             *int32           `json:"wpId"`
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
-	AvatarUrl        *string          `json:"avatarUrl"`
-	FeaturedImageUrl *string          `json:"featuredImageUrl"`
-	InstagramUrl     *string          `json:"instagramUrl"`
 }
 
 type ArtistArtwork struct {
 	ID       string `json:"id"`
 	ArtistId string `json:"artistId"`
-	Position int32  `json:"position"`
 	ImageUrl string `json:"imageUrl"`
+	Position int32  `json:"position"`
 }
 
 type ArtistTranslation struct {
@@ -338,6 +360,16 @@ type CategoryTranslation struct {
 	Description *string `json:"description"`
 }
 
+type FestivalArtist struct {
+	ID                string           `json:"id"`
+	FestivalEditionId string           `json:"festivalEditionId"`
+	ArtistId          string           `json:"artistId"`
+	PerformanceDate   pgtype.Timestamp `json:"performanceDate"`
+	StageOrder        int32            `json:"stageOrder"`
+	Role              string           `json:"role"`
+	CreatedAt         pgtype.Timestamp `json:"createdAt"`
+}
+
 type FestivalEdition struct {
 	ID            string           `json:"id"`
 	Slug          string           `json:"slug"`
@@ -351,6 +383,12 @@ type FestivalEdition struct {
 	HeroImage     *string          `json:"heroImage"`
 	Gallery       []byte           `json:"gallery"`
 	Typography    []byte           `json:"typography"`
+	StartDate     pgtype.Timestamp `json:"startDate"`
+	EndDate       pgtype.Timestamp `json:"endDate"`
+	Venue         *string          `json:"venue"`
+	VenueAddress  *string          `json:"venueAddress"`
+	TicketUrl     *string          `json:"ticketUrl"`
+	VideoUrl      *string          `json:"videoUrl"`
 	CreatedAt     pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
 }
@@ -443,10 +481,10 @@ type PressMention struct {
 	Source           string           `json:"source"`
 	SourceUrl        string           `json:"sourceUrl"`
 	LogoUrl          *string          `json:"logoUrl"`
+	FeaturedImageUrl *string          `json:"featuredImageUrl"`
 	Excerpt          *string          `json:"excerpt"`
 	Date             pgtype.Timestamp `json:"date"`
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
-	FeaturedImageUrl *string          `json:"featuredImageUrl"`
 }
 
 type Product struct {
@@ -458,10 +496,10 @@ type Product struct {
 	Stock            int32               `json:"stock"`
 	ManageStock      bool                `json:"manageStock"`
 	Status           ProductStatus       `json:"status"`
+	FeaturedImageUrl *string             `json:"featuredImageUrl"`
 	WcId             *int32              `json:"wcId"`
 	CreatedAt        pgtype.Timestamp    `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp    `json:"updatedAt"`
-	FeaturedImageUrl *string             `json:"featuredImageUrl"`
 }
 
 type ProductAttribute struct {
@@ -479,8 +517,8 @@ type ProductCategory struct {
 type ProductImage struct {
 	ID        string `json:"id"`
 	ProductId string `json:"productId"`
-	Position  int32  `json:"position"`
 	ImageUrl  string `json:"imageUrl"`
+	Position  int32  `json:"position"`
 }
 
 type ProductTag struct {
@@ -513,14 +551,14 @@ type ProductVariant struct {
 type Project struct {
 	ID               string           `json:"id"`
 	Slug             string           `json:"slug"`
+	FeaturedImageUrl *string          `json:"featuredImageUrl"`
+	Gallery          []byte           `json:"gallery"`
 	CompletedAt      pgtype.Timestamp `json:"completedAt"`
 	ClientName       *string          `json:"clientName"`
 	Country          *string          `json:"country"`
 	Status           ProductStatus    `json:"status"`
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
-	FeaturedImageUrl *string          `json:"featuredImageUrl"`
-	Gallery          []byte           `json:"gallery"`
 }
 
 type ProjectTranslation struct {
@@ -595,12 +633,12 @@ type User struct {
 	EmailVerified                bool             `json:"emailVerified"`
 	PreferredLocale              Locale           `json:"preferredLocale"`
 	WcId                         *int32           `json:"wcId"`
-	CreatedAt                    pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt                    pgtype.Timestamp `json:"updatedAt"`
 	ResetToken                   *string          `json:"resetToken"`
 	ResetTokenExpiry             pgtype.Timestamp `json:"resetTokenExpiry"`
 	EmailVerificationToken       *string          `json:"emailVerificationToken"`
 	EmailVerificationTokenExpiry pgtype.Timestamp `json:"emailVerificationTokenExpiry"`
+	CreatedAt                    pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt                    pgtype.Timestamp `json:"updatedAt"`
 }
 
 type UserSession struct {

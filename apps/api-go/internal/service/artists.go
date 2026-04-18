@@ -61,6 +61,16 @@ func (s *ArtistsService) List(ctx context.Context, page, limit int) (*types.Pagi
 			AvatarUrl:        row.AvatarUrl,
 			FeaturedImageUrl: row.FeaturedImageUrl,
 			InstagramUrl:     row.InstagramUrl,
+			Genre:            row.Genre,
+			Nationality:      row.Nationality,
+			FacebookUrl:      row.FacebookUrl,
+			TwitterUrl:       row.TwitterUrl,
+			YoutubeUrl:       row.YoutubeUrl,
+			TiktokUrl:        row.TiktokUrl,
+			WebsiteUrl:       row.WebsiteUrl,
+			SpotifyUrl:       row.SpotifyUrl,
+			SoundcloudUrl:    row.SoundcloudUrl,
+			VideoUrl:         row.VideoUrl,
 		}
 		artists = append(artists, s.assemble(ctx, &aObj))
 	}
@@ -104,13 +114,27 @@ func (s *ArtistsService) toAdminArtistResponse(ctx context.Context, a *db.Artist
 		gallery = append(gallery, aw.ImageUrl)
 	}
 	return model.AdminArtistResponse{
-		ID: a.ID, Slug: a.Slug, City: a.City, Country: a.Country,
+		ID:               a.ID,
+		Slug:             a.Slug,
+		City:             a.City,
+		Country:          a.Country,
 		AvatarURL:        a.AvatarUrl,
 		FeaturedImageURL: a.FeaturedImageUrl,
 		InstagramUrl:     a.InstagramUrl,
+		Genre:            a.Genre,
+		Nationality:      a.Nationality,
+		FacebookUrl:      a.FacebookUrl,
+		TwitterUrl:       a.TwitterUrl,
+		YoutubeUrl:       a.YoutubeUrl,
+		TiktokUrl:        a.TiktokUrl,
+		WebsiteUrl:       a.WebsiteUrl,
+		SpotifyUrl:       a.SpotifyUrl,
+		SoundcloudUrl:    a.SoundcloudUrl,
+		VideoUrl:         a.VideoUrl,
 		Gallery:          gallery,
 		IsPublished:      a.Status == db.ProductStatusPUBLISHED,
-		Translations:     trans, CreatedAt: a.CreatedAt.Time,
+		Translations:     trans,
+		CreatedAt:        a.CreatedAt.Time,
 	}
 }
 
@@ -163,6 +187,16 @@ func (s *ArtistsService) AdminCreate(ctx context.Context, input model.AdminArtis
 		AvatarUrl:        input.AvatarURL,
 		FeaturedImageUrl: input.FeaturedImageURL,
 		Status:           status,
+		Genre:            input.Genre,
+		Nationality:      input.Nationality,
+		FacebookUrl:      input.FacebookUrl,
+		TwitterUrl:       input.TwitterUrl,
+		YoutubeUrl:       input.YoutubeUrl,
+		TiktokUrl:        input.TiktokUrl,
+		WebsiteUrl:       input.WebsiteUrl,
+		SpotifyUrl:       input.SpotifyUrl,
+		SoundcloudUrl:    input.SoundcloudUrl,
+		VideoUrl:         input.VideoUrl,
 	})
 	if err != nil {
 		return nil, types.InternalError("Failed to create artist")
@@ -195,12 +229,11 @@ func (s *ArtistsService) AdminUpdate(ctx context.Context, id string, input model
 		status.ProductStatus = db.ProductStatusPUBLISHED
 	}
 
-	// Extraire le slug depuis la première traduction non-vide
 	var newSlug *string
 	for _, t := range input.Translations {
 		if t.Slug != "" {
-			s := t.Slug
-			newSlug = &s
+			sl := t.Slug
+			newSlug = &sl
 			break
 		}
 	}
@@ -213,6 +246,16 @@ func (s *ArtistsService) AdminUpdate(ctx context.Context, id string, input model
 		AvatarUrl:        input.AvatarURL,
 		FeaturedImageUrl: input.FeaturedImageURL,
 		InstagramUrl:     input.InstagramUrl,
+		Genre:            input.Genre,
+		Nationality:      input.Nationality,
+		FacebookUrl:      input.FacebookUrl,
+		TwitterUrl:       input.TwitterUrl,
+		YoutubeUrl:       input.YoutubeUrl,
+		TiktokUrl:        input.TiktokUrl,
+		WebsiteUrl:       input.WebsiteUrl,
+		SpotifyUrl:       input.SpotifyUrl,
+		SoundcloudUrl:    input.SoundcloudUrl,
+		VideoUrl:         input.VideoUrl,
 		Status:           status,
 	})
 	if err != nil {
@@ -265,10 +308,26 @@ func (s *ArtistsService) assemble(ctx context.Context, a *db.Artist) model.Artis
 		arts = append(arts, model.ArtistArtwork{ID: aw.ID, ImageURL: aw.ImageUrl, Position: aw.Position})
 	}
 	return model.ArtistResponse{
-		ID: a.ID, Slug: a.Slug, City: a.City, Country: a.Country,
-		FeaturedImageURL: a.FeaturedImageUrl, AvatarURL: a.AvatarUrl,
-		InstagramURL: a.InstagramUrl,
-		Status:       string(a.Status), Translations: trans, Artworks: arts,
-		CreatedAt: a.CreatedAt.Time,
+		ID:               a.ID,
+		Slug:             a.Slug,
+		City:             a.City,
+		Country:          a.Country,
+		FeaturedImageURL: a.FeaturedImageUrl,
+		AvatarURL:        a.AvatarUrl,
+		InstagramURL:     a.InstagramUrl,
+		Genre:            a.Genre,
+		Nationality:      a.Nationality,
+		FacebookUrl:      a.FacebookUrl,
+		TwitterUrl:       a.TwitterUrl,
+		YoutubeUrl:       a.YoutubeUrl,
+		TiktokUrl:        a.TiktokUrl,
+		WebsiteUrl:       a.WebsiteUrl,
+		SpotifyUrl:       a.SpotifyUrl,
+		SoundcloudUrl:    a.SoundcloudUrl,
+		VideoUrl:         a.VideoUrl,
+		Status:           string(a.Status),
+		Translations:     trans,
+		Artworks:         arts,
+		CreatedAt:        a.CreatedAt.Time,
 	}
 }

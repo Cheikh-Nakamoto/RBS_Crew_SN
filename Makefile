@@ -3,6 +3,13 @@
         db-sqlc db-docs \
         migrate-extract migrate-upload migrate-db-push migrate-import migrate-full
 
+# ── Node Env ─────────────────────────────────
+# Configure NVM to ensure npm and node are found by make
+NVM_PATH := $(shell bash -c '. ~/.nvm/nvm.sh && nvm use 20 > /dev/null 2>&1 && dirname $$(which node)' 2>/dev/null || echo "")
+ifneq ($(NVM_PATH),)
+export PATH := $(NVM_PATH):$(PATH)
+endif
+
 # ── Setup ────────────────────────────────────
 
 install: ## Install Node dependencies (web)

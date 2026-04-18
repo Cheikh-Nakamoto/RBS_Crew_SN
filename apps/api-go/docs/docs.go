@@ -34,7 +34,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.LoginRequest"
+                            "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.LoginRequest"
                         }
                     }
                 ],
@@ -42,7 +42,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.TokenPair"
+                            "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.TokenPair"
                         }
                     },
                     "401": {
@@ -99,7 +99,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.UserResponse"
+                            "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.UserResponse"
                         }
                     },
                     "401": {
@@ -130,7 +130,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.RefreshRequest"
+                            "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.RefreshRequest"
                         }
                     }
                 ],
@@ -138,7 +138,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.TokenPair"
+                            "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.TokenPair"
                         }
                     },
                     "401": {
@@ -169,7 +169,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.RegisterRequest"
+                            "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.RegisterRequest"
                         }
                     }
                 ],
@@ -177,7 +177,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.UserResponse"
+                            "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.AuthResponse"
                         }
                     },
                     "400": {
@@ -217,7 +217,21 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.LoginRequest": {
+        "github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.AuthResponse": {
+            "type": "object",
+            "properties": {
+                "accessToken": {
+                    "type": "string"
+                },
+                "refreshToken": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.UserResponse"
+                }
+            }
+        },
+        "github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -232,7 +246,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.RefreshRequest": {
+        "github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.RefreshRequest": {
             "type": "object",
             "required": [
                 "refreshToken"
@@ -243,7 +257,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.RegisterRequest": {
+        "github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.RegisterRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -267,7 +281,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.TokenPair": {
+        "github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.TokenPair": {
             "type": "object",
             "properties": {
                 "accessToken": {
@@ -278,7 +292,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_service.UserResponse": {
+        "github_com_Cheikh-Nakamoto_RBS_Crew_SN_apps_api-go_internal_model.UserResponse": {
             "type": "object",
             "properties": {
                 "createdAt": {

@@ -1,6 +1,5 @@
 import { authedApi } from '@/lib/api';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { ActivityLogTable } from '@/components/admin/activity-log-table';
 import { Activity } from 'lucide-react';
@@ -39,7 +38,7 @@ export default async function ActivityLogPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.accessToken) redirect('/login');
 
   const { page: pageParam } = await searchParams;

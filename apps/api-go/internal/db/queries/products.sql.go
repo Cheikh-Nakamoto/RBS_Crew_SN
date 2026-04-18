@@ -76,7 +76,7 @@ func (q *Queries) ClearProductImages(ctx context.Context, productid string) erro
 const createProduct = `-- name: CreateProduct :one
 INSERT INTO "Product" ("id", "slug", "sku", "price", "compareAtPrice", "stock", "status", "featuredImageUrl", "createdAt", "updatedAt")
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-RETURNING id, slug, sku, price, "compareAtPrice", stock, "manageStock", status, "wcId", "createdAt", "updatedAt", "featuredImageUrl"
+RETURNING id, slug, sku, price, "compareAtPrice", stock, "manageStock", status, "featuredImageUrl", "wcId", "createdAt", "updatedAt"
 `
 
 type CreateProductParams struct {
@@ -111,10 +111,10 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (P
 		&i.Stock,
 		&i.ManageStock,
 		&i.Status,
+		&i.FeaturedImageUrl,
 		&i.WcId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.FeaturedImageUrl,
 	)
 	return i, err
 }
@@ -193,7 +193,7 @@ func (q *Queries) DeleteProductTranslations(ctx context.Context, productid strin
 }
 
 const getProductByID = `-- name: GetProductByID :one
-SELECT id, slug, sku, price, "compareAtPrice", stock, "manageStock", status, "wcId", "createdAt", "updatedAt", "featuredImageUrl" FROM "Product" WHERE "id" = $1
+SELECT id, slug, sku, price, "compareAtPrice", stock, "manageStock", status, "featuredImageUrl", "wcId", "createdAt", "updatedAt" FROM "Product" WHERE "id" = $1
 `
 
 func (q *Queries) GetProductByID(ctx context.Context, id string) (Product, error) {
@@ -208,16 +208,16 @@ func (q *Queries) GetProductByID(ctx context.Context, id string) (Product, error
 		&i.Stock,
 		&i.ManageStock,
 		&i.Status,
+		&i.FeaturedImageUrl,
 		&i.WcId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.FeaturedImageUrl,
 	)
 	return i, err
 }
 
 const getProductBySlug = `-- name: GetProductBySlug :one
-SELECT p.id, p.slug, p.sku, p.price, p."compareAtPrice", p.stock, p."manageStock", p.status, p."wcId", p."createdAt", p."updatedAt", p."featuredImageUrl" FROM "Product" p
+SELECT p.id, p.slug, p.sku, p.price, p."compareAtPrice", p.stock, p."manageStock", p.status, p."featuredImageUrl", p."wcId", p."createdAt", p."updatedAt" FROM "Product" p
 JOIN "ProductTranslation" pt ON pt."productId" = p."id"
 WHERE pt."slug" = $1 AND pt."locale" = $2
 `
@@ -239,10 +239,10 @@ func (q *Queries) GetProductBySlug(ctx context.Context, arg GetProductBySlugPara
 		&i.Stock,
 		&i.ManageStock,
 		&i.Status,
+		&i.FeaturedImageUrl,
 		&i.WcId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.FeaturedImageUrl,
 	)
 	return i, err
 }
@@ -287,7 +287,7 @@ func (q *Queries) GetProductCategories(ctx context.Context, arg GetProductCatego
 }
 
 const getProductImages = `-- name: GetProductImages :many
-SELECT id, "productId", position, "imageUrl" FROM "ProductImage"
+SELECT id, "productId", "imageUrl", position FROM "ProductImage"
 WHERE "productId" = $1
 ORDER BY "position" ASC
 `
@@ -304,8 +304,8 @@ func (q *Queries) GetProductImages(ctx context.Context, productid string) ([]Pro
 		if err := rows.Scan(
 			&i.ID,
 			&i.ProductId,
-			&i.Position,
 			&i.ImageUrl,
+			&i.Position,
 		); err != nil {
 			return nil, err
 		}
@@ -424,7 +424,7 @@ func (q *Queries) GetProductVariants(ctx context.Context, productid string) ([]P
 }
 
 const listProducts = `-- name: ListProducts :many
-SELECT p.id, p.slug, p.sku, p.price, p."compareAtPrice", p.stock, p."manageStock", p.status, p."wcId", p."createdAt", p."updatedAt", p."featuredImageUrl", COUNT(*) OVER() AS total_count
+SELECT p.id, p.slug, p.sku, p.price, p."compareAtPrice", p.stock, p."manageStock", p.status, p."featuredImageUrl", p."wcId", p."createdAt", p."updatedAt", COUNT(*) OVER() AS total_count
 FROM "Product" p
 WHERE p."status" = COALESCE($1::"ProductStatus", 'PUBLISHED'::"ProductStatus")
   AND (COALESCE($2::numeric, 0) = 0 OR p."price" >= $2::numeric)
@@ -473,10 +473,10 @@ type ListProductsRow struct {
 	Stock            int32               `json:"stock"`
 	ManageStock      bool                `json:"manageStock"`
 	Status           ProductStatus       `json:"status"`
+	FeaturedImageUrl *string             `json:"featuredImageUrl"`
 	WcId             *int32              `json:"wcId"`
 	CreatedAt        pgtype.Timestamp    `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp    `json:"updatedAt"`
-	FeaturedImageUrl *string             `json:"featuredImageUrl"`
 	TotalCount       int64               `json:"total_count"`
 }
 
@@ -508,10 +508,10 @@ func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]L
 			&i.Stock,
 			&i.ManageStock,
 			&i.Status,
+			&i.FeaturedImageUrl,
 			&i.WcId,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.FeaturedImageUrl,
 			&i.TotalCount,
 		); err != nil {
 			return nil, err
@@ -534,7 +534,7 @@ SET "sku" = COALESCE($2, "sku"),
     "featuredImageUrl" = COALESCE($7, "featuredImageUrl"),
     "updatedAt" = NOW()
 WHERE "id" = $1
-RETURNING id, slug, sku, price, "compareAtPrice", stock, "manageStock", status, "wcId", "createdAt", "updatedAt", "featuredImageUrl"
+RETURNING id, slug, sku, price, "compareAtPrice", stock, "manageStock", status, "featuredImageUrl", "wcId", "createdAt", "updatedAt"
 `
 
 type UpdateProductParams struct {
@@ -567,10 +567,10 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (P
 		&i.Stock,
 		&i.ManageStock,
 		&i.Status,
+		&i.FeaturedImageUrl,
 		&i.WcId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.FeaturedImageUrl,
 	)
 	return i, err
 }

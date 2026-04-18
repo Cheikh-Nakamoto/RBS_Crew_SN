@@ -26,7 +26,7 @@ export function VariantBuilder({ control }: VariantBuilderProps) {
     <div className="space-y-3">
       {variants.length === 0 && (
         <p className="text-sm text-white/30 text-center py-4 rounded-lg border border-dashed border-white/10">
-          Aucune variante. Cliquez sur "Ajouter" pour en créer.
+          Aucune variante. Cliquez sur &quot;Ajouter&quot; pour en créer.
         </p>
       )}
 

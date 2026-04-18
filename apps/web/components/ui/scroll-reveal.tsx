@@ -61,10 +61,6 @@ interface StaggerRevealProps {
   readonly once?: boolean;
 }
 
-const containerVariants: Variants = {
-  hidden: { },
-  visible: { transition: { staggerChildren: 0.08 } },
-};
 
 export const staggerChildVariants: Variants = {
   hidden:  { opacity: 0, y: 32, filter: 'blur(4px)' },
@@ -103,7 +99,7 @@ export function StaggerReveal({
   );
 }
 
-export function StaggerItem({ children, className, ...props }: { children: ReactNode; className?: string; [key: string]: any }) {
+export function StaggerItem({ children, className, ...props }: { children: ReactNode; className?: string; [key: string]: unknown }) {
   return (
     <motion.div className={className} variants={staggerChildVariants} {...props}>
       {children}

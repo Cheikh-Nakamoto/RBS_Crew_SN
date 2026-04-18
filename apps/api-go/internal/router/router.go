@@ -236,6 +236,9 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 		r.Post("/admin/festival", h.AdminFestival.Create)
 		r.Put("/admin/festival/{id}", h.AdminFestival.Update)
 		r.Delete("/admin/festival/{id}", h.AdminFestival.Delete)
+		// Festival lineup (artistes)
+		r.Post("/admin/festival/{id}/artists", h.AdminFestival.LinkArtist)
+		r.Delete("/admin/festival/{id}/artists/{artistId}", h.AdminFestival.UnlinkArtist)
 
 		// Press admin
 		r.Get("/admin/press", h.AdminPress.List)

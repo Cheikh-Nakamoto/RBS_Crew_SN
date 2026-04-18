@@ -22,6 +22,16 @@ type ArtistResponse struct {
 	FeaturedImageURL *string             `json:"featuredImageUrl"`
 	AvatarURL        *string             `json:"avatarUrl"`
 	InstagramURL     *string             `json:"instagramUrl"`
+	Genre            *string             `json:"genre"`
+	Nationality      *string             `json:"nationality"`
+	FacebookUrl      *string             `json:"facebookUrl"`
+	TwitterUrl       *string             `json:"twitterUrl"`
+	YoutubeUrl       *string             `json:"youtubeUrl"`
+	TiktokUrl        *string             `json:"tiktokUrl"`
+	WebsiteUrl       *string             `json:"websiteUrl"`
+	SpotifyUrl       *string             `json:"spotifyUrl"`
+	SoundcloudUrl    *string             `json:"soundcloudUrl"`
+	VideoUrl         *string             `json:"videoUrl"`
 	Status           string              `json:"status"`
 	Translations     []ArtistTranslation `json:"translations"`
 	Artworks         []ArtistArtwork     `json:"artworks"`
@@ -43,6 +53,16 @@ type AdminArtistResponse struct {
 	AvatarURL        *string                  `json:"avatarUrl"`
 	FeaturedImageURL *string                  `json:"featuredImageUrl"`
 	InstagramUrl     *string                  `json:"instagramUrl"`
+	Genre            *string                  `json:"genre"`
+	Nationality      *string                  `json:"nationality"`
+	FacebookUrl      *string                  `json:"facebookUrl"`
+	TwitterUrl       *string                  `json:"twitterUrl"`
+	YoutubeUrl       *string                  `json:"youtubeUrl"`
+	TiktokUrl        *string                  `json:"tiktokUrl"`
+	WebsiteUrl       *string                  `json:"websiteUrl"`
+	SpotifyUrl       *string                  `json:"spotifyUrl"`
+	SoundcloudUrl    *string                  `json:"soundcloudUrl"`
+	VideoUrl         *string                  `json:"videoUrl"`
 	Gallery          []string                 `json:"gallery"`
 	IsPublished      bool                     `json:"isPublished"`
 	Translations     []AdminArtistTranslation `json:"translations"`
@@ -55,6 +75,16 @@ type AdminArtistInput struct {
 	AvatarURL        *string  `json:"avatarUrl"`
 	FeaturedImageURL *string  `json:"featuredImageUrl"`
 	InstagramUrl     *string  `json:"instagramUrl"`
+	Genre            *string  `json:"genre"`
+	Nationality      *string  `json:"nationality"`
+	FacebookUrl      *string  `json:"facebookUrl"`
+	TwitterUrl       *string  `json:"twitterUrl"`
+	YoutubeUrl       *string  `json:"youtubeUrl"`
+	TiktokUrl        *string  `json:"tiktokUrl"`
+	WebsiteUrl       *string  `json:"websiteUrl"`
+	SpotifyUrl       *string  `json:"spotifyUrl"`
+	SoundcloudUrl    *string  `json:"soundcloudUrl"`
+	VideoUrl         *string  `json:"videoUrl"`
 	Gallery          []string `json:"gallery"`
 	IsPublished      bool     `json:"isPublished"`
 	Translations     []struct {

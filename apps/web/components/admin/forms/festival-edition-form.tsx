@@ -2,12 +2,12 @@
 
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 import type { Resolver, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { useTransition } from 'react';
-import { ArrowLeft, Globe, Save, CalendarDays, MapPin, Hash, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Globe, Save, CalendarDays, MapPin, Hash, Image as ImageIcon, Ticket, Video, Building2 } from 'lucide-react';
 import Link from 'next/link';
 
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
@@ -85,6 +85,12 @@ export function FestivalEditionForm({
       heroImage: initialData?.heroImage ?? '',
       gallery: initialData?.gallery ?? [],
       isPublished: initialData?.isPublished ?? false,
+      startDate: (initialData as Record<string, unknown>)?.startDate as string ?? '',
+      endDate: (initialData as Record<string, unknown>)?.endDate as string ?? '',
+      venue: (initialData as Record<string, unknown>)?.venue as string ?? '',
+      venueAddress: (initialData as Record<string, unknown>)?.venueAddress as string ?? '',
+      ticketUrl: (initialData as Record<string, unknown>)?.ticketUrl as string ?? '',
+      videoUrl: (initialData as Record<string, unknown>)?.videoUrl as string ?? '',
       translations: initialData?.translations?.length
         ? LOCALES.map(({ code }) => {
             const existing = initialData.translations!.find((t) => t.locale === code);
@@ -296,6 +302,147 @@ export function FestivalEditionForm({
                         {...field}
                         value={field.value ?? 'SN'}
                         placeholder="SN"
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-400 text-xs" />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Section Dates */}
+            <div className="rounded-xl border border-white/10 bg-white/3 p-5 space-y-4">
+              <p className="text-sm font-semibold text-white flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-[var(--rbs-red)]" />
+                Dates du festival
+              </p>
+              <FormField
+                control={control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-white/60">Date de début</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="date"
+                        value={field.value ?? ''}
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-400 text-xs" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-white/60">Date de fin</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="date"
+                        value={field.value ?? ''}
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-400 text-xs" />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Section Lieu */}
+            <div className="rounded-xl border border-white/10 bg-white/3 p-5 space-y-4">
+              <p className="text-sm font-semibold text-white flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-[var(--rbs-red)]" />
+                Lieu
+              </p>
+              <FormField
+                control={control}
+                name="venue"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-white/60">Nom du lieu</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        placeholder="Galerie Nationale, Terrou-Bi..."
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-400 text-xs" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={control}
+                name="venueAddress"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-white/60 flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5" />
+                      Adresse
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        placeholder="Dakar, Sénégal"
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-400 text-xs" />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Section Liens */}
+            <div className="rounded-xl border border-white/10 bg-white/3 p-5 space-y-4">
+              <p className="text-sm font-semibold text-white flex items-center gap-2">
+                <Ticket className="h-4 w-4 text-[var(--rbs-red)]" />
+                Liens
+              </p>
+              <FormField
+                control={control}
+                name="ticketUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-white/60 flex items-center gap-1.5">
+                      <Ticket className="h-3.5 w-3.5" />
+                      Billetterie
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        placeholder="https://..."
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-400 text-xs" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={control}
+                name="videoUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-white/60 flex items-center gap-1.5">
+                      <Video className="h-3.5 w-3.5" />
+                      Vidéo (YouTube / Vimeo)
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        placeholder="https://youtube.com/..."
                         className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[var(--rbs-red)]/50"
                       />
                     </FormControl>

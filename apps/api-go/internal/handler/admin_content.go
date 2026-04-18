@@ -518,6 +518,29 @@ func (h *AdminFestivalHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *AdminFestivalHandler) LinkArtist(w http.ResponseWriter, r *http.Request) {
+	var input model.AdminFestivalArtistInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		types.WriteError(w, types.BadRequest("Invalid request body"))
+		return
+	}
+	if appErr := h.svc.AdminLinkArtist(r.Context(), chi.URLParam(r, "id"), input); appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *AdminFestivalHandler) UnlinkArtist(w http.ResponseWriter, r *http.Request) {
+	festivalID := chi.URLParam(r, "id")
+	artistID := chi.URLParam(r, "artistId")
+	if appErr := h.svc.AdminUnlinkArtist(r.Context(), festivalID, artistID); appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // ── Press ─────────────────────────────────────────────────────────────────────
 
 type AdminPressHandler struct{ svc *service.PressService }

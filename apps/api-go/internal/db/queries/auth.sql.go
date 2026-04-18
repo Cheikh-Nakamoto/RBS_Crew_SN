@@ -61,7 +61,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (U
 const createUser = `-- name: CreateUser :one
 INSERT INTO "User" ("id", "email", "passwordHash", "firstName", "lastName", "phone", "role", "preferredLocale", "createdAt", "updatedAt", "emailVerified")
 VALUES ($1, $2, $3, $4, $5, $6, 'CUSTOMER'::"UserRole", 'fr'::"Locale", NOW(), NOW(), false)
-RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "createdAt", "updatedAt", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry"
+RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt"
 `
 
 type CreateUserParams struct {
@@ -94,12 +94,12 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.EmailVerified,
 		&i.PreferredLocale,
 		&i.WcId,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 		&i.ResetToken,
 		&i.ResetTokenExpiry,
 		&i.EmailVerificationToken,
 		&i.EmailVerificationTokenExpiry,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -145,7 +145,7 @@ func (q *Queries) GetActiveSessionsByUser(ctx context.Context, userid string) ([
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "createdAt", "updatedAt", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry" FROM "User" WHERE "email" = $1
+SELECT id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt" FROM "User" WHERE "email" = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -162,12 +162,12 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.EmailVerified,
 		&i.PreferredLocale,
 		&i.WcId,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 		&i.ResetToken,
 		&i.ResetTokenExpiry,
 		&i.EmailVerificationToken,
 		&i.EmailVerificationTokenExpiry,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

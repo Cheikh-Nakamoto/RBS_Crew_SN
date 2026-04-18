@@ -11,24 +11,83 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addFestivalArtist = `-- name: AddFestivalArtist :one
+INSERT INTO "FestivalArtist" ("id", "festivalEditionId", "artistId", "performanceDate", "stageOrder", "role")
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT ("festivalEditionId", "artistId") DO UPDATE
+  SET "role" = EXCLUDED."role", "stageOrder" = EXCLUDED."stageOrder", "performanceDate" = EXCLUDED."performanceDate"
+RETURNING id, "festivalEditionId", "artistId", "performanceDate", "stageOrder", role, "createdAt"
+`
+
+type AddFestivalArtistParams struct {
+	ID                string           `json:"id"`
+	FestivalEditionId string           `json:"festivalEditionId"`
+	ArtistId          string           `json:"artistId"`
+	PerformanceDate   pgtype.Timestamp `json:"performanceDate"`
+	StageOrder        int32            `json:"stageOrder"`
+	Role              string           `json:"role"`
+}
+
+func (q *Queries) AddFestivalArtist(ctx context.Context, arg AddFestivalArtistParams) (FestivalArtist, error) {
+	row := q.db.QueryRow(ctx, addFestivalArtist,
+		arg.ID,
+		arg.FestivalEditionId,
+		arg.ArtistId,
+		arg.PerformanceDate,
+		arg.StageOrder,
+		arg.Role,
+	)
+	var i FestivalArtist
+	err := row.Scan(
+		&i.ID,
+		&i.FestivalEditionId,
+		&i.ArtistId,
+		&i.PerformanceDate,
+		&i.StageOrder,
+		&i.Role,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const clearFestivalArtists = `-- name: ClearFestivalArtists :exec
+DELETE FROM "FestivalArtist" WHERE "festivalEditionId" = $1
+`
+
+func (q *Queries) ClearFestivalArtists(ctx context.Context, festivaleditionid string) error {
+	_, err := q.db.Exec(ctx, clearFestivalArtists, festivaleditionid)
+	return err
+}
+
 const createFestivalEdition = `-- name: CreateFestivalEdition :one
-INSERT INTO "FestivalEdition" ("id", "slug", "editionNumber", "year", "city", "country", "status", "mainImage", "heroImage", "gallery", "typography", "createdAt", "updatedAt")
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
-RETURNING id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "createdAt", "updatedAt"
+INSERT INTO "FestivalEdition" (
+    "id", "slug", "editionNumber", "year", "city", "country", "status",
+    "mainImage", "heroImage", "gallery", "typography",
+    "startDate", "endDate", "venue", "venueAddress", "ticketUrl", "videoUrl",
+    "createdAt", "updatedAt"
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW())
+RETURNING id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "startDate", "endDate", venue, "venueAddress", "ticketUrl", "videoUrl", "createdAt", "updatedAt"
 `
 
 type CreateFestivalEditionParams struct {
-	ID            string        `json:"id"`
-	Slug          string        `json:"slug"`
-	EditionNumber int32         `json:"editionNumber"`
-	Year          int32         `json:"year"`
-	City          *string       `json:"city"`
-	Country       string        `json:"country"`
-	Status        ProductStatus `json:"status"`
-	MainImage     *string       `json:"mainImage"`
-	HeroImage     *string       `json:"heroImage"`
-	Gallery       []byte        `json:"gallery"`
-	Typography    []byte        `json:"typography"`
+	ID            string           `json:"id"`
+	Slug          string           `json:"slug"`
+	EditionNumber int32            `json:"editionNumber"`
+	Year          int32            `json:"year"`
+	City          *string          `json:"city"`
+	Country       string           `json:"country"`
+	Status        ProductStatus    `json:"status"`
+	MainImage     *string          `json:"mainImage"`
+	HeroImage     *string          `json:"heroImage"`
+	Gallery       []byte           `json:"gallery"`
+	Typography    []byte           `json:"typography"`
+	StartDate     pgtype.Timestamp `json:"startDate"`
+	EndDate       pgtype.Timestamp `json:"endDate"`
+	Venue         *string          `json:"venue"`
+	VenueAddress  *string          `json:"venueAddress"`
+	TicketUrl     *string          `json:"ticketUrl"`
+	VideoUrl      *string          `json:"videoUrl"`
 }
 
 func (q *Queries) CreateFestivalEdition(ctx context.Context, arg CreateFestivalEditionParams) (FestivalEdition, error) {
@@ -44,6 +103,12 @@ func (q *Queries) CreateFestivalEdition(ctx context.Context, arg CreateFestivalE
 		arg.HeroImage,
 		arg.Gallery,
 		arg.Typography,
+		arg.StartDate,
+		arg.EndDate,
+		arg.Venue,
+		arg.VenueAddress,
+		arg.TicketUrl,
+		arg.VideoUrl,
 	)
 	var i FestivalEdition
 	err := row.Scan(
@@ -59,6 +124,12 @@ func (q *Queries) CreateFestivalEdition(ctx context.Context, arg CreateFestivalE
 		&i.HeroImage,
 		&i.Gallery,
 		&i.Typography,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Venue,
+		&i.VenueAddress,
+		&i.TicketUrl,
+		&i.VideoUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -75,7 +146,7 @@ func (q *Queries) DeleteFestivalEdition(ctx context.Context, id string) error {
 }
 
 const getFestivalByID = `-- name: GetFestivalByID :one
-SELECT id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "createdAt", "updatedAt" FROM "FestivalEdition" WHERE "id" = $1
+SELECT id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "startDate", "endDate", venue, "venueAddress", "ticketUrl", "videoUrl", "createdAt", "updatedAt" FROM "FestivalEdition" WHERE "id" = $1
 `
 
 func (q *Queries) GetFestivalByID(ctx context.Context, id string) (FestivalEdition, error) {
@@ -94,6 +165,12 @@ func (q *Queries) GetFestivalByID(ctx context.Context, id string) (FestivalEditi
 		&i.HeroImage,
 		&i.Gallery,
 		&i.Typography,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Venue,
+		&i.VenueAddress,
+		&i.TicketUrl,
+		&i.VideoUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -101,7 +178,7 @@ func (q *Queries) GetFestivalByID(ctx context.Context, id string) (FestivalEditi
 }
 
 const getFestivalBySlug = `-- name: GetFestivalBySlug :one
-SELECT id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "createdAt", "updatedAt" FROM "FestivalEdition" WHERE "slug" = $1
+SELECT id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "startDate", "endDate", venue, "venueAddress", "ticketUrl", "videoUrl", "createdAt", "updatedAt" FROM "FestivalEdition" WHERE "slug" = $1
 `
 
 func (q *Queries) GetFestivalBySlug(ctx context.Context, slug string) (FestivalEdition, error) {
@@ -120,6 +197,12 @@ func (q *Queries) GetFestivalBySlug(ctx context.Context, slug string) (FestivalE
 		&i.HeroImage,
 		&i.Gallery,
 		&i.Typography,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Venue,
+		&i.VenueAddress,
+		&i.TicketUrl,
+		&i.VideoUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -157,8 +240,67 @@ func (q *Queries) GetFestivalTranslations(ctx context.Context, festivaleditionid
 	return items, nil
 }
 
+const listFestivalArtists = `-- name: ListFestivalArtists :many
+SELECT
+    fa."id", fa."festivalEditionId", fa."artistId",
+    fa."performanceDate", fa."stageOrder", fa."role",
+    a."slug" AS "artistSlug",
+    a."avatarUrl" AS "artistAvatarUrl",
+    a."featuredImageUrl" AS "artistFeaturedImageUrl",
+    at2."name" AS "artistName"
+FROM "FestivalArtist" fa
+JOIN "Artist" a ON a."id" = fa."artistId"
+LEFT JOIN "ArtistTranslation" at2 ON at2."artistId" = fa."artistId" AND at2."locale" = 'fr'
+WHERE fa."festivalEditionId" = $1
+ORDER BY fa."stageOrder" ASC, fa."createdAt" ASC
+`
+
+type ListFestivalArtistsRow struct {
+	ID                     string           `json:"id"`
+	FestivalEditionId      string           `json:"festivalEditionId"`
+	ArtistId               string           `json:"artistId"`
+	PerformanceDate        pgtype.Timestamp `json:"performanceDate"`
+	StageOrder             int32            `json:"stageOrder"`
+	Role                   string           `json:"role"`
+	ArtistSlug             string           `json:"artistSlug"`
+	ArtistAvatarUrl        *string          `json:"artistAvatarUrl"`
+	ArtistFeaturedImageUrl *string          `json:"artistFeaturedImageUrl"`
+	ArtistName             *string          `json:"artistName"`
+}
+
+func (q *Queries) ListFestivalArtists(ctx context.Context, festivaleditionid string) ([]ListFestivalArtistsRow, error) {
+	rows, err := q.db.Query(ctx, listFestivalArtists, festivaleditionid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFestivalArtistsRow{}
+	for rows.Next() {
+		var i ListFestivalArtistsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FestivalEditionId,
+			&i.ArtistId,
+			&i.PerformanceDate,
+			&i.StageOrder,
+			&i.Role,
+			&i.ArtistSlug,
+			&i.ArtistAvatarUrl,
+			&i.ArtistFeaturedImageUrl,
+			&i.ArtistName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listFestivalEditions = `-- name: ListFestivalEditions :many
-SELECT f.id, f.slug, f."editionNumber", f.year, f.city, f.country, f.status, f."wpId", f."mainImage", f."heroImage", f.gallery, f.typography, f."createdAt", f."updatedAt", COUNT(*) OVER() AS total_count
+SELECT f.id, f.slug, f."editionNumber", f.year, f.city, f.country, f.status, f."wpId", f."mainImage", f."heroImage", f.gallery, f.typography, f."startDate", f."endDate", f.venue, f."venueAddress", f."ticketUrl", f."videoUrl", f."createdAt", f."updatedAt", COUNT(*) OVER() AS total_count
 FROM "FestivalEdition" f
 WHERE f."status" = 'PUBLISHED'::"ProductStatus"
 ORDER BY f."year" DESC, f."editionNumber" DESC
@@ -183,6 +325,12 @@ type ListFestivalEditionsRow struct {
 	HeroImage     *string          `json:"heroImage"`
 	Gallery       []byte           `json:"gallery"`
 	Typography    []byte           `json:"typography"`
+	StartDate     pgtype.Timestamp `json:"startDate"`
+	EndDate       pgtype.Timestamp `json:"endDate"`
+	Venue         *string          `json:"venue"`
+	VenueAddress  *string          `json:"venueAddress"`
+	TicketUrl     *string          `json:"ticketUrl"`
+	VideoUrl      *string          `json:"videoUrl"`
 	CreatedAt     pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
 	TotalCount    int64            `json:"total_count"`
@@ -210,6 +358,12 @@ func (q *Queries) ListFestivalEditions(ctx context.Context, arg ListFestivalEdit
 			&i.HeroImage,
 			&i.Gallery,
 			&i.Typography,
+			&i.StartDate,
+			&i.EndDate,
+			&i.Venue,
+			&i.VenueAddress,
+			&i.TicketUrl,
+			&i.VideoUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.TotalCount,
@@ -224,6 +378,20 @@ func (q *Queries) ListFestivalEditions(ctx context.Context, arg ListFestivalEdit
 	return items, nil
 }
 
+const removeFestivalArtist = `-- name: RemoveFestivalArtist :exec
+DELETE FROM "FestivalArtist" WHERE "festivalEditionId" = $1 AND "artistId" = $2
+`
+
+type RemoveFestivalArtistParams struct {
+	FestivalEditionId string `json:"festivalEditionId"`
+	ArtistId          string `json:"artistId"`
+}
+
+func (q *Queries) RemoveFestivalArtist(ctx context.Context, arg RemoveFestivalArtistParams) error {
+	_, err := q.db.Exec(ctx, removeFestivalArtist, arg.FestivalEditionId, arg.ArtistId)
+	return err
+}
+
 const updateFestivalEdition = `-- name: UpdateFestivalEdition :one
 UPDATE "FestivalEdition"
 SET "editionNumber" = COALESCE($2, "editionNumber"),
@@ -235,9 +403,15 @@ SET "editionNumber" = COALESCE($2, "editionNumber"),
     "heroImage"     = COALESCE($8, "heroImage"),
     "gallery"       = COALESCE($9, "gallery"),
     "typography"    = COALESCE($10, "typography"),
+    "startDate"     = COALESCE($11, "startDate"),
+    "endDate"       = COALESCE($12, "endDate"),
+    "venue"         = COALESCE($13, "venue"),
+    "venueAddress"  = COALESCE($14, "venueAddress"),
+    "ticketUrl"     = COALESCE($15, "ticketUrl"),
+    "videoUrl"      = COALESCE($16, "videoUrl"),
     "updatedAt"     = NOW()
 WHERE "id" = $1
-RETURNING id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "createdAt", "updatedAt"
+RETURNING id, slug, "editionNumber", year, city, country, status, "wpId", "mainImage", "heroImage", gallery, typography, "startDate", "endDate", venue, "venueAddress", "ticketUrl", "videoUrl", "createdAt", "updatedAt"
 `
 
 type UpdateFestivalEditionParams struct {
@@ -251,6 +425,12 @@ type UpdateFestivalEditionParams struct {
 	HeroImage     *string           `json:"heroImage"`
 	Gallery       []byte            `json:"gallery"`
 	Typography    []byte            `json:"typography"`
+	StartDate     pgtype.Timestamp  `json:"startDate"`
+	EndDate       pgtype.Timestamp  `json:"endDate"`
+	Venue         *string           `json:"venue"`
+	VenueAddress  *string           `json:"venueAddress"`
+	TicketUrl     *string           `json:"ticketUrl"`
+	VideoUrl      *string           `json:"videoUrl"`
 }
 
 func (q *Queries) UpdateFestivalEdition(ctx context.Context, arg UpdateFestivalEditionParams) (FestivalEdition, error) {
@@ -265,6 +445,12 @@ func (q *Queries) UpdateFestivalEdition(ctx context.Context, arg UpdateFestivalE
 		arg.HeroImage,
 		arg.Gallery,
 		arg.Typography,
+		arg.StartDate,
+		arg.EndDate,
+		arg.Venue,
+		arg.VenueAddress,
+		arg.TicketUrl,
+		arg.VideoUrl,
 	)
 	var i FestivalEdition
 	err := row.Scan(
@@ -280,6 +466,12 @@ func (q *Queries) UpdateFestivalEdition(ctx context.Context, arg UpdateFestivalE
 		&i.HeroImage,
 		&i.Gallery,
 		&i.Typography,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Venue,
+		&i.VenueAddress,
+		&i.TicketUrl,
+		&i.VideoUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

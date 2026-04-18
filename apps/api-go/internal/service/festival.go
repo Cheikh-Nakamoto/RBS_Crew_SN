@@ -12,6 +12,7 @@ import (
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type FestivalService struct {
@@ -48,8 +49,15 @@ func (s *FestivalService) List(ctx context.Context, page, limit int) (*types.Pag
 			Typography:    row.Typography,
 			CreatedAt:     row.CreatedAt,
 			UpdatedAt:     row.UpdatedAt,
+			StartDate:     row.StartDate,
+			EndDate:       row.EndDate,
+			Venue:         row.Venue,
+			VenueAddress:  row.VenueAddress,
+			TicketUrl:     row.TicketUrl,
+			VideoUrl:      row.VideoUrl,
 		}
-		results = append(results, toFestivalResponse(&feObj, translations))
+		artists, _ := s.repo.ListArtists(ctx, row.ID)
+		results = append(results, toFestivalResponse(&feObj, translations, artists))
 	}
 	return types.Paginate(results, total, page, limit), nil
 }
@@ -63,7 +71,8 @@ func (s *FestivalService) GetBySlug(ctx context.Context, slug string) (*model.Fe
 		return nil, types.InternalError("Database error")
 	}
 	translations, _ := s.repo.GetTranslations(ctx, f.ID)
-	res := toFestivalResponse(f, translations)
+	artists, _ := s.repo.ListArtists(ctx, f.ID)
+	res := toFestivalResponse(f, translations, artists)
 	return &res, nil
 }
 
@@ -82,20 +91,42 @@ func (s *FestivalService) toAdminResponse(ctx context.Context, f *db.FestivalEdi
 	if len(f.Gallery) > 0 {
 		_ = json.Unmarshal(f.Gallery, &gallery)
 	}
-	return model.AdminFestivalResponse{
-		ID:            f.ID,
-		Slug:          f.Slug,
-		EditionNumber: f.EditionNumber,
-		Year:          f.Year,
-		City:          f.City,
-		Country:       f.Country,
-		IsPublished:   f.Status == db.ProductStatusPUBLISHED,
+	if gallery == nil {
+		gallery = make([]string, 0)
+	}
+
+	// Load artists lineup
+	festivalArtists, _ := s.repo.ListArtists(ctx, f.ID)
+	artists := toArtistSummaries(festivalArtists)
+
+	resp := model.AdminFestivalResponse{
+		ID:               f.ID,
+		Slug:             f.Slug,
+		EditionNumber:    f.EditionNumber,
+		Year:             f.Year,
+		City:             f.City,
+		Country:          f.Country,
+		IsPublished:      f.Status == db.ProductStatusPUBLISHED,
 		FeaturedImageUrl: f.MainImage,
 		HeroImage:        f.HeroImage,
 		Gallery:          gallery,
+		Venue:            f.Venue,
+		VenueAddress:     f.VenueAddress,
+		TicketUrl:        f.TicketUrl,
+		VideoUrl:         f.VideoUrl,
+		Artists:          artists,
 		Translations:     trans,
 		CreatedAt:        f.CreatedAt.Time,
 	}
+	if f.StartDate.Valid {
+		t := f.StartDate.Time
+		resp.StartDate = &t
+	}
+	if f.EndDate.Valid {
+		t := f.EndDate.Time
+		resp.EndDate = &t
+	}
+	return resp
 }
 
 func (s *FestivalService) AdminList(ctx context.Context, page, limit int) (*types.PaginatedResponse[model.AdminFestivalResponse], *types.AppError) {
@@ -148,23 +179,44 @@ func (s *FestivalService) AdminCreate(ctx context.Context, input model.AdminFest
 		country = *input.Country
 	}
 	galleryJSON, _ := json.Marshal(input.Gallery)
-	f, err := s.repo.Create(ctx, db.CreateFestivalEditionParams{
-		ID: uuid.New().String(), Slug: slug,
+
+	params := db.CreateFestivalEditionParams{
+		ID:            uuid.New().String(),
+		Slug:          slug,
 		EditionNumber: input.EditionNumber,
-		Year: year, Country: country, Status: status,
-		City: input.City, MainImage: input.MainImage,
-		HeroImage: input.HeroImage,
-		Gallery: galleryJSON, Typography: []byte("[]"),
-	})
+		Year:          year,
+		Country:       country,
+		Status:        status,
+		City:          input.City,
+		MainImage:     input.MainImage,
+		HeroImage:     input.HeroImage,
+		Gallery:       galleryJSON,
+		Typography:    []byte("[]"),
+		Venue:         input.Venue,
+		VenueAddress:  input.VenueAddress,
+		TicketUrl:     input.TicketUrl,
+		VideoUrl:      input.VideoUrl,
+	}
+	if input.StartDate != nil {
+		params.StartDate = pgtype.Timestamp{Time: *input.StartDate, Valid: true}
+	}
+	if input.EndDate != nil {
+		params.EndDate = pgtype.Timestamp{Time: *input.EndDate, Valid: true}
+	}
+
+	f, err := s.repo.Create(ctx, params)
 	if err != nil {
 		return nil, types.InternalError("Failed to create festival edition")
 	}
 	for _, t := range input.Translations {
 		themeName := t.Title
 		_ = s.repo.UpsertTranslation(ctx, db.UpsertFestivalTranslationParams{
-			ID: uuid.New().String(), FestivalEditionId: f.ID,
-			Locale: db.Locale(t.Locale), ThemeName: themeName,
-			Summary: t.Description, Content: t.Content,
+			ID:                uuid.New().String(),
+			FestivalEditionId: f.ID,
+			Locale:            db.Locale(t.Locale),
+			ThemeName:         themeName,
+			Summary:           t.Description,
+			Content:           t.Content,
 		})
 	}
 	res := s.toAdminResponse(ctx, f)
@@ -179,7 +231,8 @@ func (s *FestivalService) AdminUpdate(ctx context.Context, id string, input mode
 	galleryJSON, _ := json.Marshal(input.Gallery)
 	editionNum := &input.EditionNumber
 	inputYear := &input.Year
-	f, err := s.repo.Update(ctx, db.UpdateFestivalEditionParams{
+
+	params := db.UpdateFestivalEditionParams{
 		ID:            id,
 		EditionNumber: editionNum,
 		Year:          inputYear,
@@ -189,7 +242,19 @@ func (s *FestivalService) AdminUpdate(ctx context.Context, id string, input mode
 		MainImage:     input.MainImage,
 		HeroImage:     input.HeroImage,
 		Gallery:       galleryJSON,
-	})
+		Venue:         input.Venue,
+		VenueAddress:  input.VenueAddress,
+		TicketUrl:     input.TicketUrl,
+		VideoUrl:      input.VideoUrl,
+	}
+	if input.StartDate != nil {
+		params.StartDate = pgtype.Timestamp{Time: *input.StartDate, Valid: true}
+	}
+	if input.EndDate != nil {
+		params.EndDate = pgtype.Timestamp{Time: *input.EndDate, Valid: true}
+	}
+
+	f, err := s.repo.Update(ctx, params)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, types.NotFound("Festival edition not found")
@@ -199,9 +264,12 @@ func (s *FestivalService) AdminUpdate(ctx context.Context, id string, input mode
 	for _, t := range input.Translations {
 		themeName := t.Title
 		_ = s.repo.UpsertTranslation(ctx, db.UpsertFestivalTranslationParams{
-			ID: uuid.New().String(), FestivalEditionId: f.ID,
-			Locale: db.Locale(t.Locale), ThemeName: themeName,
-			Summary: t.Description, Content: t.Content,
+			ID:                uuid.New().String(),
+			FestivalEditionId: f.ID,
+			Locale:            db.Locale(t.Locale),
+			ThemeName:         themeName,
+			Summary:           t.Description,
+			Content:           t.Content,
 		})
 	}
 	res := s.toAdminResponse(ctx, f)
@@ -215,7 +283,60 @@ func (s *FestivalService) AdminDelete(ctx context.Context, id string) *types.App
 	return nil
 }
 
-func toFestivalResponse(f *db.FestivalEdition, translations []db.FestivalTranslation) model.FestivalResponse {
+// AdminLinkArtist links an artist to a festival edition
+func (s *FestivalService) AdminLinkArtist(ctx context.Context, festivalID string, input model.AdminFestivalArtistInput) *types.AppError {
+	params := db.AddFestivalArtistParams{
+		ID:                uuid.New().String(),
+		FestivalEditionId: festivalID,
+		ArtistId:          input.ArtistID,
+		Role:              input.Role,
+		StageOrder:        input.StageOrder,
+	}
+	if input.PerformanceDate != nil {
+		params.PerformanceDate = pgtype.Timestamp{Time: *input.PerformanceDate, Valid: true}
+	}
+	if _, err := s.repo.AddArtist(ctx, params); err != nil {
+		return types.InternalError("Failed to link artist to festival")
+	}
+	return nil
+}
+
+// AdminUnlinkArtist removes an artist from a festival edition
+func (s *FestivalService) AdminUnlinkArtist(ctx context.Context, festivalID, artistID string) *types.AppError {
+	if err := s.repo.RemoveArtist(ctx, festivalID, artistID); err != nil {
+		return types.InternalError("Failed to unlink artist from festival")
+	}
+	return nil
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+func toArtistSummaries(rows []db.ListFestivalArtistsRow) []model.FestivalArtistSummary {
+	summaries := make([]model.FestivalArtistSummary, 0, len(rows))
+	for _, r := range rows {
+		name := ""
+		if r.ArtistName != nil {
+			name = *r.ArtistName
+		}
+		s := model.FestivalArtistSummary{
+			ArtistID:               r.ArtistId,
+			ArtistName:             name,
+			ArtistSlug:             r.ArtistSlug,
+			ArtistAvatarUrl:        r.ArtistAvatarUrl,
+			ArtistFeaturedImageUrl: r.ArtistFeaturedImageUrl,
+			Role:                   r.Role,
+			StageOrder:             r.StageOrder,
+		}
+		if r.PerformanceDate.Valid {
+			t := r.PerformanceDate.Time
+			s.PerformanceDate = &t
+		}
+		summaries = append(summaries, s)
+	}
+	return summaries
+}
+
+func toFestivalResponse(f *db.FestivalEdition, translations []db.FestivalTranslation, festivalArtists []db.ListFestivalArtistsRow) model.FestivalResponse {
 	trans := make([]model.FestivalTranslation, 0, len(translations))
 	for _, t := range translations {
 		trans = append(trans, model.FestivalTranslation{
@@ -240,13 +361,33 @@ func toFestivalResponse(f *db.FestivalEdition, translations []db.FestivalTransla
 		typography = make([]string, 0)
 	}
 
-	return model.FestivalResponse{
-		ID: f.ID, Slug: f.Slug, EditionNumber: f.EditionNumber,
-		Year: f.Year, City: f.City, Country: f.Country,
-		Status:    string(f.Status),
-		MainImage: f.MainImage, HeroImage: f.HeroImage,
-		Gallery: gallery, Typography: typography,
-		Translations: trans,
-		CreatedAt:    f.CreatedAt.Time,
+	resp := model.FestivalResponse{
+		ID:            f.ID,
+		Slug:          f.Slug,
+		EditionNumber: f.EditionNumber,
+		Year:          f.Year,
+		City:          f.City,
+		Country:       f.Country,
+		Status:        string(f.Status),
+		MainImage:     f.MainImage,
+		HeroImage:     f.HeroImage,
+		Gallery:       gallery,
+		Typography:    typography,
+		Venue:         f.Venue,
+		VenueAddress:  f.VenueAddress,
+		TicketUrl:     f.TicketUrl,
+		VideoUrl:      f.VideoUrl,
+		Translations:  trans,
+		Artists:       toArtistSummaries(festivalArtists),
+		CreatedAt:     f.CreatedAt.Time,
 	}
+	if f.StartDate.Valid {
+		t := f.StartDate.Time
+		resp.StartDate = &t
+	}
+	if f.EndDate.Valid {
+		t := f.EndDate.Time
+		resp.EndDate = &t
+	}
+	return resp
 }
