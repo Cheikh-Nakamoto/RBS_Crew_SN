@@ -10,6 +10,24 @@ const API_URL =
 export const api = ky.create({
   prefixUrl: API_URL,
   timeout: 10000,
+  hooks: {
+    beforeRequest: [
+      (request) => {
+        console.log(`[API REQUEST] ${request.method} ${request.url}`);
+      },
+    ],
+    afterResponse: [
+      (_request, _options, response) => {
+        console.log(`[API RESPONSE] ${_request.method} ${_request.url} - Status: ${response.status}`);
+      },
+    ],
+    beforeError: [
+      (error) => {
+        console.error(`[API ERROR] ${error.request.method} ${error.request.url} - ${error.message}`);
+        return error;
+      },
+    ],
+  },
 });
 
 export function authedApi(token: string) {

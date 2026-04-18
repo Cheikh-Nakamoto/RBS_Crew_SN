@@ -21,7 +21,11 @@ export function useAuthedFetch() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
       const token = (session as (typeof session & { accessToken?: string }) | null)?.accessToken;
 
-      const res = await fetch(`${API_URL}${path}`, {
+      const method = options.method || 'GET';
+      const url = `${API_URL}${path}`;
+      console.log(`[API REQUEST] ${method} ${url}`);
+
+      const res = await fetch(url, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
@@ -29,6 +33,8 @@ export function useAuthedFetch() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
+
+      console.log(`[API RESPONSE] ${method} ${url} - Status: ${res.status}`);
 
       // Token expiré ou invalide → déconnexion + redirect /login
       if (res.status === 401) {
