@@ -4,6 +4,14 @@ const nextConfig: NextConfig = {
   output: "standalone",
   reactCompiler: true,
   allowedDevOrigins: ['rbs-crew.cheikhmodiouf.org'],
+  async rewrites() {
+    return [
+      {
+        source: '/backend/:path*',
+        destination: 'http://nestjs-api:4000/:path*',
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
