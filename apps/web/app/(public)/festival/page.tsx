@@ -24,6 +24,8 @@ interface FestivalEditionItem {
 
 export const metadata = { title: 'Festival — Last Wall Tour' };
 
+export const dynamic = 'force-dynamic';
+
 export default async function FestivalPage() {
   let editions: FestivalEditionItem[] = [];
   let fetchError = false;

@@ -1,6 +1,9 @@
 import type { CartItem } from './cart-store';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const API_URL =
+  typeof window === 'undefined'
+    ? (process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000')
+    : (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000');
 
 async function fetchWithLog(url: string, init?: RequestInit) {
   const method = init?.method || 'GET';

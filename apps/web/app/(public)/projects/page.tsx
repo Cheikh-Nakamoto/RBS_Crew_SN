@@ -19,6 +19,8 @@ interface ProjectItem {
 
 export const metadata = { title: 'Projets' };
 
+export const dynamic = 'force-dynamic';
+
 export default async function ProjectsPage() {
   let projects: ProjectItem[] = [];
   let fetchError = false;
