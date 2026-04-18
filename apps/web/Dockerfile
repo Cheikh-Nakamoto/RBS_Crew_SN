@@ -1,6 +1,9 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
+ARG NEXT_PUBLIC_API_URL=https://rbs-crew.cheikhmodiouf.org/backend
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 # Copy workspace root files
 COPY package.json package-lock.json turbo.json ./
 
