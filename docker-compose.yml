@@ -50,7 +50,7 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
       API_PORT: 4000
       APP_ENV: ${APP_ENV:-production}
-      CORS_ORIGIN: http://nextjs-web:3000
+      CORS_ORIGIN: ${APP_URL:-https://rbs-crew.cheikhmodiouf.org}
       APP_URL: ${APP_URL:-https://rbs-crew.cheikhmodiouf.org}
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
