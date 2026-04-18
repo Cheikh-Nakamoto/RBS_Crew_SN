@@ -41,7 +41,6 @@ export default async function ShopPage({ searchParams }: Props) {
   }
 
   const products = data?.data ?? [];
-  console.log("fetching data product",data)
   const meta = data?.meta;
 
   return (
@@ -151,21 +150,23 @@ export default async function ShopPage({ searchParams }: Props) {
 
       {/* Pagination */}
       {meta && meta.totalPages > 1 && (
-        <div className="mt-12 flex gap-2 justify-center flex-wrap">
+        <nav aria-label="Pagination" className="mt-12 flex gap-2 justify-center flex-wrap">
           {Array.from({ length: meta.totalPages }, (_, i) => i + 1).map((p) => (
             <Link
               key={p}
               href={`/shop?page=${p}${search ? `&search=${search}` : ''}${category ? `&category=${category}` : ''}`}
-              className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-all duration-200 ${
+              aria-label={`Page ${p}`}
+              aria-current={p === meta.page ? 'page' : undefined}
+              className={`min-w-11 h-11 px-3 flex items-center justify-center rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rbs-gold)]/60 ${
                 p === meta.page
-                  ? 'bg-[oklch(0.72_0.19_48)] text-black shadow-lg shadow-[oklch(0.72_0.19_48/25%)]'
-                  : 'bg-white/6 border border-white/10 text-white/60 hover:text-white hover:bg-white/10'
+                  ? 'bg-[var(--rbs-gold)] text-black shadow-[0_0_20px_oklch(0.72_0.19_48/0.35)]'
+                  : 'bg-white/6 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 hover:border-white/20'
               }`}
             >
               {p}
             </Link>
           ))}
-        </div>
+        </nav>
       )}
     </div>
   );

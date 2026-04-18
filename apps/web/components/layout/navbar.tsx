@@ -44,6 +44,31 @@ const itemVariants: Variants = {
   open: { opacity: 1, x: 0 },
 };
 
+// Desktop nav link with animated brand-gradient underline
+function NavLink({ href, label, active }: { href: string; label: string; active: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        'group/nav relative text-xs font-bold tracking-[0.18em] uppercase py-1.5 transition-colors duration-200 focus-visible:outline-none',
+        active ? 'text-white' : 'text-white/65 hover:text-white'
+      )}
+      aria-current={active ? 'page' : undefined}
+    >
+      {label}
+      <span
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute -bottom-0.5 left-0 h-[2px] origin-left transition-transform duration-300 ease-out',
+          active
+            ? 'w-full scale-x-100 bg-[var(--rbs-red)]'
+            : 'w-full scale-x-0 group-hover/nav:scale-x-100 bg-gradient-to-r from-[var(--rbs-red)] via-[var(--rbs-gold)] to-[var(--rbs-green)]'
+        )}
+      />
+    </Link>
+  );
+}
+
 export function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -66,24 +91,75 @@ export function Navbar() {
     return () => { document.body.style.overflow = ''; };
   }, [mobileOpen]);
 
+  // Focus trap + Escape key for mobile drawer
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const drawer = document.getElementById(mobileNavId);
+    if (!drawer) return;
+
+    const focusables = drawer.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled])'
+    );
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    first?.focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMobileOpen(false);
+        return;
+      }
+      if (e.key !== 'Tab' || focusables.length === 0) return;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last?.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [mobileOpen, mobileNavId]);
+
   return (
     <>
+      {/* Skip-to-content link for keyboard users */}
+      <a
+        href="#main-content"
+        className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-4 focus-visible:left-4 focus-visible:z-[100] focus-visible:px-4 focus-visible:py-2 focus-visible:bg-[var(--rbs-red)] focus-visible:text-white focus-visible:rounded-lg focus-visible:font-semibold focus-visible:text-sm"
+      >
+        Aller au contenu
+      </a>
+
       <header
         className={cn(
           'fixed w-full top-0 z-50 transition-[background-color,box-shadow,backdrop-filter] duration-300',
           scrolled || pathname !== '/'
-            ? 'bg-black/95 shadow-[0_1px_0_oklch(1_0_0/8%)] backdrop-blur-xl'
+            ? 'bg-black/80 shadow-[0_1px_0_oklch(1_0_0/8%),0_8px_24px_oklch(0_0_0/40%)] backdrop-blur-2xl backdrop-saturate-150'
             : 'bg-transparent'
         )}
       >
+        {/* Top-edge brand gradient line — only when scrolled */}
+        {(scrolled || pathname !== '/') && (
+          <div
+            aria-hidden="true"
+            className="absolute top-0 left-0 right-0 h-px opacity-60"
+            style={{
+              background:
+                'linear-gradient(90deg, transparent 0%, var(--rbs-red) 30%, var(--rbs-gold) 50%, var(--rbs-green) 70%, transparent 100%)',
+            }}
+          />
+        )}
+
         {/* ── h-16 = 64px, inner div relative pour positionner la nav absolue ── */}
-        <div className="max-w-[90rem] mx-auto px-6 border-b border-white/10">
+        <div className="max-w-[90rem] mx-auto px-6 border-b border-white/8">
           <div className="relative h-16 flex items-center justify-between">
 
-            {/* Logo */}
+            {/* Logo with shimmer */}
             <Link
               href="/"
-              className="flex items-center gap-2 group relative z-10 shrink-0 transition-transform hover:scale-105 duration-300"
+              className="flex items-center gap-2 group relative z-10 shrink-0 transition-transform hover:scale-105 duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-full"
               aria-label="RBS Crew SN — accueil"
             >
               <div className="bg-white rounded-full shadow-[0_4px_20px_rgba(255,255,255,0.15)] flex items-center justify-center ring-1 ring-white/10 w-[55px] h-[55px] md:w-[63px] md:h-[63px] transition-all relative overflow-hidden">
@@ -95,38 +171,28 @@ export function Navbar() {
                   className="object-cover object-center h-full w-full scale-125 pt-1"
                   priority
                 />
+                {/* Shimmer sweep on hover */}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-[1200ms] ease-out bg-gradient-to-r from-transparent via-white/40 to-transparent"
+                />
               </div>
             </Link>
 
             {/* Desktop nav — centré absolument dans le div relative */}
             <nav
-              className="hidden md:flex items-center gap-8 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+              className="hidden md:flex items-center gap-7 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
               aria-label="Navigation principale"
             >
-              <Link
-                href="/"
-                className={cn(
-                  'text-xs font-semibold tracking-wider transition-colors uppercase link-underline',
-                  pathname === '/' ? 'text-white' : 'text-white/60 hover:text-white'
-                )}
-              >
-                Home
-              </Link>
-              {links.map(({ href, label }) => {
-                const active = pathname.startsWith(href);
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={cn(
-                      'text-xs font-semibold tracking-wider transition-colors uppercase link-underline',
-                      active ? 'text-white' : 'text-white/60 hover:text-white'
-                    )}
-                  >
-                    {label}
-                  </Link>
-                );
-              })}
+              <NavLink href="/" label="Home" active={pathname === '/'} />
+              {links.map(({ href, label }) => (
+                <NavLink
+                  key={href}
+                  href={href}
+                  label={label}
+                  active={pathname.startsWith(href)}
+                />
+              ))}
             </nav>
 
             {/* Right side — cart + auth + hamburger */}
@@ -240,7 +306,7 @@ export function Navbar() {
         )}
       </AnimatePresence>
 
-      {/* Mobile drawer — top-16 aligns with h-16 header */}
+      {/* Mobile drawer — full-screen slide-down */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.nav
@@ -253,8 +319,18 @@ export function Navbar() {
             initial="closed"
             animate="open"
             exit="closed"
-            className="fixed top-16 left-0 right-0 z-40 md:hidden bg-[oklch(0.07_0.008_20)/98] backdrop-blur-2xl border-b border-white/10 max-h-[calc(100dvh-4rem)] overflow-y-auto"
+            className="fixed top-16 left-0 right-0 bottom-0 z-40 md:hidden bg-[oklch(0.05_0.005_240)]/97 backdrop-blur-2xl backdrop-saturate-150 border-t border-white/8 overflow-y-auto"
           >
+            {/* Brand gradient top edge */}
+            <div
+              aria-hidden="true"
+              className="absolute top-0 left-0 right-0 h-px"
+              style={{
+                background:
+                  'linear-gradient(90deg, transparent 0%, var(--rbs-red) 25%, var(--rbs-gold) 50%, var(--rbs-green) 75%, transparent 100%)',
+              }}
+            />
+
             <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-1">
               <motion.div
                 variants={itemVariants}

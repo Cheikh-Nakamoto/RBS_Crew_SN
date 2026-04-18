@@ -52,6 +52,8 @@ const FALLBACK_THUMB = [
   { title: 'Festival Last Wall', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&q=80', tag: 'Festival' },
 ];
 
+export const dynamic = 'force-dynamic';
+
 export default async function HomePage() {
   const [projectsData, productsData, artistsData] = await Promise.allSettled([
     api.get('projects?limit=10', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } }).json<ApiResponse<ProjectItem[]>>(),
@@ -126,36 +128,69 @@ export default async function HomePage() {
     <div className="overflow-hidden">
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex flex-col justify-center overflow-hidden pt-16">
+      <section className="relative min-h-[100svh] flex flex-col justify-center overflow-hidden pt-16 noise-texture">
         <HeroBackground images={heroImages} interval={5000} />
-        <div className="absolute inset-0 bg-black/45 z-[2] pointer-events-none" />
+
+        {/* Layered overlays — vignette + brand gradient wash */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/35 to-black/85 z-[2] pointer-events-none" />
+        <div
+          className="absolute inset-0 z-[3] pointer-events-none mix-blend-overlay opacity-60"
+          style={{ background: 'var(--gradient-rbs-soft)' }}
+        />
 
         <div className="relative z-[10] w-full max-w-[90rem] mx-auto px-6 grid grid-cols-12 gap-6 items-center">
-          <div className="col-span-12 md:col-span-10 flex flex-col gap-6 items-start justify-center">
-            <h1 className="font-display text-7xl md:text-8xl lg:text-[7rem] lg:text-[8rem] font-bold leading-[0.9] tracking-tighter text-white uppercase text-balance drop-shadow-2xl">
+          {/* Decorative ghost number — display-number, top-right */}
+          <span
+            aria-hidden="true"
+            className="display-number absolute -top-4 right-6 hidden md:block select-none"
+          >
+            012
+          </span>
+
+          <div className="col-span-12 md:col-span-11 lg:col-span-10 flex flex-col gap-7 items-start justify-center">
+            {/* Eyebrow — meta tag */}
+            <div className="flex items-center gap-3 mt-4">
+              <span className="h-px w-10 bg-[var(--rbs-red)]" aria-hidden="true" />
+              <span className="text-[0.7rem] font-bold tracking-[0.3em] text-white/70 uppercase">
+                EST. 2012 — Dakar, SN
+              </span>
+            </div>
+
+            <h1 className="font-display text-6xl sm:text-7xl md:text-8xl lg:text-[7rem] xl:text-[8.5rem] font-bold leading-[0.85] tracking-tighter text-white uppercase text-balance drop-shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
               Graffiti <br />
-              <span className="text-white/90">From Dakar</span>
+              <span className="text-shimmer-gold">From Dakar</span>
             </h1>
 
-            <p className="text-white/80 max-w-md text-sm leading-relaxed mb-8 md:bg-transparent md:p-0 bg-black/20 p-4 rounded backdrop-blur-sm md:backdrop-blur-none">
+            <p className="text-white/80 max-w-xl text-base leading-relaxed mb-2 md:bg-transparent md:backdrop-blur-none bg-black/30 p-4 rounded-lg backdrop-blur-sm">
               Fondé en 2012, ce crew rassemble plus de 30 artistes. Entre fresques murales,
-              sérigraphie et la 1ère école de graffiti d'Afrique, le RBS Crew redessine l'espace urbain.
+              sérigraphie et la 1ère école de graffiti d&apos;Afrique, le RBS Crew redessine l&apos;espace urbain.
             </p>
 
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/crew"
-                className="inline-flex items-center gap-2 px-6 py-3 min-h-[44px] rounded-lg bg-[var(--rbs-red)] hover:bg-[var(--rbs-red-light)] text-white text-sm font-semibold uppercase tracking-wider transition-all hover:shadow-[var(--shadow-glow-red)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rbs-red)]/60"
+                className="group/cta inline-flex items-center gap-2 px-7 py-3.5 min-h-[48px] rounded-lg bg-[var(--rbs-red)] hover:bg-[var(--rbs-red-light)] text-white text-sm font-bold uppercase tracking-[0.15em] transition-all duration-300 shadow-[var(--shadow-glow-red)] hover:shadow-[var(--shadow-glow-red-strong)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rbs-red)]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               >
                 Découvrir le Crew
+                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover/cta:translate-x-1" aria-hidden="true" />
               </Link>
               <Link
                 href="/festival"
-                className="inline-flex items-center gap-2 px-6 py-3 min-h-[44px] rounded-lg border border-white/30 text-white text-sm font-semibold uppercase tracking-wider hover:bg-white/10 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                className="group/cta inline-flex items-center gap-2 px-7 py-3.5 min-h-[48px] rounded-lg border border-white/40 bg-white/5 backdrop-blur-md text-white text-sm font-bold uppercase tracking-[0.15em] hover:bg-white/10 hover:border-white/60 transition-all duration-300 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               >
-                Festival <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                Festival
+                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover/cta:translate-x-1" aria-hidden="true" />
               </Link>
             </div>
+          </div>
+        </div>
+
+        {/* Bottom marquee strip — kinetic detail */}
+        <div className="absolute bottom-0 left-0 right-0 z-[10] border-t border-white/10 bg-black/40 backdrop-blur-md">
+          <div className="max-w-[90rem] mx-auto px-6 py-3 flex items-center justify-between text-[0.65rem] font-mono uppercase tracking-[0.2em] text-white/55">
+            <span>// RBS Crew SN</span>
+            <span className="hidden sm:inline">More than a school — a lifestyle</span>
+            <span className="text-[var(--rbs-gold)]">↓ scroll</span>
           </div>
         </div>
       </section>

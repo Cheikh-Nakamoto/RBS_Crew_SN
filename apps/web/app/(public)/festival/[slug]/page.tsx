@@ -40,6 +40,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return { title: 'Détails Édition — Last Wall Tour' };
 }
 
+export const dynamic = 'force-dynamic';
+
 export default async function FestivalEditionPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   let edition: FestivalEditionItem | null = null;

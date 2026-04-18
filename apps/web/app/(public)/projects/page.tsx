@@ -24,13 +24,11 @@ export const dynamic = 'force-dynamic';
 export default async function ProjectsPage() {
   let projects: ProjectItem[] = [];
   let fetchError = false;
-console.log('Fetching projects data...');
+
   try {
-    console.log('Making API request to /projects with Accept-Language: fr');
     const data = await api
       .get('projects', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } })
       .json<ApiResponse<ProjectItem[]>>();
-    console.log('Fetched projects:', data);
     projects = data.data;
   } catch {
     fetchError = true;

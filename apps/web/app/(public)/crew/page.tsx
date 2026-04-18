@@ -35,7 +35,7 @@ export default async function CrewPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-32 pb-16">
+    <div id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 pt-32 pb-16">
       <SectionHeader
         eyebrow="RBS Crew SN"
         title="Le Crew"
@@ -47,68 +47,79 @@ export default async function CrewPage() {
       {!fetchError && artists.length === 0 && <EmptyState title="Aucun artiste trouvé" />}
 
       {!fetchError && artists.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5 lg:gap-6">
+        <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
           {artists.map((artist, i) => {
             const t =
               artist.translations.find((x) => x.locale === 'fr') ?? artist.translations[0];
+            const img = artist.avatarUrl || artist.featuredImageUrl;
+            const initial = t?.name?.[0] ?? '?';
             return (
-              <Link
-                key={artist.id}
-                href={`/crew/${artist.slug}`}
-                className="group"
-                style={{ animationDelay: `${i * 50}ms` }}
-              >
-                {/* Square portrait */}
-                <div className="relative aspect-square rounded-2xl overflow-hidden bg-white/5 border border-white/8 group-hover:border-[oklch(0.72_0.19_48/40%)] transition-all duration-300 card-hover mb-3">
-                  {artist.avatarUrl || artist.featuredImageUrl ? (
-                    <>
+              <li key={artist.id}>
+                <Link
+                  href={`/crew/${artist.slug}`}
+                  className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rbs-gold)]/60 focus-visible:ring-offset-4 focus-visible:ring-offset-black rounded-2xl"
+                  aria-label={`${t?.name ?? 'Artiste'}${artist.city ? ` — ${artist.city}` : ''}`}
+                >
+                  {/* Editorial portrait — full-bleed photo + overlay */}
+                  <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[var(--bg-elevated)] ring-1 ring-white/10 group-hover:ring-[var(--rbs-gold)]/50 transition-all duration-500 group-hover:shadow-[var(--shadow-glow-gold)] group-active:scale-[0.98]">
+                    {img ? (
                       <Image
-                        src={artist.avatarUrl || artist.featuredImageUrl || ''}
+                        src={img}
                         alt={t?.name ?? ''}
                         fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        className="object-cover grayscale-[0.3] transition-all duration-700 group-hover:grayscale-0 group-hover:scale-[1.06]"
                       />
-                      {/* Hover overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-start justify-end p-4">
-                        {t?.bio && (
-                          <p className="text-white/70 text-xs line-clamp-2 leading-relaxed">
-                            {t.bio.replace(/<[^>]+>/g, '')}
-                          </p>
-                        )}
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-surface)]">
+                        <span className="font-display text-7xl text-white/20">{initial}</span>
                       </div>
-                    </>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-white/4">
-                      <span className="font-display text-5xl text-white/20">
-                        {t?.name?.[0] ?? '?'}
+                    )}
+
+                    {/* Gradient overlay — readable name + meta on bottom */}
+                    <div
+                      aria-hidden="true"
+                      className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-95"
+                    />
+
+                    {/* Index badge — top-left */}
+                    <div className="absolute top-3 left-3 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10">
+                      <span className="text-[0.65rem] font-mono font-bold tracking-widest text-white/85">
+                        {String(i + 1).padStart(2, '0')}
                       </span>
                     </div>
-                  )}
 
-                  {/* Number badge */}
-                  <div className="absolute top-2 right-2 w-7 h-7 rounded-lg glass border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <span className="text-xs font-display text-white/60">{String(i + 1).padStart(2, '0')}</span>
+                    {/* Brand stripe — top-right gold accent */}
+                    <span
+                      aria-hidden="true"
+                      className="absolute top-0 right-0 w-1 h-12 bg-gradient-to-b from-[var(--rbs-gold)] via-[var(--rbs-red)] to-transparent"
+                    />
+
+                    {/* Name + meta — overlay bottom */}
+                    <div className="absolute inset-x-0 bottom-0 p-4 flex flex-col gap-1.5">
+                      <h3 className="font-display text-base sm:text-lg leading-tight uppercase tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                        {t?.name}
+                      </h3>
+                      {artist.city && (
+                        <p className="flex items-center gap-1.5 text-[0.7rem] font-bold tracking-[0.15em] text-[var(--rbs-gold)] uppercase">
+                          <MapPin className="w-3 h-3" aria-hidden="true" />
+                          {artist.city}
+                          {artist.country ? `, ${artist.country}` : ''}
+                        </p>
+                      )}
+
+                      {t?.bio && (
+                        <p className="hidden md:block text-white/80 text-xs leading-relaxed line-clamp-2 max-h-0 group-hover:max-h-20 opacity-0 group-hover:opacity-100 transition-all duration-300 mt-1">
+                          {t.bio.replace(/<[^>]+>/g, '')}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-
-                {/* Info below image */}
-                <div>
-                  <h3 className="font-semibold text-white group-hover:text-[oklch(0.72_0.19_48)] transition-colors duration-200">
-                    {t?.name}
-                  </h3>
-                  {artist.city && (
-                    <p className="flex items-center gap-1 text-xs text-white/40 mt-0.5">
-                      <MapPin className="w-3 h-3" />
-                      {artist.city}
-                      {artist.country ? `, ${artist.country}` : ''}
-                    </p>
-                  )}
-                </div>
-              </Link>
+                </Link>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </div>
   );

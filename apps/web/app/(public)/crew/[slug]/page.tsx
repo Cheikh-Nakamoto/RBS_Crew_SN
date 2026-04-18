@@ -32,6 +32,8 @@ interface ArtistDetail {
   artworks?: Array<{ position: number; imageUrl: string }>;
 }
 
+export const dynamic = 'force-dynamic';
+
 export default async function ArtistPage({ params }: Props) {
   const { slug } = await params;
 
