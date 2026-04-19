@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import { Upload, X, ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import AnimatedUploadButton from '@/components/ui/animated-upload-button';
 
 interface MediaUploadProps {
   value?: string;
@@ -95,19 +96,13 @@ export function MediaUpload({ value, onChange, label = 'Image', className }: Med
           className="hidden"
           onChange={handleFileInput}
         />
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10">
-          {isUploading ? (
-            <div className="h-5 w-5 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-          ) : (
-            <ImageIcon className="h-5 w-5 text-white/40" />
-          )}
-        </div>
+        <AnimatedUploadButton isUploading={isUploading} />
         <div>
           <p className="text-sm font-medium text-white/70">
             {isUploading ? 'Upload en cours...' : 'Glisser une image ici'}
           </p>
           <p className="text-xs text-white/30 mt-1">
-            ou <span className="text-[var(--rbs-red)]">parcourir</span> · PNG, JPG, WebP · max 10 Mo
+            ou survolez le bouton pour parcourir · max 10 Mo
           </p>
         </div>
         {isDragging && (

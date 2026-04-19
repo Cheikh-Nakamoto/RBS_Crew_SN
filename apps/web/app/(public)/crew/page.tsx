@@ -22,6 +22,9 @@ export const metadata = { title: 'Crew' };
 export const dynamic = 'force-dynamic';
 
 export default async function CrewPage() {
+  // Pause artificielle pour montrer le loader
+  await new Promise(resolve => setTimeout(resolve, 800));
+
   let artists: ArtistItem[] = [];
   let fetchError = false;
 

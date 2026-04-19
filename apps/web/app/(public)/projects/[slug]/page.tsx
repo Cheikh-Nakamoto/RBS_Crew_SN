@@ -42,6 +42,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function ProjectDetailPage({ params }: Props) {
   const { slug } = await params;
+
+  // Pause artificielle pour garantir l'affichage esthétique du loader
+  await new Promise(resolve => setTimeout(resolve, 800));
+
   let project: ProjectDetail | null = null;
   let fetchError = false;
 

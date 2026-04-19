@@ -56,6 +56,9 @@ const FALLBACK_THUMB = [
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
+  // Pause artificielle pour montrer le loader
+  await new Promise(resolve => setTimeout(resolve, 800));
+
   const [projectsData, productsData, artistsData] = await Promise.allSettled([
     api.get('projects?limit=10', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } }).json<ApiResponse<ProjectItem[]>>(),
     api.get('products?limit=4&status=PUBLISHED', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 1800 } }).json<ApiResponse<ProductItem[]>>(),

@@ -27,6 +27,9 @@ export const metadata = { title: 'Festival — Last Wall Tour' };
 export const dynamic = 'force-dynamic';
 
 export default async function FestivalPage() {
+  // Pause artificielle pour montrer le loader
+  await new Promise(resolve => setTimeout(resolve, 800));
+
   let editions: FestivalEditionItem[] = [];
   let fetchError = false;
 

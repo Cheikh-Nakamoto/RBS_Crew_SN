@@ -44,6 +44,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function FestivalEditionPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+
+  // Pause artificielle pour garantir l'affichage esthétique du loader
+  await new Promise(resolve => setTimeout(resolve, 800));
+
   let edition: FestivalEditionItem | null = null;
   let fetchError = false;
 
