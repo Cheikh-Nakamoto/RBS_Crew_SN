@@ -49,6 +49,24 @@ const buttonVariants = cva(
           'hover:bg-[var(--rbs-green-light)]',
           'hover:shadow-[0_0_20px_oklch(0.45_0.14_145/0.35)]',
         ].join(' '),
+        /** Outline neon: gold border with neon glow sweep on hover */
+        'outline-neon': [
+          'relative border border-[var(--rbs-gold)]/50 bg-transparent text-[var(--rbs-gold)]',
+          'hover:text-white hover:border-[var(--rbs-gold)]',
+          'hover:bg-[var(--rbs-gold)]/10',
+          'hover:shadow-[0_0_24px_oklch(0.72_0.19_48/0.45),inset_0_0_12px_oklch(0.72_0.19_48/0.15)]',
+          'focus-visible:ring-[var(--rbs-gold)]/40',
+        ].join(' '),
+        /** Solid premium: multi-stop brand gradient (red → gold → green) with deep shadow */
+        'solid-premium': [
+          'border-0 text-white font-semibold tracking-tight',
+          'bg-[linear-gradient(90deg,var(--rbs-red)_0%,var(--rbs-gold)_50%,var(--rbs-green)_100%)]',
+          'bg-[length:200%_100%] bg-[position:0%_0%]',
+          'hover:bg-[position:100%_0%]',
+          'shadow-[0_4px_16px_oklch(0_0_0/0.35)]',
+          'hover:shadow-[0_8px_28px_oklch(0.72_0.19_48/0.4),0_2px_10px_oklch(0.52_0.20_18/0.3)]',
+          'transition-[background-position,box-shadow,transform] duration-400',
+        ].join(' '),
       },
       size: {
         default: 'h-10 gap-1.5 px-4',

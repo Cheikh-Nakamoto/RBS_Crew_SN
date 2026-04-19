@@ -7,6 +7,7 @@ import { formatXOF } from '@/lib/format';
 import { HeroBackground } from '@/components/hero-background';
 import { ScrollReveal, StaggerReveal, StaggerItem } from '@/components/ui/scroll-reveal';
 import { Button } from '@/components/ui/button';
+import { AnimatedTitle } from '@/components/ui/animated-title';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -47,8 +48,8 @@ const FALLBACK_IMAGES: string[] = [
 ];
 
 const FALLBACK_THUMB = [
-  { title: 'Murales Dakar',      image: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=600&q=80', tag: 'Graffiti' },
-  { title: 'Sérigraphie RBS',    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80', tag: 'Sérigraphie' },
+  { title: 'Murales Dakar', image: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=600&q=80', tag: 'Graffiti' },
+  { title: 'Sérigraphie RBS', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80', tag: 'Sérigraphie' },
   { title: 'Festival Last Wall', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&q=80', tag: 'Festival' },
 ];
 
@@ -63,7 +64,7 @@ export default async function HomePage() {
 
   const projects = projectsData.status === 'fulfilled' ? projectsData.value.data : [];
   const products = productsData.status === 'fulfilled' ? productsData.value.data : [];
-  const artists  = artistsData.status  === 'fulfilled' ? artistsData.value.data  : [];
+  const artists = artistsData.status === 'fulfilled' ? artistsData.value.data : [];
 
   const heroImages = (() => {
     const imgs: string[] = [];
@@ -79,17 +80,17 @@ export default async function HomePage() {
 
   const thematicCols = [
     {
-      tag:   artists[0]?.city ?? 'Dakar',
+      tag: artists[0]?.city ?? 'Dakar',
       title: projects[0]?.translations.find(t => t.locale === 'fr')?.title ?? 'Murales',
       image: projects[0]?.featuredImageUrl ?? FALLBACK_THUMB[0].image,
     },
     {
-      tag:   artists[1]?.city ?? 'Thiès',
+      tag: artists[1]?.city ?? 'Thiès',
       title: projects[1]?.translations.find(t => t.locale === 'fr')?.title ?? 'Sérigraphie',
       image: projects[1]?.featuredImageUrl ?? FALLBACK_THUMB[1].image,
     },
     {
-      tag:   artists[2]?.city ?? 'Saint-Louis',
+      tag: artists[2]?.city ?? 'Saint-Louis',
       title: projects[2]?.translations.find(t => t.locale === 'fr')?.title ?? 'Last Wall',
       image: projects[2]?.featuredImageUrl ?? FALLBACK_THUMB[2].image,
     },
@@ -128,69 +129,76 @@ export default async function HomePage() {
     <div className="overflow-hidden">
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <section className="relative min-h-[100svh] flex flex-col justify-center overflow-hidden pt-16 noise-texture">
+      <section
+        id="main-content"
+        className="relative min-h-[100svh] flex flex-col justify-center overflow-hidden pt-20 pb-24 md:pb-28 noise-texture"
+      >
         <HeroBackground images={heroImages} interval={5000} />
 
         {/* Layered overlays — vignette + brand gradient wash */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/35 to-black/85 z-[2] pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/40 to-black/90 z-[2] pointer-events-none" />
         <div
           className="absolute inset-0 z-[3] pointer-events-none mix-blend-overlay opacity-60"
           style={{ background: 'var(--gradient-rbs-soft)' }}
         />
 
-        <div className="relative z-[10] w-full max-w-[90rem] mx-auto px-6 grid grid-cols-12 gap-6 items-center">
-          {/* Decorative ghost number — display-number, top-right */}
-          <span
-            aria-hidden="true"
-            className="display-number absolute -top-4 right-6 hidden md:block select-none"
-          >
-            012
-          </span>
+        {/* Decorative ghost number — pinned to section (not grid) */}
+        <span
+          aria-hidden="true"
+          className="display-number absolute top-24 right-6 md:right-12 hidden md:block select-none z-[4]"
+        >
+          012
+        </span>
 
+        <div className="relative z-[10] w-full max-w-[90rem] mx-auto px-6 grid grid-cols-12 gap-6">
           <div className="col-span-12 md:col-span-11 lg:col-span-10 flex flex-col gap-7 items-start justify-center">
             {/* Eyebrow — meta tag */}
-            <div className="flex items-center gap-3 mt-4">
+            <div className="flex items-center gap-3">
               <span className="h-px w-10 bg-[var(--rbs-red)]" aria-hidden="true" />
-              <span className="text-[0.7rem] font-bold tracking-[0.3em] text-white/70 uppercase">
+              <span className="text-[0.7rem] font-bold tracking-[0.3em] text-white/75 uppercase whitespace-nowrap">
                 EST. 2012 — Dakar, SN
               </span>
             </div>
 
-            <h1 className="font-display text-6xl sm:text-7xl md:text-8xl lg:text-[7rem] xl:text-[8.5rem] font-bold leading-[0.85] tracking-tighter text-white uppercase text-balance drop-shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
-              Graffiti <br />
-              <span className="text-shimmer-gold">From Dakar</span>
+            <h1 className="font-display text-[3.25rem] sm:text-7xl md:text-8xl lg:text-[7rem] xl:text-[8.5rem] font-bold leading-[0.85] tracking-tighter text-white uppercase text-balance drop-shadow-[0_4px_30px_rgba(0,0,0,0.55)]">
+              <AnimatedTitle className="block text-white" titles={['Graffiti', 'Street Art', 'Sérigraphie', ' Lifestyle']} />
+              <span className="block text-[var(--rbs-gold)] bg-transparent">From Dakar</span>
             </h1>
 
-            <p className="text-white/80 max-w-xl text-base leading-relaxed mb-2 md:bg-transparent md:backdrop-blur-none bg-black/30 p-4 rounded-lg backdrop-blur-sm">
+            <p className="relative max-w-xl text-base leading-relaxed text-white/85 rounded-xl px-4 py-3.5 md:px-0 md:py-0 bg-black/35 md:bg-transparent border border-white/5 md:border-0 backdrop-blur-md md:backdrop-blur-none">
               Fondé en 2012, ce crew rassemble plus de 30 artistes. Entre fresques murales,
               sérigraphie et la 1ère école de graffiti d&apos;Afrique, le RBS Crew redessine l&apos;espace urbain.
             </p>
 
             <div className="flex flex-wrap gap-3">
-              <Link
-                href="/crew"
-                className="group/cta inline-flex items-center gap-2 px-7 py-3.5 min-h-[48px] rounded-lg bg-[var(--rbs-red)] hover:bg-[var(--rbs-red-light)] text-white text-sm font-bold uppercase tracking-[0.15em] transition-all duration-300 shadow-[var(--shadow-glow-red)] hover:shadow-[var(--shadow-glow-red-strong)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rbs-red)]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-              >
-                Découvrir le Crew
-                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover/cta:translate-x-1" aria-hidden="true" />
-              </Link>
-              <Link
-                href="/festival"
-                className="group/cta inline-flex items-center gap-2 px-7 py-3.5 min-h-[48px] rounded-lg border border-white/40 bg-white/5 backdrop-blur-md text-white text-sm font-bold uppercase tracking-[0.15em] hover:bg-white/10 hover:border-white/60 transition-all duration-300 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-              >
-                Festival
-                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover/cta:translate-x-1" aria-hidden="true" />
-              </Link>
+              <Button asChild variant="solid-premium" size="xl" className="group/cta tracking-[0.15em] uppercase">
+                <Link
+                  href="/crew"
+                  className="focus-visible:ring-2 focus-visible:ring-[var(--rbs-gold)]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                >
+                  Découvrir le Crew
+                  <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover/cta:translate-x-1" aria-hidden="true" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline-neon" size="xl" className="group/cta tracking-[0.15em] uppercase">
+                <Link
+                  href="/festival"
+                  className="focus-visible:ring-2 focus-visible:ring-[var(--rbs-gold)]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                >
+                  Festival
+                  <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover/cta:translate-x-1" aria-hidden="true" />
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
 
         {/* Bottom marquee strip — kinetic detail */}
-        <div className="absolute bottom-0 left-0 right-0 z-[10] border-t border-white/10 bg-black/40 backdrop-blur-md">
-          <div className="max-w-[90rem] mx-auto px-6 py-3 flex items-center justify-between text-[0.65rem] font-mono uppercase tracking-[0.2em] text-white/55">
+        <div className="absolute bottom-0 left-0 right-0 z-[10] border-t border-white/10 bg-black/50 backdrop-blur-md">
+          <div className="max-w-[90rem] mx-auto px-6 py-3 flex items-center justify-between text-[0.65rem] font-mono uppercase tracking-[0.2em] text-white/65">
             <span>// RBS Crew SN</span>
             <span className="hidden sm:inline">More than a school — a lifestyle</span>
-            <span className="text-[var(--rbs-gold)]">↓ scroll</span>
+            <span className="text-[var(--rbs-gold)] flex items-center gap-1">↓ scroll</span>
           </div>
         </div>
       </section>
@@ -273,9 +281,8 @@ export default async function HomePage() {
               return (
                 <StaggerItem
                   key={idx}
-                  className={`w-full md:w-1/3 flex flex-col gap-4 group ${
-                    idx === 0 ? 'md:mt-16' : idx === 2 ? 'md:mt-32' : ''
-                  }`}
+                  className={`w-full md:w-1/3 flex flex-col gap-4 group ${idx === 0 ? 'md:mt-16' : idx === 2 ? 'md:mt-32' : ''
+                    }`}
                 >
                   <Link href={item.href} className="block">
                     <div className="relative aspect-[3/4] w-full overflow-hidden border border-white/10 group-hover:border-white/30 transition-colors">

@@ -19,6 +19,21 @@ const badgeVariants = cva(
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
+        /** RBS red: graffiti / rap / street genre tag */
+        rbsRed:
+          "border-[var(--rbs-red)]/40 bg-[var(--rbs-red)]/10 text-[var(--rbs-red-light)] uppercase tracking-[0.1em] font-bold [a]:hover:bg-[var(--rbs-red)]/20 [a]:hover:border-[var(--rbs-red)]/70",
+        /** RBS gold: akademya / education / premium editorial tag */
+        rbsGold:
+          "border-[var(--rbs-gold)]/45 bg-[var(--rbs-gold)]/10 text-[var(--rbs-gold)] uppercase tracking-[0.1em] font-bold [a]:hover:bg-[var(--rbs-gold)]/20 [a]:hover:border-[var(--rbs-gold)]/80",
+        /** RBS green: afrobeat / wellness / community tag */
+        rbsGreen:
+          "border-[var(--rbs-green)]/45 bg-[var(--rbs-green)]/10 text-[var(--rbs-green-light)] uppercase tracking-[0.1em] font-bold [a]:hover:bg-[var(--rbs-green)]/20 [a]:hover:border-[var(--rbs-green)]/75",
+        /** Role badge — crew member / founder / artist */
+        role:
+          "border-white/15 bg-white/5 text-white/85 uppercase tracking-[0.12em] font-mono font-bold backdrop-blur-sm [a]:hover:bg-white/10 [a]:hover:border-white/30",
+        /** Genre badge — neutral base with gold accent underline-like border */
+        genre:
+          "border-b-2 border-b-[var(--rbs-gold)]/60 border-x-0 border-t-0 rounded-none bg-transparent text-white uppercase tracking-[0.15em] font-bold px-0.5 [a]:hover:border-b-[var(--rbs-gold)]",
       },
     },
     defaultVariants: {

@@ -663,7 +663,7 @@
     mix-blend-mode: overlay;
     z-index: 1;
   }
-  .noise-texture > * {
+  .noise-texture > *:not([class*="absolute"]):not([class*="fixed"]) {
     position: relative;
     z-index: 2;
   }
