@@ -40,7 +40,7 @@ function Hero() {
                 {titles.map((title, index) => (
                   <motion.span
                     key={index}
-                    className="absolute font-semibold"
+                    className="absolute text-dj-gross text-rbs-red drop-shadow-md"
                     initial={{ opacity: 0, y: '-100' }}
                     transition={{ type: 'spring', stiffness: 50 }}
                     animate={

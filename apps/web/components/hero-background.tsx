@@ -20,23 +20,20 @@ export function HeroBackground({ images, interval = 5000 }: HeroBackgroundProps)
     }, interval);
     return () => clearInterval(timer);
   }, [images.length, interval]);
-
   return (
     <>
-      {images.map((src, i) => (
-        <img
-          key={src}
-          src={src}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{
-            opacity: i === current ? 1 : 0,
-            transition: i === current || i === prev ? 'opacity 1.2s ease-in-out' : 'none',
-            zIndex: i === current ? 1 : 0,
-          }}
-        />
-      ))}
+      <img
+        src="/hero_RBS.png"
+        alt="hero background"
+        aria-hidden="true"
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{
+          opacity: 1,
+          transition: "opacity 1.2s ease-in-out",
+          filter: "grayscale(100%)",
+          zIndex: 0
+        }}
+      />
     </>
   );
 }

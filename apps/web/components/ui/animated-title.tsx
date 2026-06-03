@@ -10,7 +10,7 @@ interface AnimatedTitleProps {
 }
 
 export function AnimatedTitle({ 
-  titles = ['Graffiti', 'Sérigraphie', 'Street Art', 'Lifestyle'],
+  titles = ['RBS', 'Crew'],
   interval = 2500,
   className = ''
 }: AnimatedTitleProps) {
@@ -24,11 +24,11 @@ export function AnimatedTitle({
   }, [titleNumber, titles.length, interval]);
 
   return (
-    <span className={`relative flex w-full overflow-hidden h-[1.1em] items-center ${className}`}>
+    <span className={`relative flex w-full overflow-visible h-[1.5em] items-center ${className}`}>
       {titles.map((title, index) => (
         <motion.span
           key={index}
-          className="absolute"
+          className="absolute text-dj-gross text-rbs-red drop-shadow-md"
           initial={{ opacity: 0, y: '-100%' }}
           transition={{ type: 'spring', stiffness: 50, damping: 15 }}
           animate={

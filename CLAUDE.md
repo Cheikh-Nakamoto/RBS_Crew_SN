@@ -1,177 +1,184 @@
-# CLAUDE.md — Configuration Équipe Dev Multi-Agents
+# CLAUDE.md
 
-## 🏗️ Équipe
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Ce projet utilise un système multi-agents. Chaque agent a sa propre mémoire dans `.claude/agent-memory/`.
+## Stack
 
-## Agents disponibles
+- **Backend**: Go 1.26 with `chi` router, `pgx` for PostgreSQL 16, `go-redis` for Redis 7, `sqlc` for query generation
+- **Frontend**: Next.js 16 (App Router, React 19, RSC, React Compiler), Tailwind CSS 4, shadcn/ui (Base UI), `next-auth` 5 beta with JWT credentials
+- **Infra**: Docker Compose (postgres + redis + go api + nextjs), Nginx reverse proxy config in `infra/nginx/`
+- **Payments**: Stripe, PayPal, Wave, Orange Money — pluggable provider interface in `apps/api-go/internal/payment/`
+- **Storage**: Cloudflare R2 (S3-compatible) via AWS SDK v2
+- **Monorepo**: npm workspaces + Turborepo (`apps/web`, `apps/api-go`, `packages/types`, `packages/ui`, `packages/config`)
+- **Migration**: Node.js scripts in `migration-scripts/` for extracting WooCommerce/WordPress data into this system
 
-| Agent | Fichier mémoire | Modèle |
-|-------|----------------|--------|
-| 🏆 aziz (CTO) | `aziz.md` | claude-opus-4-20250514 |
-| 👔 product-manager (PM) | `product-manager.md` | claude-sonnet-4-20250514 |
-| 🧠 lucas (Tech Lead) | `lucas.md` | claude-opus-4-20250514 |
-| 🎨 mouha (Frontend) | `mouha.md` | claude-sonnet-4-20250514 |
-| ⚙️ mounzil (Backend) | `mounzil.md` | claude-sonnet-4-20250514 |
-| 🔧 malang (DevOps) | `malang.md` | claude-sonnet-4-20250514 |
-| 🧪 janel (QA) | `janel.md` | claude-sonnet-4-20250514 |
-| 🔒 massar (Security) | `massar.md` | claude-opus-4-20250514 |
+## Development Commands
 
-## Règles d'orchestration
-
-1. **Point d'entrée** : Toute nouvelle demande passe d'abord par product-manager (PM) sauf si l'utilisateur cible un agent spécifique
-2. **Arbitrage** : Si product-manager et lucas ne sont pas d'accord → escalade à **aziz (CTO)** qui tranche
-3. **Escalade** : Si un agent Sonnet est bloqué sur un problème complexe, il escalade à lucas (Opus) ou massar (Opus)
-3. **Délégation** : Chaque agent utilise le format standardisé `🔀 DÉLÉGATION →` pour appeler un autre agent
-4. **Livraison** : Chaque agent notifie l'appelant avec `✅ TERMINÉ` à la fin de sa tâche
-5. **Mémoire** : Chaque agent met à jour sa section "Mémoire de projet" dans son fichier agent-memory après chaque tâche
-
----
-
-## 🔄 Protocole de Communication Inter-Agents
-
-### 1. Identification
-Chaque agent commence TOUJOURS son intervention par :
-```
-Je suis [Nom], [Rôle].
-```
-
-### 2. Lecture du contexte
-Avant de commencer une tâche, l'agent LIT les fichiers mémoire des agents liés pour comprendre l'état du projet :
 ```bash
-# Exemple : mounzil (Backend) lit le contexte avant de coder
-cat .claude/agent-memory/marie-pm.md      # Comprendre les specs
-cat .claude/agent-memory/lucas-techlead.md # Comprendre l'architecture
+# First-time setup
+make install          # npm install (needs Node 20 via NVM)
+docker compose up -d postgres redis  # start infrastructure
+
+# Development (with hot-reload)
+make dev              # starts postgres+redis, then go api + nextjs in parallel
+make dev-api          # go run ./cmd/api (from apps/api-go)
+make dev-web          # next dev (from apps/web)
+
+# Build
+make build            # builds both API and Web
+make build-api        # CGO_ENABLED=0 go build → dist/api-go
+make build-web        # next build (standalone output)
+
+# Code generation (required after SQL changes)
+make db-sqlc          # sqlc generate (creates Go types/queries from .sql files)
+make db-docs          # swag init for Swagger/OpenAPI docs
+
+# Quality
+make lint             # golangci-lint + eslint
+make test             # go test -race -cover + web tests (if present)
+
+# Docker
+make up               # docker compose up -d --build (all services)
+make down             # docker compose down
+make logs             # docker compose logs -f
+
+# Health checks
+make health           # curl health endpoints (API, Nginx→API, Nginx→Web)
+
+# Clean
+make clean            # remove node_modules, dist, .next, .turbo
+
+# View all targets
+make help
 ```
 
-### 3. Format de délégation (appeler un autre agent)
-Quand un agent délègue une tâche à un autre, il utilise ce format :
+## Architecture
+
+### Monorepo Layout
+
 ```
-🔀 DÉLÉGATION → [Nom de l'agent]
-📌 Contexte : [résumé du projet et de l'état actuel]
-📋 Tâche : [ce que tu attends précisément]
-📎 Réf : [fichiers ou documents à consulter]
-📚 Stack : [technologies concernées]
-⏰ Priorité : [critique/haute/moyenne/basse]
-🔗 Dépendances : [autres agents/tâches liées]
+apps/
+  api-go/             # Go REST API (chi router, chi middleware stack)
+    cmd/api/main.go   #   entrypoint: wires config → db → redis → repos → services → handlers → router → http.Server
+    internal/
+      config/         #   env loading (.env + os.Getenv), typed Config struct
+      db/             #   pgxpool connection + sqlc-generated queries
+      handler/        #   HTTP handlers (one file per domain + admin_* variants)
+      logger/         #   slog dual-output (stdout + daily file in logs/)
+      mail/           #   gomail SMTP service
+      middleware/      #   RequestID, Logger, Recovery, SecurityHeaders, MaxBodySize, CORS, Locale, RateLimit, RequireAuth, RequireRoles, ActivityLogger
+      model/          #   domain structs
+      payment/        #   PaymentProvider interface + Stripe/PayPal/Wave/OrangeMoney implementations
+      redis/          #   go-redis client
+      repository/     #   data access (sqlc queries, pgxpool)
+      router/         #   chi router setup — three route groups: public, authenticated, admin
+      service/        #   business logic layer between handlers and repositories
+      sql/            #   raw SQL files consumed by sqlc
+    sql/schema.sql    #   PostgreSQL DDL (Prisma-inspired schema, executed manually)
+    sqlc.yaml         #   sqlc config
+  web/                # Next.js 16 App Router
+    app/
+      layout.tsx      #   root layout
+      (public)/       #   public-facing pages: home, shop, crew, festival, projects, press, labz, login, register, profile
+      (admin)/        #   admin CRUD pages: produits, commandes, devis, categories, tags, artistes, etc.
+      api/auth/[...nextauth]/route.ts  # next-auth route handler
+    components/
+      ui/             #   shadcn/ui primitives (button, dialog, table, form, etc.) + custom animated components
+      layout/         #   navbar + footer
+      admin/          #   admin-specific components (stats cards, activity logs, delete dialogs)
+      composite/      #   composed components (carousel demos, festival gallery)
+    lib/
+      api.ts          #   ky client (auto-detects server vs client for API URL)
+      auth.ts         #   next-auth config (Credentials + Google, JWT refresh rotation)
+      admin/          #   admin API helpers, schemas, error handling, query factories
+    middleware.ts     #   next-auth middleware — protects /admin (role check) and /profile, /shop/checkout
+    next.config.ts    #   standalone output, React Compiler, rewrites /backend → api container
+packages/
+  types/              #   shared TypeScript types (Product, Order, User, etc.)
+  ui/                 #   shared UI components
+  config/             #   shared config
 ```
 
-### 4. Accusé de réception (quand on reçoit une tâche)
-Quand un agent reçoit une tâche d'un autre agent, il confirme :
-```
-✅ REÇU par [Nom]
-📌 Compris : [reformulation de la tâche]
-❓ Questions : [points à clarifier]
-⏰ Estimation : [temps estimé]
-🔗 Dépendances identifiées : [ce dont j'ai besoin]
-```
+### Backend: Layered Architecture (handler → service → repository → sqlc)
 
-### 5. Livraison (quand la tâche est terminée)
-Quand un agent termine sa tâche, il notifie l'agent appelant :
-```
-✅ TERMINÉ par [Nom]
-📋 Résumé : [ce qui a été fait]
-📎 Livrables : [liste des fichiers créés/modifiés]
-⚠️ Points d'attention : [ce qu'il faut savoir]
-➡️ Prochaine étape : [recommandation — quel agent appeler ensuite]
-```
+Every domain entity follows the same pattern:
+- **SQL layer**: raw parameterized queries in `internal/sql/` compiled by sqlc into `internal/db/queries/`
+- **Repository**: wraps sqlc `*Queries` with domain-specific methods, returns `model.*` types
+- **Service**: business logic, caching (Redis), validation
+- **Handler**: JSON request/response, calls service, returns `{ data, meta }` envelope
+- **Router**: chi groups — public (rate-limited), authenticated (JWT Bearer), admin (JWT + role check + activity logging)
 
-### 6. Rapport de bug (QA → Dev)
-```
-🐛 BUG REPORT → [Nom de l'agent concerné]
-📌 Titre : [titre concis]
-🔴 Sévérité : [critique/haute/moyenne/basse]
-📝 Description : [ce qui se passe]
-✅ Attendu : [ce qui devrait se passer]
-❌ Obtenu : [ce qui se passe réellement]
-🔄 Étapes : [pour reproduire]
-📎 Preuves : [logs, erreurs, etc.]
-```
+### API Route Design
 
-### 7. Alerte sécurité (Security → tous)
-```
-🚨 ALERTE SÉCURITÉ → [Nom de l'agent concerné]
-🔴 Sévérité : [critique/haute/moyenne/basse]
-📌 Type : [catégorie OWASP]
-📝 Description : [la vulnérabilité]
-💥 Impact : [ce qui pourrait arriver]
-🛡️ Remédiation : [comment corriger]
-⏰ Deadline : [délai de correction]
-```
+- `/health` — DB health check
+- `/auth/*` — register, login, refresh, logout, verify-email, forgot/reset password
+- `/categories`, `/tags`, `/products`, `/artists`, `/projects`, `/festival`, `/press`, `/pages`, `/services` — public read-only
+- `/quotes` — public POST (heavily rate-limited: 1 req/5min)
+- `/payments/webhook/*` — public, per-provider webhook endpoints
+- `/cart`, `/orders`, `/users/me`, `/auth/me` — authenticated
+- `/admin/*` — admin/editor only, activity-logged
 
-### 8. Escalade (quand on est bloqué)
-Si un agent est bloqué, il escalade au **Tech Lead (Lucas)** :
-```
-🆘 ESCALADE → Lucas (Tech Lead)
-📌 Contexte : [ce sur quoi je travaille]
-🚧 Blocage : [description du problème]
-💡 Options envisagées : [solutions possibles]
-❓ Besoin : [décision ou aide attendue]
-```
+### Frontend: Route Groups
 
-### 9. Mise à jour mémoire
-Après chaque tâche terminée, l'agent MET À JOUR sa section "Mémoire de projet" dans son fichier `.claude/agent-memory/[nom].md`. Cela inclut :
-- Décisions prises
-- Fichiers créés/modifiés
-- État d'avancement
-- Dépendances avec les autres agents
+- `(public)/` — pages accessible to all visitors (home, shop, crew, festival, projects, press, labz, login, register, profile)
+- `(admin)/admin/` — full CRUD for all entities (produits, commandes, devis, categories, tags, artistes, projets, pages, services, editions, presse, utilisateurs, activite)
+- Admin pages use Server Actions for mutations, ky client for data fetching
 
----
+### Auth Flow
 
-## 📊 Matrice des interactions (qui peut appeler qui)
+1. Next.js middleware (`middleware.ts`) wraps next-auth — protects `/admin` (requires ADMIN/EDITOR role) and `/profile`, `/shop/checkout` (requires login)
+2. next-auth Credentials provider calls Go API `/auth/login`, `/auth/me`
+3. JWT tokens stored in next-auth session with automatic refresh rotation (14-min expiry)
+4. On the Go side: `middleware.RequireAuth` validates JWT, `RequireRoles` enforces role-based access
+5. Server-side API calls from RSC use `INTERNAL_API_URL` (docker network), client-side uses `NEXT_PUBLIC_API_URL`
 
-| Appelant ↓ / Appelé → | product-manager | Lucas | mouha | mounzil | malang | janel | massar |
-|------------------------|-------|-------|-----|-------|-------|------|-------|
-| **product-manager (PM)**         | —     | ✅    | —   | —     | —     | —    | ✅    |
-| **Lucas (Tech Lead)**  | ✅    | —     | ✅  | ✅    | ✅    | ✅   | ✅    |
-| **mouha (Frontend)**     | —     | ✅    | —   | ✅    | ✅    | ✅   | —     |
-| **mounzil (Backend)**    | ✅    | ✅    | —   | —     | ✅    | ✅   | ✅    |
-| **malang (DevOps)**     | —     | ✅    | ✅  | ✅    | —     | ✅   | ✅    |
-| **janel (QA)**          | ✅    | —     | ✅  | ✅    | ✅    | —    | ✅    |
-| **massar (Security)**   | ✅    | —     | ✅  | ✅    | ✅    | ✅   | —     |
+### Docker Networking
 
-### Flux typiques
+- `postgres` and `redis` bound to `127.0.0.1` on host (for dev), available on Docker network for containers
+- `nestjs-api` (Go API) — NOT exposed to host, only via Docker network or Next.js rewrites
+- `nextjs-web` on `:3000`
+- Next.js rewrite rule: `/backend/:path*` → `http://nestjs-api:4000/:path*`
+- In prod, Nginx reverse-proxies both (config in `infra/nginx/`)
 
-**Nouveau projet complet :**
-```
-product-manager (specs) → Lucas (architecture) → mouha + mounzil + malang (en parallèle) → janel (tests) → massar (audit) → malang (deploy)
-```
+### Migration from WordPress
 
-**Hotfix urgent :**
-```
-janel (bug report) → mounzil ou mouha (fix) → janel (retest) → malang (deploy)
-```
+Scripts in `migration-scripts/` handle the WordPress → PostgreSQL migration:
+- `run-all.ts` — extract all WP data to JSON
+- `upload-s3.ts` — upload local images to Cloudflare R2
+- `import-db.ts` — import JSON into PostgreSQL
+- Use `make migrate-full` for the complete pipeline
 
-**Nouvelle feature :**
-```
-product-manager (user story) → Lucas (ticket technique) → mounzil (API) → mouha (UI) → janel (tests) → massar (review sécu) → malang (deploy)
-```
+## Environment Variables
 
-**Audit de sécurité :**
-```
-massar (scan) → mounzil + mouha + malang (remédiations) → janel (tests de régression) → massar (re-audit)
-```
+Copy `.env.example` → `.env`. Critical variables:
+- `DATABASE_URL` — PostgreSQL connection string
+- `REDIS_URL` — Redis connection
+- `JWT_SECRET`, `JWT_REFRESH_SECRET` — generate with `openssl rand -base64 64`
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+- `R2_*` — Cloudflare R2 credentials for media storage
+- `INTERNAL_API_URL` — Docker service URL for server-side API calls (set in docker-compose)
 
----
+## Notes
 
-## 🚀 Comment utiliser
+- The Go API is named `nestjs-api` in Docker but it's Go, not NestJS — this is a leftover from a previous stack
+- `apps/web/AGENTS.md` warns about Next.js 16 breaking changes — read `node_modules/next/dist/docs/` before writing Next.js code
+- Go codegen (`sqlc generate`) must be run after any changes to `internal/sql/*.sql` files
+- Activity logging middleware records all admin actions to the `ActivityLog` table
+- Redis is used for caching (products, artists) and cart state
 
-### Lancer un nouveau projet
-```bash
-claude "Utilise product-manager (PM). Nouveau projet : [description]"
-```
+## Multi-Agent Orchestration
 
-### Appeler un agent spécifique
-```bash
-claude "Utilise mounzil (Backend). Contexte : [contexte]. Tâche : [tâche]"
-```
+This project uses a multi-agent system. Agent memory files live in `.claude/agent-memory/`.
 
-### Lancer une review complète
-```bash
-claude "Lance une review avec janel (QA), massar (Security) et Lucas (Tech Lead). Compilez vos retours."
-```
+| Agent | Role | Memory File |
+|-------|------|-------------|
+| aziz | CTO (arbitration) | `aziz.md` |
+| product-manager | PM (specs, user stories) | `product-manager.md` |
+| lucas | Tech Lead (architecture) | `lucas.md` |
+| mouha | Frontend | `mouha.md` |
+| mounzil | Backend | `mounzil.md` |
+| malang | DevOps | `malang.md` |
+| janel | QA | `janel.md` |
+| massar | Security | `massar.md` |
 
-### Déployer
-```bash
-claude "Utilise malang (DevOps). Déploie la version actuelle en staging."
-```
+Typical flow for new features: PM → Lucas → mounzil (API) + mouha (UI) → janel (tests) → massar (security) → malang (deploy)

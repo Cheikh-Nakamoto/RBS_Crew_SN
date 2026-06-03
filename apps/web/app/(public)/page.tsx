@@ -8,6 +8,7 @@ import { HeroBackground } from '@/components/hero-background';
 import { ScrollReveal, StaggerReveal, StaggerItem } from '@/components/ui/scroll-reveal';
 import { Button } from '@/components/ui/button';
 import { AnimatedTitle } from '@/components/ui/animated-title';
+import { InteractiveTransition } from '@/components/ui/interactive-transition';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -69,17 +70,17 @@ export default async function HomePage() {
   const products = productsData.status === 'fulfilled' ? productsData.value.data : [];
   const artists = artistsData.status === 'fulfilled' ? artistsData.value.data : [];
 
-  const heroImages = (() => {
-    const imgs: string[] = [];
-    const pImgs = projects.map(p => p.featuredImageUrl).filter(Boolean) as string[];
-    const aImgs = artists.map(a => a.featuredImageUrl).filter(Boolean) as string[];
-    const max = Math.max(pImgs.length, aImgs.length);
-    for (let i = 0; i < max; i++) {
-      if (pImgs[i]) imgs.push(pImgs[i]);
-      if (aImgs[i]) imgs.push(aImgs[i]);
-    }
-    return imgs.length >= 2 ? imgs : FALLBACK_IMAGES;
-  })();
+  // const heroImages = (() => {
+  //   const imgs: string[] = [];
+  //   const pImgs = projects.map(p => p.featuredImageUrl).filter(Boolean) as string[];
+  //   const aImgs = artists.map(a => a.featuredImageUrl).filter(Boolean) as string[];
+  //   const max = Math.max(pImgs.length, aImgs.length);
+  //   for (let i = 0; i < max; i++) {
+  //     if (pImgs[i]) imgs.push(pImgs[i]);
+  //     if (aImgs[i]) imgs.push(aImgs[i]);
+  //   }
+  //   return imgs.length >= 2 ? imgs : FALLBACK_IMAGES;
+  // })();
 
   const thematicCols = [
     {
@@ -136,7 +137,7 @@ export default async function HomePage() {
         id="main-content"
         className="relative min-h-[100svh] flex flex-col justify-center overflow-hidden pt-20 pb-24 md:pb-28 noise-texture"
       >
-        <HeroBackground images={heroImages} interval={5000} />
+        <HeroBackground images={[]} interval={5000} />
 
         {/* Layered overlays — vignette + brand gradient wash */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/40 to-black/90 z-[2] pointer-events-none" />
@@ -144,7 +145,6 @@ export default async function HomePage() {
           className="absolute inset-0 z-[3] pointer-events-none mix-blend-overlay opacity-60"
           style={{ background: 'var(--gradient-rbs-soft)' }}
         />
-
         {/* Decorative ghost number — pinned to section (not grid) */}
         <span
           aria-hidden="true"
@@ -156,17 +156,11 @@ export default async function HomePage() {
         <div className="relative z-[10] w-full max-w-[90rem] mx-auto px-6 grid grid-cols-12 gap-6">
           <div className="col-span-12 md:col-span-11 lg:col-span-10 flex flex-col gap-7 items-start justify-center">
             {/* Eyebrow — meta tag */}
-            <div className="flex items-center gap-3">
-              <span className="h-px w-10 bg-[var(--rbs-red)]" aria-hidden="true" />
-              <span className="text-[0.7rem] font-bold tracking-[0.3em] text-white/75 uppercase whitespace-nowrap">
-                EST. 2012 — Dakar, SN
-              </span>
-            </div>
 
             <h1 className="font-display text-[3.25rem] sm:text-7xl md:text-8xl lg:text-[7rem] xl:text-[8.5rem] font-bold leading-[0.85] tracking-tighter text-white uppercase text-balance drop-shadow-[0_4px_30px_rgba(0,0,0,0.55)]">
-              <AnimatedTitle className="block text-white" titles={['Graffiti', 'Street Art', 'Sérigraphie', ' Lifestyle']} />
-              <span className="block text-[var(--rbs-gold)] bg-transparent">From Dakar</span>
+              <AnimatedTitle className="block text-white" />
             </h1>
+
 
             <p className="relative max-w-xl text-base leading-relaxed text-white/85 rounded-xl px-4 py-3.5 md:px-0 md:py-0 bg-black/35 md:bg-transparent border border-white/5 md:border-0 backdrop-blur-md md:backdrop-blur-none">
               Fondé en 2012, ce crew rassemble plus de 30 artistes. Entre fresques murales,
@@ -196,71 +190,167 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* Bottom marquee strip — kinetic detail */}
-        <div className="absolute bottom-0 left-0 right-0 z-[10] border-t border-white/10 bg-black/50 backdrop-blur-md">
-          <div className="max-w-[90rem] mx-auto px-6 py-3 flex items-center justify-between text-[0.65rem] font-mono uppercase tracking-[0.2em] text-white/65">
-            <span>// RBS Crew SN</span>
-            <span className="hidden sm:inline">More than a school — a lifestyle</span>
-            <span className="text-[var(--rbs-gold)] flex items-center gap-1">↓ scroll</span>
-          </div>
-        </div>
       </section>
 
-      {/* ── L'Art & la Rue ───────────────────────────────────────────── */}
-      <section className="py-24 px-6 relative border-t border-white/10">
-        <div className="max-w-[90rem] mx-auto grid grid-cols-12 gap-6 relative">
+      {/* Bottom marquee strip — kinetic detail with interactive hover */}
+      <InteractiveTransition />
 
-          <ScrollReveal className="col-span-12 md:col-span-7 flex flex-col justify-start">
-            <h2 className="font-display text-5xl sm:text-7xl md:text-[6rem] uppercase text-white font-black leading-[0.9] tracking-tight mb-8 text-balance">
-              L&apos;ART <br /> &amp; LA RUE
-            </h2>
-            <p className="text-white/60 text-sm max-w-xs leading-relaxed mb-12 text-balance">
-              L'art urbain n'est pas toujours parfait. Comme la rue, il a ses aspérités,
-              ses hauts et ses bas, mais c'est bien là que réside sa véritable beauté.
-            </p>
+      {/* ── Last Wall Tour Festival ───────────────────────────────────────────── */}
+      <section className="py-24 px-6 w-full relative border-t border-white/10">
+        <div className="flex max-w-[90rem] mx-auto grid grid-cols-12 gap-6 relative">
+
+          <ScrollReveal className="col-span-12 flex flex-col justify-start">
+            <div className="head">
+              <div className="flex items-center justify-between gap-6 w-full h-[200px] mb-6">
+                <h2 className="text-dj-gross text-5xl sm:text-6xl md:text-7xl uppercase text-white leading-none tracking-tight">
+                  Last Wall Tour <br /> Festival
+                </h2>
+                <div className="h-full max-h-[200px] aspect-square flex-shrink-0 flex items-center justify-center">
+                  <img
+                    src="/LWT_logo.png"
+                    alt="Last Wall Tour"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+              </div>
+              <p className="text-white/60 text-base max-w-none leading-relaxed mb-8">
+                Depuis la première édition à Thiès en 2014, le RBS Crew organise chaque année ce festival, parcourant différentes villes du Sénégal. Durant cette décennie, le collectif a défendu et partagé sa vision à travers des thématiques variées, accueillant chaque année un invité différent. Ce festival a permis au RBS Crew de s’étendre au-delà de Dakar, renforçant ainsi sa notoriété et son expérience. Découvrez les artistes et les lieux qui constitueront cette 9e édition... Stay tuned.
+              </p>
+            </div>
             <Link
-              href="/projects"
-              className="inline-flex items-center gap-2 text-[var(--rbs-red)] text-xs font-bold uppercase tracking-wider hover:text-[var(--rbs-red-light)] transition-colors min-h-[44px] w-fit"
+              href="/festival"
+              className="inline-flex items-center gap-2 text-[var(--rbs-red)] text-sm font-bold uppercase tracking-wider hover:text-[var(--rbs-red-light)] transition-colors min-h-[44px] w-fit"
             >
-              Voir les projets <ArrowRight className="w-4 h-4" aria-hidden="true" />
+              Voir les Festivals <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </Link>
           </ScrollReveal>
 
-          {/* Vertical decorative numbers */}
-          <ScrollReveal delay={0.15} className="col-span-12 md:col-span-5 hidden md:flex flex-col items-end relative">
-            <div className="flex flex-col items-end justify-between font-display text-white/40 text-xl font-bold pr-10 border-r border-white/10 h-64 relative">
-              <span>05</span>
-              <span>06</span>
-              <span className="text-white relative">
-                07
-                <span className="absolute left-full top-1/2 w-48 h-px bg-white/30 ml-4 hidden lg:block" />
-              </span>
-              <span>08</span>
-              <span>09</span>
-            </div>
-          </ScrollReveal>
+          {/* Grid of Last Wall Tour images - Brick arrangement with Row 2 offset to the left */}
+          <div className="col-span-12 mt-12 flex flex-col gap-1 bg-black/40 p-1 border border-white/10 rounded-lg overflow-hidden w-full">
 
-          {/* Location pins */}
-          <div className="col-span-12 mt-12 md:mt-24">
-            <ScrollReveal>
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 border-b border-white/20 pb-8 relative">
-                <div className="absolute bottom-0 left-0 w-1/3 h-[2px] bg-[var(--rbs-red)]" />
-                {thematicCols.map((col, idx) => (
-                  <div key={idx} className="flex gap-4 items-center md:items-start group cursor-pointer">
-                    <MapPin
-                      className="text-[var(--rbs-red)] w-8 h-8 group-hover:-translate-y-1 transition-transform"
-                      aria-hidden="true"
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-white font-bold text-lg mb-1">{col.tag}</span>
-                      <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">
-                        {col.title}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollReveal>
+            {/* Row 1: 60% / 40% */}
+            <div className="flex justify-end gap-1 w-full md:w-2/3 ml-auto">
+              <ScrollReveal
+                delay={0 * 0.05}
+                className="group relative overflow-hidden h-[220px] md:h-[196px] bg-black/30 w-[60%]"
+              >
+                <img
+                  src={FALLBACK_IMAGES[0]}
+                  alt="Last Wall Tour Edition 1"
+                  className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-105 group-hover:brightness-110 grayscale group-hover:grayscale-0"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+                  <span className="text-white font-display text-lg font-bold uppercase tracking-wider">
+                    Édition 2014
+                  </span>
+                  <span className="text-[var(--rbs-red-light)] text-xs font-semibold uppercase tracking-widest mt-1">
+                    Last Wall Tour
+                  </span>
+                </div>
+              </ScrollReveal>
+
+              <ScrollReveal
+                delay={1 * 0.05}
+                className="group relative overflow-hidden h-[220px] md:h-[196px] bg-black/30 w-[50%]"
+              >
+                <img
+                  src={FALLBACK_IMAGES[1]}
+                  alt="Last Wall Tour Edition 2"
+                  className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-105 group-hover:brightness-110 grayscale group-hover:grayscale-0"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+                  <span className="text-white font-display text-lg font-bold uppercase tracking-wider">
+                    Édition 2015
+                  </span>
+                  <span className="text-[var(--rbs-red-light)] text-xs font-semibold uppercase tracking-widest mt-1">
+                    Last Wall Tour
+                  </span>
+                </div>
+              </ScrollReveal>
+            </div>
+
+            {/* Row 2: 40% / 60%, shifted left by 25% using relative positioning */}
+            <div className="flex gap-1 relative -left-[35%] w-full md:w-2/3 ml-auto transition-all duration-300">
+              <ScrollReveal
+                delay={2 * 0.05}
+                className="group relative overflow-hidden h-[220px] md:h-[196px] bg-black/30 w-[30%] md:w-[50%]"
+              >
+                <img
+                  src={FALLBACK_IMAGES[2]}
+                  alt="Last Wall Tour Edition 3"
+                  className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-105 group-hover:brightness-110 grayscale group-hover:grayscale-0"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+                  <span className="text-white font-display text-lg font-bold uppercase tracking-wider">
+                    Édition 2016
+                  </span>
+                  <span className="text-[var(--rbs-red-light)] text-xs font-semibold uppercase tracking-widest mt-1">
+                    Last Wall Tour
+                  </span>
+                </div>
+              </ScrollReveal>
+
+              <ScrollReveal
+                delay={3 * 0.05}
+                className="group relative overflow-hidden h-[220px] md:h-[196px] bg-black/30 w-[70%] md:w-[55%]"
+              >
+                <img
+                  src={FALLBACK_IMAGES[3]}
+                  alt="Last Wall Tour Edition 4"
+                  className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-105 group-hover:brightness-110 grayscale group-hover:grayscale-0"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+                  <span className="text-white font-display text-lg font-bold uppercase tracking-wider">
+                    Édition 2017
+                  </span>
+                  <span className="text-[var(--rbs-red-light)] text-xs font-semibold uppercase tracking-widest mt-1">
+                    Last Wall Tour
+                  </span>
+                </div>
+              </ScrollReveal>
+            </div>
+
+            {/* Row 3: 60% / 40% */}
+            <div className="flex gap-1 w-full md:w-2/3 ml-auto">
+              <ScrollReveal
+                delay={4 * 0.05}
+                className="group relative overflow-hidden h-[220px] md:h-[196px] bg-black/30 w-[60%]"
+              >
+                <img
+                  src={FALLBACK_IMAGES[4]}
+                  alt="Last Wall Tour Edition 5"
+                  className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-105 group-hover:brightness-110 grayscale group-hover:grayscale-0"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+                  <span className="text-white font-display text-lg font-bold uppercase tracking-wider">
+                    Édition 2018
+                  </span>
+                  <span className="text-[var(--rbs-red-light)] text-xs font-semibold uppercase tracking-widest mt-1">
+                    Last Wall Tour
+                  </span>
+                </div>
+              </ScrollReveal>
+
+              <ScrollReveal
+                delay={5 * 0.05}
+                className="group relative overflow-hidden h-[220px] md:h-[196px] bg-black/30 w-[40%]"
+              >
+                <img
+                  src={FALLBACK_IMAGES[5]}
+                  alt="Last Wall Tour Edition 6"
+                  className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-105 group-hover:brightness-110 grayscale group-hover:grayscale-0"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+                  <span className="text-white font-display text-lg font-bold uppercase tracking-wider">
+                    Édition 2019
+                  </span>
+                  <span className="text-[var(--rbs-red-light)] text-xs font-semibold uppercase tracking-widest mt-1">
+                    Last Wall Tour
+                  </span>
+                </div>
+              </ScrollReveal>
+            </div>
+
           </div>
         </div>
       </section>

@@ -2,22 +2,39 @@
 
 import { useCart } from '@/lib/cart-store';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { formatXOF } from '@/lib/format';
 import { useAuthedFetch } from '@/lib/use-authed-fetch';
-import { ArrowLeft, Minus, Plus, Trash2, ShoppingBag, Lock, ArrowRight, CreditCard, Smartphone } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Trash2, ShoppingBag, Lock, ArrowRight, CreditCard, Smartphone, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function CheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-white/20 border-t-red-600 rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <CheckoutContent />
+    </Suspense>
+  );
+}
+
+function CheckoutContent() {
   const { items, removeItem, updateQuantity, total, count, clearCart } = useCart();
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { authedFetch } = useAuthedFetch();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'WAVE' | 'ORANGE_MONEY' | 'STRIPE' | 'PAYPAL'>('WAVE');
+
+  const isCancelled = searchParams.has('cancelled');
 
   // Shipping info form state
   const [form, setForm] = useState({
@@ -104,7 +121,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           orderId: order.id,
           paymentMethod,
-          successUrl: `${window.location.origin}/shop/checkout?success=1`,
+          successUrl: `${window.location.origin}/shop/checkout/success?orderId=${order.id}`,
           cancelUrl: `${window.location.origin}/shop/checkout?cancelled=1`,
         }),
       });
@@ -146,6 +163,32 @@ export default function CheckoutPage() {
           </h1>
           <span className="text-white/30 text-sm font-semibold">({count} article{count > 1 ? 's' : ''})</span>
         </div>
+
+        {/* Cancelled payment alert */}
+        {isCancelled && (
+          <div className="mb-10 p-5 rounded-2xl border border-yellow-500/30 bg-yellow-500/5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="w-5 h-5 text-yellow-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-yellow-100">Paiement annulé</p>
+              <p className="text-xs text-yellow-200/60 mt-1">
+                Votre paiement n&apos;a pas été finalisé. Vous pouvez réessayer ou choisir un autre moyen de paiement.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('cancelled');
+                router.replace(url.pathname);
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-500/15 hover:bg-yellow-500/25 text-yellow-200 text-xs font-semibold transition-colors flex-shrink-0"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Réessayer
+            </button>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-5 gap-10">
           {/* Left column — Cart items + form */}
