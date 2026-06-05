@@ -36,15 +36,15 @@ func (r *OrdersRepository) UpdateOrderPaymentStatus(ctx context.Context, id stri
 		ID:      id,
 		Column2: paymentStatus,
 	}
-	
+
 	if status != nil {
 		params.Status = db.NullOrderStatus{OrderStatus: *status, Valid: true}
 	}
-	
+
 	if stripeID != nil {
 		params.StripePaymentIntentId = stripeID
 	}
-	
+
 	row, err := r.q.UpdateOrderPaymentStatus(ctx, params)
 	if err != nil {
 		return nil, err
