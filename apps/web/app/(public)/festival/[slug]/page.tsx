@@ -92,13 +92,13 @@ export default async function FestivalEditionPage({ params }: { params: Promise<
         ) : (
           <div className="absolute inset-0 bg-white/5 z-0" />
         )}
-        
+
         <div className="relative z-20 w-full max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pb-12 sm:pb-16 md:pb-24">
           <Link href="/festival" className="inline-flex items-center gap-2 text-white/70 hover:text-[oklch(0.72_0.19_48)] transition-colors mb-6 text-sm font-medium tracking-wide tag-graffiti px-4 py-2 border border-white/10 rounded-full bg-black/30 backdrop-blur-sm">
             <ArrowLeft className="w-4 h-4" />
             Retour à l'Historique
           </Link>
-          
+
           <div className="flex items-center gap-3 mb-4">
             <span className="px-3 py-1 bg-[oklch(0.72_0.19_48)] text-black font-semibold text-xs rounded-full uppercase tracking-widest">
               Édition {edition.editionNumber}
@@ -108,11 +108,11 @@ export default async function FestivalEditionPage({ params }: { params: Promise<
               {edition.year}
             </span>
           </div>
-          
+
           <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display text-white italic drop-shadow-2xl mb-4 leading-[1.1]">
             {t?.themeName}
           </h1>
-          
+
           {edition.city && (
             <p className="flex items-center gap-2 text-lg text-white/80 font-medium">
               <MapPin className="w-5 h-5 text-[oklch(0.72_0.19_48)]" />

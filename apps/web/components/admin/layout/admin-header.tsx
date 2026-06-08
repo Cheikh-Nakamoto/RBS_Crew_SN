@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { ROLE_META_HEADER } from '@/lib/admin/status-maps';
 
 const SEGMENT_LABELS: Record<string, string> = {
   admin: 'Tableau de bord',
@@ -55,12 +56,7 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
   const role = (user as { role?: string } | undefined)?.role ?? '';
   const initials = [user?.name?.[0], user?.email?.[0]].filter(Boolean).join('').toUpperCase().slice(0, 2) || 'A';
 
-  const roleLabelMap: Record<string, { label: string; color: string }> = {
-    ADMIN: { label: 'Administrateur', color: 'bg-[var(--rbs-red)]/20 text-[var(--rbs-red)]' },
-    EDITOR: { label: 'Éditeur', color: 'bg-blue-500/20 text-blue-400' },
-    CUSTOMER: { label: 'Client', color: 'bg-white/10 text-white/60' },
-  };
-  const roleMeta = roleLabelMap[role] ?? roleLabelMap['CUSTOMER'];
+  const roleMeta = ROLE_META_HEADER[role] ?? ROLE_META_HEADER['CUSTOMER'];
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-white/10 bg-black/20 px-6 backdrop-blur-xl">

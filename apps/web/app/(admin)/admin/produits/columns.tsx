@@ -5,12 +5,7 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { DataTableRowActions } from '@/components/admin/data-table/data-table-row-actions';
 import type { AdminProduct } from '@/types/admin';
-
-const STATUS_META = {
-  PUBLISHED: { label: 'Publié', className: 'bg-green-500/20 text-green-400 border-green-500/30' },
-  DRAFT: { label: 'Brouillon', className: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
-  ARCHIVED: { label: 'Archivé', className: 'bg-white/10 text-white/40 border-white/20' },
-};
+import { PRODUCT_STATUS_META } from '@/lib/admin/status-maps';
 
 export function getProductColumns(
   onDelete: (id: string) => void
@@ -82,7 +77,7 @@ export function getProductColumns(
       accessorKey: 'status',
       header: 'Statut',
       cell: ({ row }) => {
-        const meta = STATUS_META[row.original.status] ?? STATUS_META.DRAFT;
+        const meta = PRODUCT_STATUS_META[row.original.status] ?? PRODUCT_STATUS_META.DRAFT;
         return (
           <Badge variant="outline" className={meta.className}>
             {meta.label}

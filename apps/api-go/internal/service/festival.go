@@ -76,6 +76,65 @@ func (s *FestivalService) GetBySlug(ctx context.Context, slug string) (*model.Fe
 	return &res, nil
 }
 
+// LatestGalleryResponse holds the 6 gallery images + key metadata of the latest edition.
+type LatestGalleryResponse struct {
+	EditionNumber int32    `json:"editionNumber"`
+	Year          int32    `json:"year"`
+	ThemeName     string   `json:"themeName"`
+	Description   string   `json:"description"`
+	Gallery       []string `json:"gallery"`
+}
+
+// LatestGallery returns up to 6 gallery images from the most recent published festival edition.
+func (s *FestivalService) LatestGallery(ctx context.Context) (*LatestGalleryResponse, *types.AppError) {
+	f, err := s.repo.GetLatest(ctx)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, types.NotFound("No published festival edition found")
+		}
+		return nil, types.InternalError("Database error")
+	}
+	// fmt.Println("f", f)
+	// fmt.Println("err", err)
+
+	// Parse gallery JSON → []string
+	var gallery []string
+	if len(f.Gallery) > 0 {
+		_ = json.Unmarshal(f.Gallery, &gallery)
+	}
+	if gallery == nil {
+		gallery = []string{}
+	}
+	// Cap at 6 images
+	if len(gallery) > 6 {
+		gallery = gallery[:6]
+	}
+
+	// Resolve locale metadata (prefer "fr", fallback to first translation)
+	translations, _ := s.repo.GetTranslations(ctx, f.ID)
+	themeName := ""
+	description := ""
+	for _, t := range translations {
+		if string(t.Locale) == "fr" || themeName == "" {
+			themeName = t.ThemeName
+			if t.Summary != nil {
+				description = *t.Summary
+			}
+		}
+		if string(t.Locale) == "fr" {
+			break
+		}
+	}
+
+	return &LatestGalleryResponse{
+		EditionNumber: f.EditionNumber,
+		Year:          f.Year,
+		ThemeName:     themeName,
+		Description:   description,
+		Gallery:       gallery,
+	}, nil
+}
+
 // ── Admin CRUD ────────────────────────────────────────────────────────────────
 
 func (s *FestivalService) toAdminResponse(ctx context.Context, f *db.FestivalEdition) model.AdminFestivalResponse {
@@ -224,10 +283,11 @@ func (s *FestivalService) AdminCreate(ctx context.Context, input model.AdminFest
 }
 
 func (s *FestivalService) AdminUpdate(ctx context.Context, id string, input model.AdminFestivalInput) (*model.AdminFestivalResponse, *types.AppError) {
-	status := db.NullProductStatus{Valid: true, ProductStatus: db.ProductStatusDRAFT}
+	status := db.ProductStatusDRAFT
 	if input.IsPublished {
-		status.ProductStatus = db.ProductStatusPUBLISHED
+		status = db.ProductStatusPUBLISHED
 	}
+	statusPtr := &status
 	galleryJSON, _ := json.Marshal(input.Gallery)
 	editionNum := &input.EditionNumber
 	inputYear := &input.Year
@@ -238,7 +298,7 @@ func (s *FestivalService) AdminUpdate(ctx context.Context, id string, input mode
 		Year:          inputYear,
 		City:          input.City,
 		Country:       input.Country,
-		Status:        status,
+		Status:        statusPtr,
 		MainImage:     input.MainImage,
 		HeroImage:     input.HeroImage,
 		Gallery:       galleryJSON,

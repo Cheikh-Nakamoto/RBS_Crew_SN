@@ -1,11 +1,16 @@
 'use client';
 
-import { useRef, type ReactNode } from 'react';
-import { motion, useInView, type Variants } from 'framer-motion';
+import { useRef, useEffect, useId, type ReactNode } from 'react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-// Framer Motion v12 — ease doit être un tuple typé, pas number[]
-const EASE_SPRING = [0.34, 1.1, 0.64, 1] as [number, number, number, number];
-const EASE_OUT    = [0, 0, 0.2, 1]       as [number, number, number, number];
+gsap.registerPlugin(ScrollTrigger);
+
+/* ── Easings ───────────────────────────────────────────────────────────────── */
+
+const EASE_OUT = 'power3.out';
+
+/* ── Types ─────────────────────────────────────────────────────────────────── */
 
 interface ScrollRevealProps {
   readonly children: ReactNode;
@@ -16,12 +21,16 @@ interface ScrollRevealProps {
   readonly amount?: number;
 }
 
+/* ── Direction offset map ──────────────────────────────────────────────────── */
+
 const directionOffset = {
   bottom: { y: 40, x: 0 },
   left:   { y: 0,  x: -40 },
   right:  { y: 0,  x: 40 },
   none:   { y: 0,  x: 0 },
 };
+
+/* ── ScrollReveal ──────────────────────────────────────────────────────────── */
 
 export function ScrollReveal({
   children,
@@ -32,27 +41,47 @@ export function ScrollReveal({
   amount = 0.15,
 }: ScrollRevealProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once, amount });
-  const offset = directionOffset[from];
+  const id = useId();
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const offset = directionOffset[from];
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        el,
+        { opacity: 0, ...offset, filter: 'blur(4px)' },
+        {
+          opacity: 1,
+          y: 0,
+          x: 0,
+          filter: 'blur(0px)',
+          duration: 0.65,
+          delay,
+          ease: EASE_OUT,
+          scrollTrigger: {
+            id,
+            trigger: el,
+            start: `top ${100 - amount * 100}%`,
+            toggleActions: once ? 'play none none none' : 'play none none reset',
+          },
+        },
+      );
+    }, ref);
+
+    return () => ctx.revert();
+  }, [delay, from, once, amount, id]);
 
   return (
-    <motion.div
-      ref={ref}
-      className={className}
-      initial={{ opacity: 0, ...offset, filter: 'blur(4px)' }}
-      animate={
-        isInView
-          ? { opacity: 1, y: 0, x: 0, filter: 'blur(0px)' }
-          : { opacity: 0, ...offset, filter: 'blur(4px)' }
-      }
-      transition={{ duration: 0.65, delay, ease: EASE_SPRING }}
-    >
+    <div ref={ref} className={className}>
       {children}
-    </motion.div>
+    </div>
   );
 }
 
-/* ── StaggerReveal ─────────────────────────────── */
+/* ── StaggerReveal ─────────────────────────────────────────────────────────── */
 
 interface StaggerRevealProps {
   readonly children: ReactNode;
@@ -61,17 +90,6 @@ interface StaggerRevealProps {
   readonly once?: boolean;
 }
 
-
-export const staggerChildVariants: Variants = {
-  hidden:  { opacity: 0, y: 32, filter: 'blur(4px)' },
-  visible: {
-    opacity: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    transition: { duration: 0.55, ease: EASE_OUT },
-  },
-};
-
 export function StaggerReveal({
   children,
   className,
@@ -79,30 +97,58 @@ export function StaggerReveal({
   once = true,
 }: StaggerRevealProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once, amount: 0.1 });
+  const id = useId();
 
-  const variants: Variants = {
-    hidden: {},
-    visible: { transition: { staggerChildren: staggerDelay } },
-  };
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const children = el.children;
+    if (!children.length) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        children,
+        { opacity: 0, y: 32, filter: 'blur(4px)' },
+        {
+          opacity: 1,
+          y: 0,
+          filter: 'blur(0px)',
+          duration: 0.55,
+          stagger: staggerDelay,
+          ease: 'power2.out',
+          scrollTrigger: {
+            id,
+            trigger: el,
+            start: 'top 90%',
+            toggleActions: once ? 'play none none none' : 'play none none reset',
+          },
+        },
+      );
+    }, ref);
+
+    return () => ctx.revert();
+  }, [staggerDelay, once, id]);
 
   return (
-    <motion.div
-      ref={ref}
-      className={className}
-      variants={variants}
-      initial="hidden"
-      animate={isInView ? 'visible' : 'hidden'}
-    >
+    <div ref={ref} className={className}>
       {children}
-    </motion.div>
+    </div>
   );
 }
 
-export function StaggerItem({ children, className, ...props }: { children: ReactNode; className?: string; [key: string]: unknown }) {
+/* ── StaggerItem (passive wrapper — no GSAP needed) ────────────────────────── */
+
+interface StaggerItemProps {
+  readonly children: ReactNode;
+  readonly className?: string;
+  readonly [key: string]: unknown;
+}
+
+export function StaggerItem({ children, className, ...props }: StaggerItemProps) {
   return (
-    <motion.div className={className} variants={staggerChildVariants} {...props}>
+    <div className={className} {...props}>
       {children}
-    </motion.div>
+    </div>
   );
 }

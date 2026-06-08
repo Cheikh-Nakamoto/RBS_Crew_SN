@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation';
 import { fetchAdminProduct, fetchAdminCategories, fetchAdminTags } from '@/lib/admin/queries';
 import { ProductForm } from '../_components/product-form';
 
@@ -9,11 +10,18 @@ interface EditProduitPageProps {
 
 export default async function EditProduitPage({ params }: EditProduitPageProps) {
   const { id } = await params;
-  const [product, categoriesData, tagsData] = await Promise.all([
-    fetchAdminProduct(id),
-    fetchAdminCategories({ limit: 100 }),
-    fetchAdminTags({ limit: 100 }),
-  ]);
+  let product;
+  let categoriesData;
+  let tagsData;
+  try {
+    [product, categoriesData, tagsData] = await Promise.all([
+      fetchAdminProduct(id),
+      fetchAdminCategories({ limit: 100 }),
+      fetchAdminTags({ limit: 100 }),
+    ]);
+  } catch {
+    notFound();
+  }
 
   return (
     <ProductForm

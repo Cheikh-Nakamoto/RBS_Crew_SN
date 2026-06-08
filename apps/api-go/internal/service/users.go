@@ -49,7 +49,8 @@ func (s *UsersService) UpdateMe(ctx context.Context, userID string, dto model.Up
 		params.Phone = dto.Phone
 	}
 	if dto.PreferredLocale != nil {
-		params.PreferredLocale = db.NullLocale{Locale: db.Locale(*dto.PreferredLocale), Valid: true}
+		l := db.Locale(*dto.PreferredLocale)
+		params.PreferredLocale = &l
 	}
 
 	row, err := s.repo.Update(ctx, params)
@@ -226,7 +227,7 @@ func (s *UsersService) GetByID(ctx context.Context, id string) (*model.UserProfi
 
 func (s *UsersService) UpdateRole(ctx context.Context, id, role string) (*model.UserProfileResponse, *types.AppError) {
 	r := db.UserRole(role)
-	params := db.UpdateUserParams{ID: id, Role: db.NullUserRole{UserRole: r, Valid: true}}
+	params := db.UpdateUserParams{ID: id, Role: &r}
 	row, err := s.repo.Update(ctx, params)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import { AdminPageHeader } from '@/components/admin/admin-page-header';
 import { fetchAdminQuotes } from '@/lib/admin/queries';
 import { QuotesTable } from './_components/quotes-table';
@@ -20,9 +19,7 @@ export default async function DevisPage({ searchParams }: DevisPageProps) {
         eyebrow="Ventes"
         description={`${data.meta.total} devis au total`}
       />
-      <Suspense>
-        <QuotesTable data={data.data} pagination={data.meta} />
-      </Suspense>
+      <QuotesTable data={data.data} pagination={data.meta} />
     </>
   );
 }

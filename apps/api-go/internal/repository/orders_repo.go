@@ -38,7 +38,7 @@ func (r *OrdersRepository) UpdateOrderPaymentStatus(ctx context.Context, id stri
 	}
 
 	if status != nil {
-		params.Status = db.NullOrderStatus{OrderStatus: *status, Valid: true}
+		params.Status = status
 	}
 
 	if stripeID != nil {
@@ -115,9 +115,13 @@ func (r *OrdersRepository) UpdatePaymentStatus(ctx context.Context, id string, s
 }
 
 func (r *OrdersRepository) UpdateOrderPaymentMethod(ctx context.Context, orderID string, method db.NullPaymentMethod) (*db.Order, error) {
+	var pm *db.PaymentMethod
+	if method.Valid {
+		pm = &method.PaymentMethod
+	}
 	o, err := r.q.UpdateOrderPaymentStatus(ctx, db.UpdateOrderPaymentStatusParams{
 		ID:            orderID,
-		PaymentMethod: method,
+		PaymentMethod: pm,
 	})
 	if err != nil {
 		return nil, err

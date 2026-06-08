@@ -1,41 +1,69 @@
 'use client';
+
 import { useState, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/admin/data-table/data-table';
 import { DataTableToolbar } from '@/components/admin/data-table/data-table-toolbar';
 import { DeleteConfirmDialog } from '@/components/admin/delete-confirm-dialog';
-import { DataTableRowActions } from '@/components/admin/data-table/data-table-row-actions';
 import { deleteServices } from '../actions';
+import { getServiceColumns } from '../columns';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import type { PaginatedMeta } from '@/types/admin';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getColumns(onDelete: (id: string) => void): ColumnDef<any>[] {
-  return [
-    { id: 'name', header: 'Titre', cell: ({ row }: { row: { original: { id: string; translations: Array<{ locale: string; title: string }> } } }) => <span className="font-medium text-white">{row.original.translations.find((t: { locale: string }) => t.locale === 'fr')?.title ?? '—'}</span> },
-    { id: 'actions', header: '', cell: ({ row }: { row: { original: { id: string } } }) => <DataTableRowActions id={row.original.id} basePath="/admin/services" onDelete={onDelete} />, size: 48 },
-  ];
+interface ServicesTableProps {
+  data: any[];
+  pagination: PaginatedMeta;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function ServicesTable({ data, pagination }: { data: any[]; pagination: PaginatedMeta }) {
-  const router = useRouter(); const pathname = usePathname(); const searchParams = useSearchParams();
+export function ServicesTable({ data, pagination }: ServicesTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, startDeleting] = useTransition();
-  const handlePageChange = (page: number) => { const p = new URLSearchParams(searchParams.toString()); p.set('page', String(page)); router.push(`${pathname}?${p.toString()}`); };
+
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', String(page));
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
   const confirmDelete = () => {
-    if (!deleteId) { return; }
+    if (!deleteId) return;
     startDeleting(async () => {
       try {
         const result = await deleteServices(deleteId);
         if (!result.success) { toast.error(result.error); return; }
-        toast.success('Élément supprimé');
+        toast.success('Service supprimé');
         setDeleteId(null);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression');
       }
     });
   };
-  return (<><div className="space-y-4"><DataTableToolbar /><DataTable columns={getColumns(setDeleteId)} data={data} pagination={pagination} onPageChange={handlePageChange} /></div><DeleteConfirmDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)} onConfirm={confirmDelete} isDeleting={isDeleting} /></>);
+
+  return (
+    <>
+      <div className="space-y-4">
+        <DataTableToolbar searchPlaceholder="Rechercher un service..." />
+        <DataTable
+          columns={getServiceColumns(setDeleteId)}
+          data={data}
+          pagination={pagination}
+          onPageChange={handlePageChange}
+        />
+      </div>
+      <DeleteConfirmDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+        onConfirm={confirmDelete}
+        isDeleting={isDeleting}
+        title="Supprimer ce service ?"
+        description="Ce service sera définitivement supprimé."
+      />
+    </>
+  );
 }

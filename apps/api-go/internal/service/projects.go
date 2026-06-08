@@ -162,10 +162,11 @@ func (s *ProjectsService) AdminCreate(ctx context.Context, input model.AdminProj
 }
 
 func (s *ProjectsService) AdminUpdate(ctx context.Context, id string, input model.AdminProjectInput) (*model.AdminProjectResponse, *types.AppError) {
-	status := db.NullProductStatus{Valid: true, ProductStatus: db.ProductStatusDRAFT}
+	status := db.ProductStatusDRAFT
 	if input.IsPublished {
-		status.ProductStatus = db.ProductStatusPUBLISHED
+		status = db.ProductStatusPUBLISHED
 	}
+	statusPtr := &status
 	galleryJSON, _ := json.Marshal(input.Gallery)
 	p, err := s.repo.Update(ctx, db.UpdateProjectParams{
 		ID: id, FeaturedImageUrl: input.FeaturedImageURL,
@@ -173,7 +174,7 @@ func (s *ProjectsService) AdminUpdate(ctx context.Context, id string, input mode
 		CompletedAt: parseCompletedAt(input.CompletedAt),
 		ClientName:  input.ClientName,
 		Country:     input.Country,
-		Status:      status,
+		Status:      statusPtr,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

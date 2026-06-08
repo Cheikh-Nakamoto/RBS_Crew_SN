@@ -224,10 +224,11 @@ func (s *ArtistsService) AdminCreate(ctx context.Context, input model.AdminArtis
 }
 
 func (s *ArtistsService) AdminUpdate(ctx context.Context, id string, input model.AdminArtistInput) (*model.AdminArtistResponse, *types.AppError) {
-	status := db.NullProductStatus{Valid: true, ProductStatus: db.ProductStatusDRAFT}
+	status := db.ProductStatusDRAFT
 	if input.IsPublished {
-		status.ProductStatus = db.ProductStatusPUBLISHED
+		status = db.ProductStatusPUBLISHED
 	}
+	statusPtr := &status
 
 	var newSlug *string
 	for _, t := range input.Translations {
@@ -256,7 +257,7 @@ func (s *ArtistsService) AdminUpdate(ctx context.Context, id string, input model
 		SpotifyUrl:       input.SpotifyUrl,
 		SoundcloudUrl:    input.SoundcloudUrl,
 		VideoUrl:         input.VideoUrl,
-		Status:           status,
+		Status:           statusPtr,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

@@ -57,8 +57,8 @@ func (s *ProductsService) List(ctx context.Context, f model.ProductFilter) (*typ
 		params.MaxPrice = decimal.NullDecimal{Decimal: *f.MaxPrice, Valid: true}
 	}
 	if f.Status != nil {
-		s2 := db.NullProductStatus{ProductStatus: db.ProductStatus(*f.Status), Valid: true}
-		params.Status = s2
+		s2 := db.ProductStatus(*f.Status)
+		params.Status = &s2
 	}
 	if f.Search != nil {
 		params.Search = f.Search
@@ -300,10 +300,11 @@ func (s *ProductsService) AdminUpdate(ctx context.Context, id string, input mode
 		cap = decimal.NullDecimal{Decimal: decimal.NewFromFloat(*input.CompareAtPrice), Valid: true}
 	}
 	stock := input.Stock
-	status := db.NullProductStatus{Valid: true, ProductStatus: db.ProductStatus(input.Status)}
+	status := db.ProductStatus(input.Status)
+	statusPtr := &status
 	p, err := s.repo.Update(ctx, db.UpdateProductParams{
 		ID: id, Sku: input.SKU, Price: price, CompareAtPrice: cap,
-		Stock: &stock, Status: status, FeaturedImageUrl: input.FeaturedImageURL,
+		Stock: &stock, Status: statusPtr, FeaturedImageUrl: input.FeaturedImageURL,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

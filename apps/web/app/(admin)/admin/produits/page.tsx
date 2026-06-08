@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import { AdminPageHeader } from '@/components/admin/admin-page-header';
 import { fetchAdminProducts } from '@/lib/admin/queries';
 import { ProductsTable } from './_components/products-table';
@@ -26,9 +25,7 @@ export default async function ProduitsPage({ searchParams }: ProduitsPageProps) 
         description={`${data.meta.total} produit${data.meta.total > 1 ? 's' : ''} au total`}
         action={{ href: '/admin/produits/nouveau', label: 'Nouveau produit' }}
       />
-      <Suspense>
-        <ProductsTable data={data.data} pagination={data.meta} />
-      </Suspense>
+      <ProductsTable data={data.data} pagination={data.meta} />
     </>
   );
 }

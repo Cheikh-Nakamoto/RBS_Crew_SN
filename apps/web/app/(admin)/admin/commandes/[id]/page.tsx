@@ -4,25 +4,22 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { fetchAdminOrder } from '@/lib/admin/queries';
-import { OrderStatusForm } from './_components/order-status-form';
-import { OrderDeleteButton } from './_components/order-delete-button';
+import { AdminStatusSelect } from '@/components/admin/admin-status-select';
+import { AdminDeleteButton } from '@/components/admin/admin-delete-button';
+import { updateOrderStatus, deleteOrder } from '../actions';
+import type { OrderStatus } from '@/types/admin';
 
 export const metadata = { title: 'Détail commande' };
 
-const ORDER_STATUS_META: Record<string, { label: string; className: string }> = {
-  PENDING: { label: 'En attente', className: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
-  PROCESSING: { label: 'En cours', className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  COMPLETED: { label: 'Terminée', className: 'bg-green-500/20 text-green-400 border-green-500/30' },
-  CANCELLED: { label: 'Annulée', className: 'bg-white/10 text-white/40 border-white/20' },
-  REFUNDED: { label: 'Remboursée', className: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
-  FAILED: { label: 'Échouée', className: 'bg-red-500/20 text-red-400 border-red-500/30' },
-};
+import { ORDER_STATUS_META, PAYMENT_STATUS_META } from '@/lib/admin/status-maps';
 
-const PAYMENT_STATUS_META: Record<string, { label: string; className: string }> = {
-  UNPAID: { label: 'Non payé', className: 'bg-red-500/20 text-red-400 border-red-500/30' },
-  PAID: { label: 'Payé', className: 'bg-green-500/20 text-green-400 border-green-500/30' },
-  PARTIALLY_REFUNDED: { label: 'Part. remb.', className: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
-  REFUNDED: { label: 'Remboursé', className: 'bg-white/10 text-white/40 border-white/20' },
+const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  PENDING: 'En attente',
+  PROCESSING: 'En cours de traitement',
+  COMPLETED: 'Terminée',
+  CANCELLED: 'Annulée',
+  REFUNDED: 'Remboursée',
+  FAILED: 'Échouée',
 };
 
 export default async function CommandeDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -51,7 +48,14 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
             <h1 className="text-2xl font-black text-white">{order.orderNumber}</h1>
           </div>
         </div>
-        <OrderDeleteButton orderId={order.id} orderNumber={order.orderNumber} />
+        <AdminDeleteButton
+          id={order.id}
+          title={`Supprimer la commande ${order.orderNumber} ?`}
+          description="Cette commande et tous ses articles seront définitivement supprimés. Cette action est irréversible."
+          successMessage="Commande supprimée"
+          redirectPath="/admin/commandes"
+          deleteAction={deleteOrder}
+        />
       </div>
 
       {/* Status badges */}
@@ -138,7 +142,13 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
       </div>
 
       {/* Changer le statut */}
-      <OrderStatusForm orderId={order.id} currentStatus={order.status} />
+      <AdminStatusSelect
+        id={order.id}
+        currentValue={order.status}
+        label="Modifier le statut"
+        options={ORDER_STATUS_LABELS}
+        updateAction={(id, value) => updateOrderStatus(id, { status: value })}
+      />
     </div>
   );
 }

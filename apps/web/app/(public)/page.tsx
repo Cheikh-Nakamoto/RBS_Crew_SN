@@ -5,10 +5,14 @@ import { api } from '@/lib/api';
 import type { ApiResponse } from '@rbs/types';
 import { formatXOF } from '@/lib/format';
 import { HeroBackground } from '@/components/hero-background';
-import { ScrollReveal, StaggerReveal, StaggerItem } from '@/components/ui/scroll-reveal';
+import { ScrollReveal } from '@/components/ui/scroll-reveal';
 import { Button } from '@/components/ui/button';
 import { AnimatedTitle } from '@/components/ui/animated-title';
 import { InteractiveTransition } from '@/components/ui/interactive-transition';
+import { EditionHero } from '@/components/composite/last-wall-tour-hero';
+import type { EditionHeroStat } from '@/components/composite/last-wall-tour-hero';
+import { ProjectCarousel, type CarouselProject } from '@/components/composite/project-carousel';
+import { AkademyaCTA } from '@/components/composite/akademya-cta';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -37,15 +41,23 @@ interface ArtistItem {
   translations: Array<{ locale: string; name: string }>;
 }
 
+interface LatestFestivalGallery {
+  editionNumber: number;
+  year: number;
+  themeName: string;
+  description: string;
+  gallery: string[];
+}
+
 // ── Fallback images ────────────────────────────────────────────────────────────
 
 const FALLBACK_IMAGES: string[] = [
-  'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=1200&q=80',
-  'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1200&q=80',
-  'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200&q=80',
-  'https://images.unsplash.com/photo-1519638399535-1b036603ac77?w=1200&q=80',
-  'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=1200&q=80',
-  'https://images.unsplash.com/photo-1481487196290-c152efe083f5?w=1200&q=80',
+  '/9th_edition_1.png',
+  '/9th_edition_2.png',
+  '/9th_edition_3.png',
+  '/9th_edition_4.png',
+  '/9th_edition_5.png',
+  '/9th_edition_6.png',
 ];
 
 const FALLBACK_THUMB = [
@@ -60,27 +72,69 @@ export default async function HomePage() {
   // Pause artificielle pour montrer le loader
   await new Promise(resolve => setTimeout(resolve, 800));
 
-  const [projectsData, productsData, artistsData] = await Promise.allSettled([
+  const [projectsData, productsData, artistsData, latestFestivalData] = await Promise.allSettled([
     api.get('projects?limit=10', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } }).json<ApiResponse<ProjectItem[]>>(),
     api.get('products?limit=4&status=PUBLISHED', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 1800 } }).json<ApiResponse<ProductItem[]>>(),
     api.get('artists?limit=10', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } }).json<ApiResponse<ArtistItem[]>>(),
+    api.get('festival/latest/gallery', { next: { revalidate: 3600 } }).json<LatestFestivalGallery>(),
   ]);
 
   const projects = projectsData.status === 'fulfilled' ? projectsData.value.data : [];
   const products = productsData.status === 'fulfilled' ? productsData.value.data : [];
   const artists = artistsData.status === 'fulfilled' ? artistsData.value.data : [];
+  const latestFestival = latestFestivalData.status === 'fulfilled' ? latestFestivalData.value : null;
+  const fetchError = projectsData.status === 'rejected';
 
-  // const heroImages = (() => {
-  //   const imgs: string[] = [];
-  //   const pImgs = projects.map(p => p.featuredImageUrl).filter(Boolean) as string[];
-  //   const aImgs = artists.map(a => a.featuredImageUrl).filter(Boolean) as string[];
-  //   const max = Math.max(pImgs.length, aImgs.length);
-  //   for (let i = 0; i < max; i++) {
-  //     if (pImgs[i]) imgs.push(pImgs[i]);
-  //     if (aImgs[i]) imgs.push(aImgs[i]);
-  //   }
-  //   return imgs.length >= 2 ? imgs : FALLBACK_IMAGES;
-  // })();
+  // ── Carousel projects from API ──────────────────
+  const carouselProjects: CarouselProject[] = (() => {
+    if (projects.length === 0) return [];
+    return projects.slice(0, 10).map((p) => {
+      const t = p.translations.find((x) => x.locale === 'fr') ?? p.translations[0];
+      return {
+        id: p.id,
+        slug: p.slug,
+        title: t?.title ?? 'Projet',
+        summary: t?.summary ?? '',
+        images: p.featuredImageUrl ? [p.featuredImageUrl] : [],
+        clientName: p.clientName,
+      };
+    });
+  })();
+
+  // ── Akademya fallback images ──────────────────
+  const AKADEMYA_IMAGES = [
+    FALLBACK_IMAGES[0],
+    FALLBACK_IMAGES[1],
+    FALLBACK_IMAGES[2],
+  ];
+
+  // ── Fallback for carousel ──────────────────────
+  const carouselFallback: CarouselProject[] = [
+    {
+      id: 'fallback-1',
+      slug: 'grands-moulins',
+      title: 'Les Grands Moulin',
+      summary: 'En décembre 2024, le RBS Crew a été invité à intervenir sur les murs des Grands Moulins de Dakar, dans le cadre d\'un projet artistique et patrimonial inédit. À travers cette fresque, le collectif a proposé une lecture visuelle de l\'histoire industrielle, sociale et humaine de ce site emblématique, au cœur de la capitale sénégalaise.',
+      images: [FALLBACK_IMAGES[3], FALLBACK_IMAGES[4], FALLBACK_IMAGES[5]],
+      clientName: 'Grands Moulins de Dakar',
+    },
+    {
+      id: 'fallback-2',
+      slug: 'murales-dakar',
+      title: 'Murales Dakar',
+      summary: 'Une série d\'interventions murales à travers les quartiers de Dakar, mêlant portraits, motifs géométriques et calligraphies.',
+      images: [FALLBACK_IMAGES[0], FALLBACK_IMAGES[1]],
+      clientName: 'Ville de Dakar',
+    },
+    {
+      id: 'fallback-3',
+      slug: 'serigraphie-rbs',
+      title: 'Sérigraphie RBS',
+      summary: 'Atelier de sérigraphie produisant des éditions limitées sur textile et papier, alliant techniques artisanales et design contemporain.',
+      images: [FALLBACK_IMAGES[2], FALLBACK_IMAGES[1]],
+      clientName: 'RBS Akademya',
+    },
+  ];
 
   const thematicCols = [
     {
@@ -99,35 +153,6 @@ export default async function HomePage() {
       image: projects[2]?.featuredImageUrl ?? FALLBACK_THUMB[2].image,
     },
   ];
-
-  const collectionItems = (() => {
-    const out: { title: string; image: string; tag: string; href: string; wide?: boolean }[] = [];
-    const pList = projects.slice(0, 6);
-    const aList = artists.slice(0, 6);
-    const max = Math.max(pList.length, aList.length);
-    for (let i = 0; i < max; i++) {
-      if (pList[i]) {
-        const t = pList[i].translations.find(x => x.locale === 'fr') ?? pList[i].translations[0];
-        out.push({
-          title: t?.title ?? 'Projet',
-          image: pList[i].featuredImageUrl ?? FALLBACK_IMAGES[i % FALLBACK_IMAGES.length],
-          tag: 'Projet',
-          href: '/projects',
-          wide: i === 0,
-        });
-      }
-      if (aList[i]) {
-        const t = aList[i].translations.find(x => x.locale === 'fr') ?? aList[i].translations[0];
-        out.push({
-          title: t?.name ?? 'Artiste',
-          image: aList[i].featuredImageUrl ?? FALLBACK_IMAGES[(i + 3) % FALLBACK_IMAGES.length],
-          tag: aList[i].city ?? 'Crew',
-          href: `/crew/${aList[i].slug}`,
-        });
-      }
-    }
-    return out.slice(0, 3);
-  })();
 
   return (
     <div className="overflow-hidden">
@@ -196,272 +221,46 @@ export default async function HomePage() {
       <InteractiveTransition />
 
       {/* ── Last Wall Tour Festival ───────────────────────────────────────────── */}
-      <section className="py-24 px-6 w-full relative border-t border-white/10">
-        <div className="flex max-w-[90rem] mx-auto grid grid-cols-12 gap-6 relative">
+      <EditionHero
+        editionNumber={latestFestival?.editionNumber ?? 9}
+        year={latestFestival?.year ?? 2024}
+        themeName={latestFestival?.themeName || 'TRANSMISSION'}
+        description={
+          latestFestival?.description ||
+          "Depuis la première édition à Thiès en 2014, le RBS Crew organise chaque année ce festival, parcourant différentes villes du Sénégal. Durant cette décennie, le collectif a défendu et partagé sa vision à travers des thématiques variées, accueillant chaque année un invité différent. Ce festival a permis au RBS Crew de s'étendre au-delà de Dakar, renforçant ainsi sa notoriété et son expérience."
+        }
+        galleryImages={(() => {
+          // const real = latestFestival?.gallery ?? [];
+          // Use real images first, fill remaining slots with fallbacks
+          const merged = [
+            ...FALLBACK_IMAGES.slice(0, 6),
+          ];
+          return merged;
+        })()}
+        stats={[
+          { value: '10+', label: 'Editions' },
+          { value: '15+', label: 'villes' },
+          { value: '50+', label: 'Artistes' },
+          { value: '100+', label: 'Œuvres' },
+        ] as EditionHeroStat[]}
+        logoUrl="/LWT_logo.png"
+      />
 
-          <ScrollReveal className="col-span-12 flex flex-col justify-start">
-            <div className="head">
-              <div className="flex items-center justify-between gap-6 w-full h-[200px] mb-6">
-                <h2 className="text-dj-gross text-5xl sm:text-6xl md:text-7xl uppercase text-white leading-none tracking-tight">
-                  Last Wall Tour <br /> Festival
-                </h2>
-                <div className="h-full max-h-[200px] aspect-square flex-shrink-0 flex items-center justify-center">
-                  <img
-                    src="/LWT_logo.png"
-                    alt="Last Wall Tour"
-                    className="max-h-full max-w-full object-contain"
-                  />
-                </div>
-              </div>
-              <p className="text-white/60 text-base max-w-none leading-relaxed mb-8">
-                Depuis la première édition à Thiès en 2014, le RBS Crew organise chaque année ce festival, parcourant différentes villes du Sénégal. Durant cette décennie, le collectif a défendu et partagé sa vision à travers des thématiques variées, accueillant chaque année un invité différent. Ce festival a permis au RBS Crew de s’étendre au-delà de Dakar, renforçant ainsi sa notoriété et son expérience. Découvrez les artistes et les lieux qui constitueront cette 9e édition... Stay tuned.
-              </p>
-            </div>
-            <Link
-              href="/festival"
-              className="inline-flex items-center gap-2 text-[var(--rbs-red)] text-sm font-bold uppercase tracking-wider hover:text-[var(--rbs-red-light)] transition-colors min-h-[44px] w-fit"
-            >
-              Voir les Festivals <ArrowRight className="w-4 h-4" aria-hidden="true" />
-            </Link>
-          </ScrollReveal>
+      {/* ── Projet Phare — Carousel de projets ─────────────────────────── */}
+      <ProjectCarousel
+        projects={fetchError || carouselProjects.length === 0 ? carouselFallback : carouselProjects}
+        primaryCta={{ label: 'collaborer', href: '/contact' }}
+        secondaryCta={{ label: 'voir tous les projets', href: '/projects' }}
+      />
 
-          {/* Grid of Last Wall Tour images - Brick arrangement with Row 2 offset to the left */}
-          <div className="col-span-12 mt-12 flex flex-col gap-1 bg-black/40 p-1 border border-white/10 rounded-lg overflow-hidden w-full">
-
-            {/* Row 1: 60% / 40% */}
-            <div className="flex justify-end gap-1 w-full md:w-2/3 ml-auto">
-              <ScrollReveal
-                delay={0 * 0.05}
-                className="group relative overflow-hidden h-[220px] md:h-[196px] bg-black/30 w-[60%]"
-              >
-                <img
-                  src={FALLBACK_IMAGES[0]}
-                  alt="Last Wall Tour Edition 1"
-                  className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-105 group-hover:brightness-110 grayscale group-hover:grayscale-0"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-                  <span className="text-white font-display text-lg font-bold uppercase tracking-wider">
-                    Édition 2014
-                  </span>
-                  <span className="text-[var(--rbs-red-light)] text-xs font-semibold uppercase tracking-widest mt-1">
-                    Last Wall Tour
-                  </span>
-                </div>
-              </ScrollReveal>
-
-              <ScrollReveal
-                delay={1 * 0.05}
-                className="group relative overflow-hidden h-[220px] md:h-[196px] bg-black/30 w-[50%]"
-              >
-                <img
-                  src={FALLBACK_IMAGES[1]}
-                  alt="Last Wall Tour Edition 2"
-                  className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-105 group-hover:brightness-110 grayscale group-hover:grayscale-0"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-                  <span className="text-white font-display text-lg font-bold uppercase tracking-wider">
-                    Édition 2015
-                  </span>
-                  <span className="text-[var(--rbs-red-light)] text-xs font-semibold uppercase tracking-widest mt-1">
-                    Last Wall Tour
-                  </span>
-                </div>
-              </ScrollReveal>
-            </div>
-
-            {/* Row 2: 40% / 60%, shifted left by 25% using relative positioning */}
-            <div className="flex gap-1 relative -left-[35%] w-full md:w-2/3 ml-auto transition-all duration-300">
-              <ScrollReveal
-                delay={2 * 0.05}
-                className="group relative overflow-hidden h-[220px] md:h-[196px] bg-black/30 w-[30%] md:w-[50%]"
-              >
-                <img
-                  src={FALLBACK_IMAGES[2]}
-                  alt="Last Wall Tour Edition 3"
-                  className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-105 group-hover:brightness-110 grayscale group-hover:grayscale-0"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-                  <span className="text-white font-display text-lg font-bold uppercase tracking-wider">
-                    Édition 2016
-                  </span>
-                  <span className="text-[var(--rbs-red-light)] text-xs font-semibold uppercase tracking-widest mt-1">
-                    Last Wall Tour
-                  </span>
-                </div>
-              </ScrollReveal>
-
-              <ScrollReveal
-                delay={3 * 0.05}
-                className="group relative overflow-hidden h-[220px] md:h-[196px] bg-black/30 w-[70%] md:w-[55%]"
-              >
-                <img
-                  src={FALLBACK_IMAGES[3]}
-                  alt="Last Wall Tour Edition 4"
-                  className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-105 group-hover:brightness-110 grayscale group-hover:grayscale-0"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-                  <span className="text-white font-display text-lg font-bold uppercase tracking-wider">
-                    Édition 2017
-                  </span>
-                  <span className="text-[var(--rbs-red-light)] text-xs font-semibold uppercase tracking-widest mt-1">
-                    Last Wall Tour
-                  </span>
-                </div>
-              </ScrollReveal>
-            </div>
-
-            {/* Row 3: 60% / 40% */}
-            <div className="flex gap-1 w-full md:w-2/3 ml-auto">
-              <ScrollReveal
-                delay={4 * 0.05}
-                className="group relative overflow-hidden h-[220px] md:h-[196px] bg-black/30 w-[60%]"
-              >
-                <img
-                  src={FALLBACK_IMAGES[4]}
-                  alt="Last Wall Tour Edition 5"
-                  className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-105 group-hover:brightness-110 grayscale group-hover:grayscale-0"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-                  <span className="text-white font-display text-lg font-bold uppercase tracking-wider">
-                    Édition 2018
-                  </span>
-                  <span className="text-[var(--rbs-red-light)] text-xs font-semibold uppercase tracking-widest mt-1">
-                    Last Wall Tour
-                  </span>
-                </div>
-              </ScrollReveal>
-
-              <ScrollReveal
-                delay={5 * 0.05}
-                className="group relative overflow-hidden h-[220px] md:h-[196px] bg-black/30 w-[40%]"
-              >
-                <img
-                  src={FALLBACK_IMAGES[5]}
-                  alt="Last Wall Tour Edition 6"
-                  className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-105 group-hover:brightness-110 grayscale group-hover:grayscale-0"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-                  <span className="text-white font-display text-lg font-bold uppercase tracking-wider">
-                    Édition 2019
-                  </span>
-                  <span className="text-[var(--rbs-red-light)] text-xs font-semibold uppercase tracking-widest mt-1">
-                    Last Wall Tour
-                  </span>
-                </div>
-              </ScrollReveal>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      {/* ── Moments Créatifs ─────────────────────────────────────────── */}
-      <section className="py-20 px-6">
-        <div className="max-w-[90rem] mx-auto flex flex-col items-center">
-          <ScrollReveal>
-            <h3 className="font-display text-white text-2xl font-bold uppercase tracking-widest mb-3 text-center">
-              Moments Créatifs
-            </h3>
-            <p className="text-white/60 mb-20 text-sm font-medium tracking-wide text-center text-balance">
-              Découvrez nos espaces de sérigraphie et d'expression
-            </p>
-          </ScrollReveal>
-
-          <StaggerReveal className="flex flex-col md:flex-row items-center justify-center gap-8 w-full max-w-6xl">
-            {[0, 1, 2].map((idx) => {
-              const item = collectionItems[idx];
-              if (!item) return null;
-              return (
-                <StaggerItem
-                  key={idx}
-                  className={`w-full md:w-1/3 flex flex-col gap-4 group ${idx === 0 ? 'md:mt-16' : idx === 2 ? 'md:mt-32' : ''
-                    }`}
-                >
-                  <Link href={item.href} className="block">
-                    <div className="relative aspect-[3/4] w-full overflow-hidden border border-white/10 group-hover:border-white/30 transition-colors">
-                      <Image
-                        src={item.image}
-                        alt={item.title}
-                        fill
-                        sizes="(max-width: 768px) 100vw, 33vw"
-                        className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
-                      />
-                    </div>
-                    <span className="text-white/70 text-sm font-semibold text-center uppercase tracking-widest group-hover:text-white transition-colors block mt-3">
-                      {item.title}
-                    </span>
-                  </Link>
-                </StaggerItem>
-              );
-            })}
-          </StaggerReveal>
-        </div>
-      </section>
-
-      {/* ── Last Wall Tour CTA ───────────────────────────────────────── */}
-      <section className="relative h-[80vh] min-h-[600px] flex flex-col justify-end overflow-hidden border-t border-white/10">
-        <Image
-          src={FALLBACK_IMAGES[3]}
-          fill
-          className="object-cover opacity-50 brightness-50"
-          alt="Festival Last Wall Tour — vue panoramique"
-          sizes="100vw"
-        />
-        <div className="absolute inset-0 bg-gradient-to-tr from-black/90 via-black/40 to-transparent z-[2] pointer-events-none" />
-
-        <div className="relative z-[10] w-full max-w-[90rem] mx-auto px-6 grid grid-cols-12 gap-6 pb-20 items-end">
-          {/* Thumbnail — desktop */}
-          <div className="col-span-12 md:col-span-4 hidden md:flex items-end mb-6">
-            <ScrollReveal from="left">
-              <Link
-                href="/festival"
-                className="relative w-64 aspect-[4/3] border border-white/20 p-2 bg-black/40 backdrop-blur-sm group cursor-pointer block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded"
-                aria-label="Voir une édition du festival"
-              >
-                <div className="relative w-full h-full overflow-hidden">
-                  <Image
-                    src={FALLBACK_IMAGES[4]}
-                    fill
-                    className="object-cover group-hover:scale-110 transition-transform duration-700 grayscale group-hover:grayscale-0"
-                    alt="Édition festival"
-                    sizes="256px"
-                  />
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-transparent transition-colors rounded">
-                  <ArrowRight className="text-white w-10 h-10 -rotate-45 opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true" />
-                </div>
-              </Link>
-            </ScrollReveal>
-          </div>
-
-          <div className="col-span-12 md:col-span-8 flex flex-col items-center md:items-end text-center md:text-right">
-            <ScrollReveal delay={0.1}>
-              <h2 className="font-display text-5xl sm:text-7xl md:text-[6.5rem] text-white font-black uppercase tracking-tight leading-[0.9] mb-8 text-balance">
-                LAST WALL <br /> TOUR
-              </h2>
-            </ScrollReveal>
-
-            <ScrollReveal delay={0.2}>
-              <div className="flex flex-col sm:flex-row items-center md:items-end gap-4 mb-6">
-                <Link
-                  href="/festival"
-                  className="inline-flex items-center gap-3 min-h-[44px] px-6 py-3 rounded-lg bg-[var(--rbs-red)] hover:bg-[var(--rbs-red-light)] text-white text-sm font-semibold uppercase tracking-wider transition-all hover:shadow-[var(--shadow-glow-red)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rbs-red)]/60"
-                >
-                  Découvrir le Festival <ArrowRight className="w-4 h-4" aria-hidden="true" />
-                </Link>
-              </div>
-              <p className="text-white/60 text-sm max-w-lg leading-relaxed mb-4 text-balance">
-                "Le Last Wall Tour est un festival international réunissant des créateurs de classe
-                mondiale pour transformer l'espace public au Sénégal. Une odyssée de couleurs,
-                de respect et de transmission."
-              </p>
-              <p className="text-white/30 text-xs font-bold uppercase tracking-widest">
-                Initiative RBS Akademya
-              </p>
-            </ScrollReveal>
-          </div>
-        </div>
-      </section>
+      {/* ── RBS Akademya CTA ───────────────────────────────────────── */}
+      <AkademyaCTA
+        title="RBS AKADEMYA"
+        description={'"La première école de graffiti d\'Afrique. Ateliers, formations et masterclass pour la nouvelle génération d\'artistes urbains."'}
+        images={AKADEMYA_IMAGES}
+        logoUrl="/LWT_logo.png"
+        cta={{ label: "Découvrir l'Akademya", href: '/labz' }}
+      />
 
       {/* ── Merch & Shop ────────────────────────────────────────────── */}
       {products.length > 0 && (

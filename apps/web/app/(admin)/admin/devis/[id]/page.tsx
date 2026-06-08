@@ -4,16 +4,19 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { fetchAdminQuote } from '@/lib/admin/queries';
-import { QuoteStatusForm } from './_components/quote-status-form';
-import { QuoteDeleteButton } from './_components/quote-delete-button';
+import { AdminStatusSelect } from '@/components/admin/admin-status-select';
+import { AdminDeleteButton } from '@/components/admin/admin-delete-button';
+import { updateQuoteStatus, deleteQuote } from '../actions';
+
+const QUOTE_STATUS_LABELS: Record<string, string> = {
+  NEW: 'Nouveau',
+  IN_REVIEW: "En cours d'examen",
+  ANSWERED: 'Répondu',
+};
 
 export const metadata = { title: 'Détail devis' };
 
-const STATUS_META: Record<string, { label: string; className: string }> = {
-  NEW: { label: 'Nouveau', className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  IN_REVIEW: { label: 'En cours d\'examen', className: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
-  ANSWERED: { label: 'Répondu', className: 'bg-green-500/20 text-green-400 border-green-500/30' },
-};
+import { QUOTE_STATUS_META } from '@/lib/admin/status-maps';
 
 export default async function DevisDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,10 +28,10 @@ export default async function DevisDetailPage({ params }: { params: Promise<{ id
     notFound();
   }
 
-  const statusMeta = STATUS_META[quote.status];
+  const statusMeta = QUOTE_STATUS_META[quote.status];
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -40,7 +43,14 @@ export default async function DevisDetailPage({ params }: { params: Promise<{ id
             <h1 className="text-2xl font-black text-white">{quote.name}</h1>
           </div>
         </div>
-        <QuoteDeleteButton quoteId={quote.id} quoteName={quote.name} />
+        <AdminDeleteButton
+          id={quote.id}
+          title={`Supprimer le devis de ${quote.name} ?`}
+          description="Ce devis sera définitivement supprimé. Cette action est irréversible."
+          successMessage="Devis supprimé"
+          redirectPath="/admin/devis"
+          deleteAction={deleteQuote}
+        />
       </div>
 
       {/* Statut */}
@@ -92,7 +102,13 @@ export default async function DevisDetailPage({ params }: { params: Promise<{ id
       </div>
 
       {/* Changer le statut */}
-      <QuoteStatusForm quoteId={quote.id} currentStatus={quote.status as 'NEW' | 'IN_REVIEW' | 'ANSWERED'} />
+      <AdminStatusSelect
+        id={quote.id}
+        currentValue={quote.status as 'NEW' | 'IN_REVIEW' | 'ANSWERED'}
+        label="Modifier le statut"
+        options={QUOTE_STATUS_LABELS}
+        updateAction={(id, value) => updateQuoteStatus(id, value)}
+      />
     </div>
   );
 }

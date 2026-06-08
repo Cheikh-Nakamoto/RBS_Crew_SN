@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation';
 import { fetchAdminCategory } from '@/lib/admin/queries';
 import { TranslatableEntityForm } from '@/components/admin/forms/translatable-entity-form';
 import { updateCategory } from '../actions';
@@ -6,7 +7,12 @@ export const metadata = { title: 'Modifier la catégorie' };
 
 export default async function EditCategoriePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const category = await fetchAdminCategory(id);
+  let category;
+  try {
+    category = await fetchAdminCategory(id);
+  } catch {
+    notFound();
+  }
 
   return (
     <TranslatableEntityForm

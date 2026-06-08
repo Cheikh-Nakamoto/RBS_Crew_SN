@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import { AdminPageHeader } from '@/components/admin/admin-page-header';
 import { fetchAdminCategories } from '@/lib/admin/queries';
 import { CategoriesTable } from './_components/categories-table';
@@ -25,9 +24,7 @@ export default async function CategoriesPage({
         description={`${data.meta.total} catégorie${data.meta.total > 1 ? 's' : ''}`}
         action={{ href: '/admin/categories/nouveau', label: 'Nouvelle catégorie' }}
       />
-      <Suspense>
-        <CategoriesTable data={data.data} pagination={data.meta} />
-      </Suspense>
+      <CategoriesTable data={data.data} pagination={data.meta} />
     </>
   );
 }

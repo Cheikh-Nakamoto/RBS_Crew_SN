@@ -140,11 +140,11 @@ func (s *ServicesService) AdminCreate(ctx context.Context, input model.AdminServ
 }
 
 func (s *ServicesService) AdminUpdate(ctx context.Context, id string, input model.AdminServiceInput) (*model.AdminServiceResponse, *types.AppError) {
-	status := db.NullProductStatus{Valid: true, ProductStatus: db.ProductStatusDRAFT}
+	status := db.ProductStatusDRAFT
 	if input.IsPublished {
-		status.ProductStatus = db.ProductStatusPUBLISHED
+		status = db.ProductStatusPUBLISHED
 	}
-	svc, err := s.repo.Update(ctx, db.UpdateServiceParams{ID: id, Status: status})
+	svc, err := s.repo.Update(ctx, db.UpdateServiceParams{ID: id, Status: &status})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, types.NotFound("Service not found")

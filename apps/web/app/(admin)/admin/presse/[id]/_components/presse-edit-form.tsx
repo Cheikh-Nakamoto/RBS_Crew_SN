@@ -45,7 +45,7 @@ export function PresseEditForm({ initialData }: { initialData: AdminPressMention
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-lg space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-3xl space-y-6">
         <div className="flex items-center gap-3 mb-2">
           <Button variant="ghost" size="icon" asChild className="text-white/60 hover:text-white">
             <Link href="/admin/presse"><ArrowLeft className="h-5 w-5" /></Link>

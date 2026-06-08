@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import { AdminPageHeader } from '@/components/admin/admin-page-header';
 import { fetchAdminUsers } from '@/lib/admin/queries';
 import { UsersTable } from './_components/users-table';
@@ -24,9 +23,7 @@ export default async function UtilisateursPage({ searchParams }: UtilisateursPag
         eyebrow="Administration"
         description={`${data.meta.total} utilisateur${data.meta.total > 1 ? 's' : ''}`}
       />
-      <Suspense>
-        <UsersTable data={data.data} pagination={data.meta} />
-      </Suspense>
+      <UsersTable data={data.data} pagination={data.meta} />
     </>
   );
 }

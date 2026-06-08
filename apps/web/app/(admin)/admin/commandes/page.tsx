@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import { AdminPageHeader } from '@/components/admin/admin-page-header';
 import { fetchAdminOrders } from '@/lib/admin/queries';
 import { OrdersTable } from './_components/orders-table';
@@ -24,9 +23,7 @@ export default async function CommandesPage({ searchParams }: CommandesPageProps
         eyebrow="Ventes"
         description={`${data.meta.total} commande${data.meta.total > 1 ? 's' : ''}`}
       />
-      <Suspense>
-        <OrdersTable data={data.data} pagination={data.meta} />
-      </Suspense>
+      <OrdersTable data={data.data} pagination={data.meta} />
     </>
   );
 }

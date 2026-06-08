@@ -4,7 +4,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useCallback, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useTransition } from 'react';
 
 interface DataTableToolbarProps {
   searchPlaceholder?: string;
@@ -35,11 +35,21 @@ export function DataTableToolbar({ searchPlaceholder = 'Rechercher...', children
     [router, pathname, searchParams]
   );
 
-  let debounceTimer: ReturnType<typeof setTimeout>;
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => updateSearch(e.target.value), 300);
-  };
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, []);
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      debounceTimer.current = setTimeout(() => updateSearch(e.target.value), 300);
+    },
+    [updateSearch]
+  );
 
   return (
     <div className="flex items-center gap-3 flex-wrap">

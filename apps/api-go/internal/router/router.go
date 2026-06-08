@@ -95,6 +95,7 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 
 		// Festival Editions
 		r.Get("/festival", h.Festival.List)
+		r.Get("/festival/latest/gallery", h.Festival.GetLatestGallery)
 		r.Get("/festival/{slug}", h.Festival.GetBySlug)
 
 		// Press

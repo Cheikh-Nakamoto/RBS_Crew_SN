@@ -5,9 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { fetchAdminUser } from '@/lib/admin/queries';
 import { RoleBadge } from '@/components/admin/role-badge';
-import { UserRoleForm } from './_components/user-role-form';
-import { UserDeleteButton } from './_components/user-delete-button';
+import { AdminStatusSelect } from '@/components/admin/admin-status-select';
+import { AdminDeleteButton } from '@/components/admin/admin-delete-button';
+import { updateUserRole, deleteUser } from '../actions';
 import type { UserRole } from '@/types/admin';
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  ADMIN: 'Administrateur (accès complet)',
+  EDITOR: 'Éditeur (accès back-office)',
+  CUSTOMER: 'Client',
+};
 
 export const metadata = { title: 'Détail utilisateur' };
 
@@ -24,7 +31,7 @@ export default async function UtilisateurDetailPage({ params }: { params: Promis
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || '—';
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -36,7 +43,14 @@ export default async function UtilisateurDetailPage({ params }: { params: Promis
             <h1 className="text-2xl font-black text-white">{fullName}</h1>
           </div>
         </div>
-        <UserDeleteButton userId={user.id} userName={fullName} />
+        <AdminDeleteButton
+          id={user.id}
+          title={`Supprimer ${fullName} ?`}
+          description="Cet utilisateur et toutes ses données seront définitivement supprimés. Cette action est irréversible."
+          successMessage="Utilisateur supprimé"
+          redirectPath="/admin/utilisateurs"
+          deleteAction={deleteUser}
+        />
       </div>
 
       {/* Badges */}
@@ -81,7 +95,13 @@ export default async function UtilisateurDetailPage({ params }: { params: Promis
       </div>
 
       {/* Changer le rôle */}
-      <UserRoleForm userId={user.id} currentRole={user.role as UserRole} />
+      <AdminStatusSelect
+        id={user.id}
+        currentValue={user.role as UserRole}
+        label="Modifier le rôle"
+        options={ROLE_LABELS}
+        updateAction={(id, value) => updateUserRole(id, { role: value })}
+      />
     </div>
   );
 }

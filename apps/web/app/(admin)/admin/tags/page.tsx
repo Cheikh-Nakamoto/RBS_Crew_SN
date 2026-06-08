@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import { AdminPageHeader } from '@/components/admin/admin-page-header';
 import { fetchAdminTags } from '@/lib/admin/queries';
 import { TagsTable } from './_components/tags-table';
@@ -11,7 +10,7 @@ export default async function TagsPage({ searchParams }: { searchParams: Promise
   return (
     <>
       <AdminPageHeader title="Tags" eyebrow="Catalogue" description={`${data.meta.total} tag(s)`} action={{ href: '/admin/tags/nouveau', label: 'Nouveau tag' }} />
-      <Suspense><TagsTable data={data.data} pagination={data.meta} /></Suspense>
+      <TagsTable data={data.data} pagination={data.meta} />
     </>
   );
 }

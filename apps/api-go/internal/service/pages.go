@@ -142,11 +142,11 @@ func (s *PagesService) AdminCreate(ctx context.Context, input model.AdminPageInp
 }
 
 func (s *PagesService) AdminUpdate(ctx context.Context, id string, input model.AdminPageInput) (*model.AdminPageResponse, *types.AppError) {
-	status := db.NullProductStatus{Valid: true, ProductStatus: db.ProductStatusDRAFT}
+	status := db.ProductStatusDRAFT
 	if input.IsPublished {
-		status.ProductStatus = db.ProductStatusPUBLISHED
+		status = db.ProductStatusPUBLISHED
 	}
-	p, err := s.repo.Update(ctx, db.UpdatePageParams{ID: id, Status: status})
+	p, err := s.repo.Update(ctx, db.UpdatePageParams{ID: id, Status: &status})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, types.NotFound("Page not found")

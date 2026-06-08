@@ -83,6 +83,15 @@ func (h *FestivalHandler) GetBySlug(w http.ResponseWriter, r *http.Request) {
 	types.WriteJSON(w, http.StatusOK, result)
 }
 
+func (h *FestivalHandler) GetLatestGallery(w http.ResponseWriter, r *http.Request) {
+	result, err := h.svc.LatestGallery(r.Context())
+	if err != nil {
+		types.WriteError(w, err)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, result)
+}
+
 // ─────────────────────────────────────────────────────────────────
 type PressHandler struct{ svc *service.PressService }
 
