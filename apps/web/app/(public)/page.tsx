@@ -13,6 +13,8 @@ import { EditionHero } from '@/components/composite/last-wall-tour-hero';
 import type { EditionHeroStat } from '@/components/composite/last-wall-tour-hero';
 import { ProjectCarousel, type CarouselProject } from '@/components/composite/project-carousel';
 import { AkademyaCTA } from '@/components/composite/akademya-cta';
+import { CrewHero, type CrewMember } from '@/components/composite/crew-hero';
+import { SponsorsMarquee } from '@/components/composite/sponsors-marquee';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -103,9 +105,9 @@ export default async function HomePage() {
 
   // ── Akademya fallback images ──────────────────
   const AKADEMYA_IMAGES = [
-    FALLBACK_IMAGES[0],
-    FALLBACK_IMAGES[1],
-    FALLBACK_IMAGES[2],
+    "/akademya_left.png",
+    "/ATELIERS-RBS_CENTRAL.png",
+    "/akademya_right.png"
   ];
 
   // ── Fallback for carousel ──────────────────────
@@ -135,6 +137,29 @@ export default async function HomePage() {
       clientName: 'RBS Akademya',
     },
   ];
+
+  // ── Crew members from API ──────────────────────
+  const CREW_FALLBACK: CrewMember[] = [
+    { name: 'Diablo', role: 'Visual Artist', imageUrl: '/DIABLO.png', slug: 'diablo' },
+    { name: 'Madzoo', role: 'Visual Artist', imageUrl: '/MADZO.png', slug: 'mad-zoo' },
+    { name: 'Mane', role: 'Calligrapher', imageUrl: '/MANE.png', slug: 'mane' },
+    { name: 'Elmemf', role: 'Graffiti Artist', imageUrl: '/ELMEMF.png', slug: 'elmemf' },
+  ];
+
+  const crewMembers: CrewMember[] = (() => {
+    // if (artists.length >= 4) {
+    //   return artists.slice(0, 4).map((a) => {
+    //     const t = a.translations.find((x) => x.locale === 'fr') ?? a.translations[0];
+    //     return {
+    //       name: t?.name ?? 'Artiste',
+    //       role: a.city ?? 'Artiste',
+    //       imageUrl: a.featuredImageUrl ?? '/9th_edition_1.png',
+    //       slug: a.slug,
+    //     };
+    //   });
+    // }
+    return CREW_FALLBACK;
+  })();
 
   const thematicCols = [
     {
@@ -253,50 +278,35 @@ export default async function HomePage() {
         secondaryCta={{ label: 'voir tous les projets', href: '/projects' }}
       />
 
-      {/* ── RBS Akademya CTA ───────────────────────────────────────── */}
-      <AkademyaCTA
-        title="RBS AKADEMYA"
-        description={'"La première école de graffiti d\'Afrique. Ateliers, formations et masterclass pour la nouvelle génération d\'artistes urbains."'}
-        images={AKADEMYA_IMAGES}
-        logoUrl="/LWT_logo.png"
-        cta={{ label: "Découvrir l'Akademya", href: '/labz' }}
-      />
+      {/* ── Wrapped Section 4 & 5 (Akademya CTA + Crew Hero) with Section 4 background ── */}
+      <div
+        className="relative w-full bg-cover bg-center bg-no-repeat noise-texture"
+        style={{ backgroundImage: "url('/section4_background.png')" }}
+      >
+        {/* Dark overlay for contrast */}
+        <div className="absolute inset-0 bg-black/60 pointer-events-none z-0" />
 
-      {/* ── Merch & Shop ────────────────────────────────────────────── */}
-      {products.length > 0 && (
-        <section className="border-t border-white/10 py-12 px-6">
-          <ScrollReveal>
-            <div className="max-w-[90rem] mx-auto flex flex-col md:flex-row items-center justify-between gap-8 pt-8">
-              <h3 className="text-white/40 text-xs uppercase tracking-[0.3em] font-bold flex-shrink-0">
-                // Merch &amp; Shop
-              </h3>
-              <div className="flex flex-wrap gap-6 justify-end items-center">
-                {products.map(p => {
-                  const t = p.translations.find((x) => x.locale === 'fr') ?? p.translations[0];
-                  return (
-                    <Link
-                      key={p.id}
-                      href={`/shop/${t?.slug || p.slug}`}
-                      className="group flex items-center gap-3 min-h-[44px] px-1"
-                    >
-                      <span className="text-white/80 group-hover:text-[var(--rbs-red)] font-semibold uppercase tracking-wider text-xs transition-colors">
-                        {t?.name}
-                      </span>
-                      <span className="text-white/30 text-xs">[{formatXOF(p.price)}]</span>
-                    </Link>
-                  );
-                })}
-                <Link
-                  href="/shop"
-                  className="flex items-center gap-2 text-[var(--rbs-red)] text-xs font-bold uppercase tracking-wider hover:text-[var(--rbs-red-light)] transition-colors ml-4 min-h-[44px]"
-                >
-                  Voir tout <ArrowRight className="w-3 h-3" aria-hidden="true" />
-                </Link>
-              </div>
-            </div>
-          </ScrollReveal>
-        </section>
-      )}
+        <div className="relative z-10">
+          {/* ── RBS Akademya CTA ───────────────────────────────────────── */}
+          <AkademyaCTA
+            title="RBS AKADEMYA"
+            description={'"La première école de graffiti d\'Afrique. Ateliers, formations et masterclass pour la nouvelle génération d\'artistes urbains."'}
+            images={AKADEMYA_IMAGES}
+            logoUrl="/LWT_logo.png"
+            cta={{ label: "Découvrir l'Akademya", href: '/labz' }}
+          />
+
+          {/* ── Crew Hero ─────────────────────────────────────────────── */}
+          <CrewHero
+            members={crewMembers}
+            cta={{ label: 'Voir le crew', href: '/crew' }}
+          />
+        </div>
+      </div>
+
+      {/* ── Sponsors Marquee ──────────────────────────────────────── */}
+      <SponsorsMarquee />
+
     </div>
   );
 }

@@ -41,8 +41,8 @@ export function AkademyaCTA({
 
     const imgs = imgRefs.current.filter(Boolean) as HTMLDivElement[];
 
-    /* Parallax depth per image: main subtle, secondary & tertiary more */
-    const offsets = [-6, 10, -12]; // yPercent per image
+    /* Parallax depth per image: left and right aligned, center moves opposite */
+    const offsets = [-8, 10, -8]; // yPercent per image
 
     const ctx = gsap.context(() => {
       imgs.forEach((el, i) => {
@@ -70,85 +70,114 @@ export function AkademyaCTA({
   return (
     <section
       ref={sectionRef}
-      className="relative w-full overflow-hidden border-t border-white/10 bg-[var(--bg-page)] noise-texture"
+      className="relative w-full overflow-hidden border-t border-white/10 bg-transparent noise-texture"
     >
       <div className="relative mx-auto max-w-[90rem] px-6 py-20 md:py-28">
 
         {/* ── Outlined mega title ────────────────────── */}
         <ScrollReveal>
           <h2
-            className="font-display text-[clamp(3rem,8vw,6rem)] leading-[0.9] uppercase tracking-tighter select-none"
+            className="text-dj-gross text-[clamp(3rem,8vw,6rem)] leading-[0.9] uppercase tracking-tighter select-none"
             style={{
-              WebkitTextStroke: '2px rgba(255,255,255,0.7)',
+              WebkitTextStroke: '2px rgba(230, 243, 1, 0.95)',
               color: 'transparent',
+              filter: 'drop-shadow(0 0 2px rgba(255,255,255,0.9)) drop-shadow(0 0 8px var(--rbs-gold)) drop-shadow(0 0 20px var(--rbs-gold))',
             }}
           >
             {title}
           </h2>
         </ScrollReveal>
 
-        {/* ── Image collage ──────────────────────────── */}
+        {/* ── Images Row ──────────────────────────── */}
         <div className="relative w-full mt-10 md:mt-14 mb-12 md:mb-16">
-          <div className="flex flex-col md:block md:relative md:h-[500px]">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-0 w-full">
 
-            {/* Main image — centered, slightly rotated */}
-            <ScrollReveal from="left" delay={0.1}>
+            {/* Left image */}
+            <ScrollReveal from="bottom" delay={0.1} className="w-full max-w-[259px] shrink-0 z-10 relative">
               <div
                 ref={(el) => { imgRefs.current[0] = el; }}
-                className="relative mx-auto md:absolute md:left-[8%] md:top-1/2 md:-translate-y-1/2 z-20 w-[min(90vw,400px)] md:w-[clamp(280px,34vw,400px)] aspect-[3/4] shadow-[0_4px_20px_rgba(0,0,0,0.5)]"
+                className="relative mx-auto w-full aspect-[259/468]"
               >
-                <div className="relative w-full h-full overflow-hidden rounded-lg border border-white/10">
+                <div className="relative w-full h-full overflow-hidden rounded-lg ">
                   <Image
                     src={images[0]}
-                    alt={title}
+                    alt={`${title} - left`}
                     fill
-                    sizes="(max-width: 768px) 90vw, 400px"
-                    className="object-cover"
-                    style={{ transform: 'rotate(-0.2deg) scale(1.05)' }}
-                  />
-                </div>
-              </div>
-            </ScrollReveal>
-
-            {/* Secondary image — right, overlapping */}
-            <ScrollReveal from="right" delay={0.2}>
-              <div
-                ref={(el) => { imgRefs.current[1] = el; }}
-                className="relative mx-auto md:absolute md:right-[5%] md:top-[5%] z-10 w-[min(85vw,380px)] md:w-[clamp(260px,32vw,380px)] aspect-[4/3] shadow-[0_4px_20px_rgba(0,0,0,0.5)] mt-4 md:mt-0"
-              >
-                <div className="relative w-full h-full overflow-hidden rounded-lg border border-white/10">
-                  <Image
-                    src={images[1]}
-                    alt={`${title} - atelier`}
-                    fill
-                    sizes="(max-width: 768px) 85vw, 380px"
+                    sizes="(max-width: 768px) 90vw, 259px"
                     className="object-cover"
                   />
                 </div>
               </div>
             </ScrollReveal>
 
-            {/* Tertiary image — bottom, wider */}
-            <ScrollReveal from="bottom" delay={0.3}>
+            {/* Center image */}
+            <ScrollReveal from="bottom" delay={0.2} className="w-full max-w-[342px] shrink-0 z-20 relative md:-mx-[1.5%]">
+              <div className="w-full h-full md:-translate-y-[10%]">
+                <div
+                  ref={(el) => { imgRefs.current[1] = el; }}
+                  className="relative mx-auto w-full aspect-[342/484] mt-4 md:mt-0"
+                >
+                  <div className="relative w-full h-full overflow-hidden rounded-lg ">
+                    <Image
+                      src={images[1]}
+                      alt={`${title} - central`}
+                      fill
+                      sizes="(max-width: 768px) 90vw, 342px"
+                      className="object-cover"
+                    />
+                  </div>
+
+                  {/* Scotch tapes at the corners */}
+                  {/* Top-Left */}
+                  <img
+                    src="/top_left__bottom_right_scotch.png"
+                    alt=""
+                    className="absolute top-0 left-0 -translate-x-1/3 -translate-y-1/3 w-[28%] h-auto pointer-events-none z-30 select-none"
+                  />
+                  {/* Top-Right */}
+                  <img
+                    src="/top_right_bottom_left.png"
+                    alt=""
+                    className="absolute top-0 right-0 translate-x-1/3 -translate-y-1/3 w-[20%] h-auto pointer-events-none z-30 select-none"
+                  />
+                  {/* Bottom-Left */}
+                  <img
+                    src="/top_right_bottom_left.png"
+                    alt=""
+                    className="absolute bottom-0 left-0 -translate-x-1/3 translate-y-1/3 w-[20%] h-auto pointer-events-none z-30 select-none"
+                  />
+                  {/* Bottom-Right */}
+                  <img
+                    src="/top_left__bottom_right_scotch.png"
+                    alt=""
+                    className="absolute bottom-0 right-0 translate-x-1/3 translate-y-1/3 w-[28%] h-auto pointer-events-none z-30 select-none"
+                  />
+                </div>
+              </div>
+            </ScrollReveal>
+
+            {/* Right image */}
+            <ScrollReveal from="bottom" delay={0.3} className="w-full max-w-[500px] shrink-0 z-10 relative">
               <div
                 ref={(el) => { imgRefs.current[2] = el; }}
-                className="relative mx-auto md:absolute md:left-[20%] md:bottom-0 z-10 w-[min(80vw,500px)] md:w-[clamp(320px,40vw,500px)] aspect-[16/9] shadow-[0_4px_20px_rgba(0,0,0,0.5)] mt-4 md:mt-0"
+                className="relative mx-auto w-full aspect-[500/468] mt-4 md:mt-0"
               >
-                <div className="relative w-full h-full overflow-hidden rounded-lg border border-white/10">
+                <div className="relative w-full h-full overflow-hidden rounded-lg ">
                   <Image
                     src={images[2]}
-                    alt={`${title} - workshop`}
+                    alt={`${title} - right`}
                     fill
-                    sizes="(max-width: 768px) 80vw, 500px"
+                    sizes="(max-width: 768px) 90vw, 500px"
                     className="object-cover"
                   />
-                  {/* Play overlay hint */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-full border-2 border-white/80 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-                      <div className="w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[14px] border-l-white ml-0.5" />
-                    </div>
-                  </div>
                 </div>
+
+                {/* RBS Akademya Logo */}
+                <img
+                  src="/logo_rbs_akademya.png"
+                  alt="RBS Akademya Logo"
+                  className="absolute top-0 right-[5%] -translate-y-1/2 w-[70%] h-auto pointer-events-none z-20 select-none"
+                />
               </div>
             </ScrollReveal>
           </div>

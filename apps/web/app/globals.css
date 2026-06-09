@@ -433,6 +433,27 @@
   }
 }
 
+/* Sponsors marquee — infinite scroll */
+@keyframes marquee-left {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-33.333%);
+  }
+}
+
+@keyframes marquee-right {
+  0% {
+    transform: translateX(-33.333%);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
 /* ─── Base Layer ─────────────────────────────── */
 
 @layer base {
@@ -713,6 +734,19 @@
 
   .animate-spin-slow {
     animation: spin 1.5s linear infinite;
+  }
+
+  .animate-marquee-left {
+    animation: marquee-left 35s linear infinite;
+  }
+
+  .animate-marquee-right {
+    animation: marquee-right 35s linear infinite;
+  }
+
+  .animate-marquee-left:hover,
+  .animate-marquee-right:hover {
+    animation-play-state: paused;
   }
 
   /* ── Stagger delays ── */

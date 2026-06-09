@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Mail, MapPin, ArrowUpRight } from 'lucide-react';
 
@@ -68,11 +70,17 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="relative mt-24 overflow-hidden noise-texture bg-[oklch(0.05_0.005_240)]">
+    <footer 
+      className="relative overflow-hidden noise-texture bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: "url('/footer_background.png')" }}
+    >
+      {/* Background dark overlay layer */}
+      <div className="absolute inset-0 bg-black/70 pointer-events-none z-0" />
+
       {/* Brand gradient top edge — RBS palette spectrum */}
       <div
         aria-hidden="true"
-        className="absolute top-0 left-0 right-0 h-px"
+        className="absolute top-0 left-0 right-0 h-px z-10"
         style={{
           background:
             'linear-gradient(90deg, transparent 0%, var(--rbs-red) 25%, var(--rbs-gold) 50%, var(--rbs-green) 75%, transparent 100%)',
@@ -82,12 +90,12 @@ export function Footer() {
       {/* Decorative oversized brand mark — bottom-right ghost */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute -bottom-8 -right-4 font-display text-[10rem] sm:text-[14rem] lg:text-[18rem] leading-none select-none text-white/[0.025] tracking-tighter uppercase"
+        className="pointer-events-none absolute -bottom-8 -right-4 font-display text-[10rem] sm:text-[14rem] lg:text-[18rem] leading-none select-none text-white/[0.025] tracking-tighter uppercase z-[1]"
       >
         RBS
       </span>
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-16">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-16 z-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
 
           {/* Brand column */}

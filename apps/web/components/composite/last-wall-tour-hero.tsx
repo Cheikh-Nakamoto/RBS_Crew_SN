@@ -77,8 +77,14 @@ export function EditionHero({
   logoUrl,
 }: EditionHeroProps) {
   return (
-    <section className="relative w-full overflow-hidden bg-[var(--bg-page)] noise-texture">
-      <div className="relative mx-auto max-w-[90rem] px-6 pt-28 pb-20 md:pt-36 md:pb-28">
+    <section 
+      className="relative w-full overflow-hidden bg-cover bg-center bg-no-repeat noise-texture"
+      style={{ backgroundImage: "url('/section2_background.png')" }}
+    >
+      {/* Dark overlay for contrast */}
+      <div className="absolute inset-0 bg-black/60 pointer-events-none z-0" />
+
+      <div className="relative z-10 mx-auto max-w-[90rem] px-6 pt-28 pb-20 md:pt-36 md:pb-28">
 
         {/* ── Header: Title + Logo ─────────────────── */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8 lg:gap-12 mb-14">

@@ -34,9 +34,9 @@ const COOLDOWN_MS = 800;
 /* ── Card positions ───────────────────────────────────────────────────────── */
 
 const cardTargets = {
-  left:   { xPercent: -60, yPercent: 50, scale: 0.62, opacity: 0.55, filter: 'brightness(0.7) blur(1px)', zIndex: 10 },
+  left:   { xPercent: -50, yPercent: 0, scale: 0.75, opacity: 0.65, filter: 'brightness(0.7) blur(1px)', zIndex: 10 },
   center: { xPercent: 0,   yPercent: 0,  scale: 1,    opacity: 1,    filter: 'brightness(1) blur(0px)',    zIndex: 30 },
-  right:  { xPercent: 60,  yPercent: 50, scale: 0.62, opacity: 0.55, filter: 'brightness(0.7) blur(1px)', zIndex: 10 },
+  right:  { xPercent: 50,  yPercent: 0, scale: 0.75, opacity: 0.65, filter: 'brightness(0.7) blur(1px)', zIndex: 10 },
   hidden: { xPercent: 0,   yPercent: 0,  scale: 0.55, opacity: 0,    filter: 'brightness(0.5) blur(3px)', zIndex: 0 },
 };
 
