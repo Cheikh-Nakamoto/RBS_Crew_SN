@@ -7,6 +7,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { ErrorState } from '@/components/ui/error-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { CrewAnimation } from '@/components/composite/crew-animation';
+import { MarqueeText } from '@/components/ui/marquee-text';
 
 interface ArtistItem {
   id: string;
@@ -23,7 +24,6 @@ export const metadata = { title: 'Crew' };
 export const dynamic = 'force-dynamic';
 
 export default async function CrewPage() {
-  await new Promise((resolve) => setTimeout(resolve, 800));
 
   let artists: ArtistItem[] = [];
   let fetchError = false;
@@ -94,6 +94,7 @@ export default async function CrewPage() {
                           fill
                           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                           className="object-cover grayscale-[0.3] transition-all duration-700 group-hover:grayscale-0 group-hover:scale-[1.06]"
+                          priority={i < 4}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--bg-elevated)] to-[var(--bg-surface)]">
@@ -116,9 +117,9 @@ export default async function CrewPage() {
                         className="absolute top-0 right-0 w-1 h-12 bg-gradient-to-b from-[var(--rbs-gold)] via-[var(--rbs-red)] to-transparent"
                       />
                       <div className="absolute inset-x-0 bottom-0 p-4 flex flex-col gap-1.5">
-                        <h3 className="font-display text-base sm:text-lg leading-tight uppercase tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                        <MarqueeText className="font-display text-base sm:text-lg leading-tight uppercase tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
                           {t?.name}
-                        </h3>
+                        </MarqueeText>
                         {artist.city && (
                           <p className="flex items-center gap-1.5 text-[0.7rem] font-bold tracking-[0.15em] text-[var(--rbs-gold)] uppercase">
                             <MapPin className="w-3 h-3" aria-hidden="true" />

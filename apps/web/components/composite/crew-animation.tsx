@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -50,14 +50,14 @@ function generateSplats(seed: number): Splat[] {
   };
   return Array.from({ length: 9 }, (_, i) => ({
     id: i,
-    left: 10 + pseudoRandom(i * 3 + 1) * 80,
-    top: 5 + pseudoRandom(i * 3 + 2) * 90,
-    size: 18 + pseudoRandom(i * 3 + 3) * 55,
+    left: Number((10 + pseudoRandom(i * 3 + 1) * 80).toFixed(4)),
+    top: Number((5 + pseudoRandom(i * 3 + 2) * 90).toFixed(4)),
+    size: Number((18 + pseudoRandom(i * 3 + 3) * 55).toFixed(4)),
     color: SPLATTER_COLORS[Math.floor(pseudoRandom(i * 7) * SPLATTER_COLORS.length)],
-    delay: pseudoRandom(i * 5) * 0.6,
-    duration: 0.8 + pseudoRandom(i * 11) * 1.2,
-    rx: 30 + pseudoRandom(i * 13) * 60,
-    ry: 30 + pseudoRandom(i * 17) * 60,
+    delay: Number((pseudoRandom(i * 5) * 0.6).toFixed(4)),
+    duration: Number((0.8 + pseudoRandom(i * 11) * 1.2).toFixed(4)),
+    rx: Number((30 + pseudoRandom(i * 13) * 60).toFixed(4)),
+    ry: Number((30 + pseudoRandom(i * 17) * 60).toFixed(4)),
   }));
 }
 
@@ -133,35 +133,56 @@ const REACH_LIST = [
 ];
 
 export function CrewAnimation({ artists }: CrewAnimationProps) {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [nameOffset, setNameOffset] = useState(0);
+  // L'index actif persiste (pas de retour au début)
+  const [activeIndex, setActiveIndex] = useState(0);
 
-  const activeIndex = hoveredIndex ?? 0;
   const activeArtist = artists[activeIndex];
   const activeT =
     activeArtist?.translations.find((x) => x.locale === 'fr') ??
     activeArtist?.translations[0];
   const activeImg = activeArtist?.avatarUrl || activeArtist?.featuredImageUrl;
 
-  // 4 noms visibles avec wrap-around circulaire
-  const visibleNames = useMemo(() => {
-    const result = [];
-    for (let i = 0; i < NAMES_PER_VIEW; i++) {
-      const idx = (nameOffset + i) % artists.length;
-      result.push({ artist: artists[idx], index: idx });
-    }
-    return result;
-  }, [nameOffset, artists]);
+  // ═════ Logique Auto-Scroll (PlayStation style) ═════
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const requestRef = useRef<number>();
 
-  const scrollNames = (dir: 'left' | 'right') => {
-    setNameOffset((prev) => {
-      const next = dir === 'right' ? prev + 1 : prev - 1;
-      // Wrap-around circulaire
-      if (next >= artists.length) return 0;
-      if (next < 0) return artists.length - 1;
-      return next;
-    });
-  };
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const width = rect.width;
+    const scrollSpeed = 5; // Vitesse du scroll
+
+    const edgeSize = width * 0.2; // Zone de 20% aux bords
+
+    const scroll = () => {
+      if (!el) return;
+      if (x < edgeSize) {
+        el.scrollLeft -= scrollSpeed;
+        requestRef.current = requestAnimationFrame(scroll);
+      } else if (x > width - edgeSize) {
+        el.scrollLeft += scrollSpeed;
+        requestRef.current = requestAnimationFrame(scroll);
+      }
+    };
+
+    if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    if (x < edgeSize || x > width - edgeSize) {
+      requestRef.current = requestAnimationFrame(scroll);
+    }
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    if (requestRef.current) cancelAnimationFrame(requestRef.current);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, []);
 
   return (
     <div className="flex gap-0 min-h-screen">
@@ -195,14 +216,29 @@ export function CrewAnimation({ artists }: CrewAnimationProps) {
               aria-hidden="true"
             />
 
-            {/* Splash */}
+            {/* Splash généré par le code (gouttes) */}
             <PaintSplash seed={activeIndex} />
+
+            {/* Splash texture jaune (zoom-in au changement d'artiste) */}
+            <div
+              key={`yellow-splash-${activeIndex}`}
+              aria-hidden="true"
+              className="absolute -inset-[30%] pointer-events-none animate-[splash-zoom_0.8s_ease-out_1.2s_both] z-0"
+            >
+              <Image
+                src="/splash_yellow.png"
+                alt=""
+                fill
+                sizes="400px"
+                className="object-contain"
+              />
+            </div>
 
             {/* Image avec slide */}
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeIndex}
-                className="absolute inset-0 rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/60"
+                className="absolute inset-0 rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/60 z-10 bg-black"
                 initial={{ x: '80%', opacity: 0, scale: 0.95 }}
                 animate={{ x: 0, opacity: 1, scale: 1 }}
                 exit={{ x: '80%', opacity: 0, scale: 0.95 }}
@@ -236,75 +272,44 @@ export function CrewAnimation({ artists }: CrewAnimationProps) {
         </div>
 
         {/* ── Carrousel noms horizontal ── */}
-        <div className="flex-shrink-0 border-t border-white/5 bg-black/30 backdrop-blur-sm px-4 py-4">
-          <div className="flex items-center gap-2">
-            {/* Bouton gauche */}
-            <button
-              onClick={() => scrollNames('left')}
-              className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-all duration-200"
-              aria-label="Noms précédents"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
+        <div className="flex-shrink-0 border-t border-white/5 bg-black/30 backdrop-blur-sm py-5 relative">
+          <div 
+            ref={scrollRef}
+            className="flex items-center gap-8 overflow-x-hidden select-none px-[20%]"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            style={{ 
+              maskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)',
+              WebkitMaskImage: '-webkit-linear-gradient(left, transparent, black 15%, black 85%, transparent)'
+            }}
+          >
+            {artists.map((artist, index) => {
+              const t = artist.translations.find((x) => x.locale === 'fr') ?? artist.translations[0];
+              const isActive = index === activeIndex;
 
-            {/* Noms visibles */}
-            <div className="flex-1 flex items-center justify-center gap-5 overflow-hidden">
-              {visibleNames.map(({ artist, index }) => {
-                const t =
-                  artist.translations.find((x) => x.locale === 'fr') ??
-                  artist.translations[0];
-                const isActive = index === activeIndex;
-
-                return (
-                  <Link
-                    key={artist.id}
-                    href={`/crew/${artist.slug}`}
-                    className="flex-shrink-0 group text-center transition-all duration-300"
-                    onMouseEnter={() => setHoveredIndex(index)}
-                    onMouseLeave={() => setHoveredIndex(null)}
-                    aria-label={t?.name ?? 'Artiste'}
+              return (
+                <Link
+                  key={artist.id}
+                  href={`/crew/${artist.slug}`}
+                  className="flex-shrink-0 group text-center transition-all duration-300 py-2 cursor-pointer"
+                  onMouseEnter={() => setActiveIndex(index)}
+                  aria-label={t?.name ?? 'Artiste'}
+                >
+                  <span
+                    className={`
+                      block font-display text-sm sm:text-base uppercase tracking-wide leading-tight
+                      transition-all duration-300 whitespace-nowrap
+                      ${isActive
+                        ? 'text-[var(--rbs-gold)] drop-shadow-[0_0_8px_var(--rbs-gold)] scale-110'
+                        : 'text-outline text-white/25 group-hover:text-white/60'
+                      }
+                    `}
                   >
-                    <span
-                      className={`
-                        block font-display text-xs sm:text-sm uppercase tracking-wide leading-tight
-                        transition-all duration-300 whitespace-nowrap
-                        ${isActive
-                          ? 'text-[var(--rbs-gold)] drop-shadow-[0_0_8px_var(--rbs-gold)]'
-                          : 'text-outline text-white/25 group-hover:text-[var(--rbs-gold)] group-hover:drop-shadow-[0_0_6px_var(--rbs-gold)]'
-                        }
-                      `}
-                    >
-                      {t?.name ?? 'Sans nom'}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-
-            {/* Bouton droit */}
-            <button
-              onClick={() => scrollNames('right')}
-              className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-all duration-200"
-              aria-label="Noms suivants"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Indicateur de page (dots) */}
-          <div className="flex justify-center gap-1.5 mt-3">
-            {Array.from({ length: Math.ceil(artists.length / NAMES_PER_VIEW) }).map(
-              (_, i) => (
-                <span
-                  key={i}
-                  className={`block w-1 h-1 rounded-full transition-all duration-300 ${
-                    Math.floor(nameOffset / NAMES_PER_VIEW) === i
-                      ? 'bg-[var(--rbs-gold)] w-3'
-                      : 'bg-white/15'
-                  }`}
-                />
-              ),
-            )}
+                    {t?.name ?? 'Sans nom'}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </div>

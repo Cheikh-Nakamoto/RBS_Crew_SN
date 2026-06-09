@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { ScrollReveal } from '@/components/ui/scroll-reveal';
+import { MarqueeText } from '@/components/ui/marquee-text';
 
 /* ── Types ────────────────────────────────────────────────────────────────── */
 
@@ -60,18 +61,47 @@ export function CrewHero({ members, cta }: CrewHeroProps) {
           {displayed.map((member, i) => (
             <ScrollReveal key={member.name} from="bottom" delay={0.1 + i * 0.12}>
               <div
-                className="group relative"
+                className="group relative w-[260px] h-[260px] sm:w-[300px] sm:h-[300px]"
                 style={{ transform: 'rotate(6deg)' }}
               >
+                {/* Cadre — coin haut-gauche */}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none select-none absolute -top-[40px] -left-[40px] w-[112px] h-[112px] sm:w-[144px] sm:h-[144px] transition-transform duration-500 ease-out group-hover:scale-105 z-0"
+                >
+                  <Image
+                    src="/cadre_nor_top_left.png"
+                    alt=""
+                    fill
+                    sizes="220px"
+                    className="object-contain object-left-top"
+                  />
+                </div>
+
+                {/* Cadre — coin bas-droit */}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none select-none absolute -bottom-[40px] -right-[50px] w-[112px] h-[112px] sm:w-[144px] sm:h-[144px] transition-transform duration-500 ease-out group-hover:scale-105 z-0"
+                >
+                  <Image
+                    src="/cadre_noir_bottom_right.png"
+                    alt=""
+                    fill
+                    sizes="220px"
+                    className="object-contain object-right-bottom"
+                  />
+                </div>
+
                 {/* Card container */}
                 <div 
-                  className="relative w-[260px] h-[260px] sm:w-[300px] sm:h-[300px] overflow-hidden rounded-lg transition-all duration-500 ease-out group-hover:scale-105 group-hover:shadow-[0_0_40px_oklch(0.52_0.20_18/0.35)]"
+                  className="relative w-full h-full overflow-hidden rounded-lg transition-all duration-500 ease-out group-hover:scale-105 group-hover:shadow-[0_0_40px_oklch(0.52_0.20_18/0.35)] z-10"
                   style={{
                     backgroundImage: i % 2 === 0 ? "url('/baground_green.png')" : "url('/background_red_jail.png')",
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                   }}
                 >
+
                   {/* Image */}
                   <Image
                     src={member.imageUrl}
@@ -81,6 +111,8 @@ export function CrewHero({ members, cta }: CrewHeroProps) {
                     className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                   />
 
+
+
                   {/* Gradient overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-70 group-hover:opacity-90 transition-opacity duration-500" />
 
@@ -89,9 +121,9 @@ export function CrewHero({ members, cta }: CrewHeroProps) {
 
                   {/* Member info */}
                   <div className="absolute bottom-0 left-0 right-0 p-5">
-                    <h3 className="font-display text-white text-lg md:text-xl uppercase tracking-tight leading-tight">
+                    <MarqueeText className="font-display text-white text-lg md:text-xl uppercase tracking-tight leading-tight">
                       {member.name}
-                    </h3>
+                    </MarqueeText>
                     {member.role && (
                       <p className="text-white/50 text-xs uppercase tracking-[0.15em] mt-1 group-hover:text-[var(--rbs-red-light)] transition-colors duration-500">
                         {member.role}
