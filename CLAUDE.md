@@ -158,6 +158,12 @@ Copy `.env.example` → `.env`. Critical variables:
 - `R2_*` — Cloudflare R2 credentials for media storage
 - `INTERNAL_API_URL` — Docker service URL for server-side API calls (set in docker-compose)
 
+## Testing
+
+- **Current state**: there are no Go `*_test.go` files yet and `apps/web` has no `test` script, so `make test`'s web step (`npm run test --if-present`) is a no-op.
+- **Go**: `make test` runs `go test -race -cover ./...` from `apps/api-go`. To run a single test once tests exist: `cd apps/api-go && go test -race -run TestName ./internal/service/...`
+- **Lint** (`make lint`) is the main automated gate today: `golangci-lint run ./...` (Go) + `eslint` (web). Run it before committing.
+
 ## Notes
 
 - The Go API is named `nestjs-api` in Docker but it's Go, not NestJS — this is a leftover from a previous stack
