@@ -160,8 +160,8 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
       <div className="flex flex-wrap gap-3">
         <ShippingTrackingForm
           orderId={order.id}
-          currentCarrier={(order as unknown as { shippingCarrier?: string }).shippingCarrier}
-          currentTrackingNumber={(order as unknown as { trackingNumber?: string }).trackingNumber}
+          currentCarrier={order.shippingCarrier}
+          currentTrackingNumber={order.trackingNumber}
           accessToken={accessToken}
         />
         <RefundPanel

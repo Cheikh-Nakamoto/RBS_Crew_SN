@@ -47,4 +47,9 @@ type OrderResponse struct {
 	Total          decimal.Decimal     `json:"total"`
 	Items          []OrderItemResponse `json:"items"`
 	CreatedAt      time.Time           `json:"createdAt"`
+	// Shipping tracking — populated after admin sets carrier/tracking number.
+	ShippingCarrier *string    `json:"shippingCarrier,omitempty"`
+	TrackingNumber  *string    `json:"trackingNumber,omitempty"`
+	ShippedAt       *time.Time `json:"shippedAt,omitempty"`
+	DeliveredAt     *time.Time `json:"deliveredAt,omitempty"`
 }

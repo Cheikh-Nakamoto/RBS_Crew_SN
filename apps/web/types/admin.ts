@@ -109,6 +109,11 @@ export interface AdminOrder {
   items: AdminOrderItem[];
   createdAt: string;
   updatedAt: string;
+  // Shipping tracking (set by admin after dispatch)
+  shippingCarrier?: string;
+  trackingNumber?: string;
+  shippedAt?: string;
+  deliveredAt?: string;
 }
 
 // ─── Quote ───────────────────────────────────────────────────────

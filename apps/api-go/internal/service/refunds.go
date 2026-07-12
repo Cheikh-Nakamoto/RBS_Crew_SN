@@ -263,19 +263,24 @@ func (s *RefundsService) MarkManualCompleted(
 		return nil, types.BadRequest("This refund does not require manual completion")
 	}
 
-	// Update refund
-	updated, err := s.refundsRepo.MarkManualCompleted(ctx, refundID, manualReference, justificationURL)
-	if err != nil {
-		return nil, types.InternalError("Failed to mark refund as completed")
-	}
-
-	// Update payment + order status
+	// Everything in one transaction: mark SUCCEEDED + update payment/order atomically.
 	pool := s.refundsRepo.Pool()
 	tx, txErr := pool.Begin(ctx)
 	if txErr != nil {
 		return nil, types.InternalError("Failed to start transaction")
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
+	qtxRef := s.refundsRepo.WithTx(tx)
+	manualRef := manualReference
+	updated, err := qtxRef.MarkRefundManualCompleted(ctx, db.MarkRefundManualCompletedParams{
+		ID:               refundID,
+		ManualReference:  &manualRef,
+		JustificationUrl: justificationURL,
+	})
+	if err != nil {
+		return nil, types.InternalError("Failed to mark refund as completed")
+	}
 
 	order, err := s.ordersRepo.GetByID(ctx, ref.OrderId)
 	if err != nil {
@@ -292,13 +297,20 @@ func (s *RefundsService) MarkManualCompleted(
 			payStatus = db.PaymentStatusREFUNDED
 			orderStatus = db.OrderStatusREFUNDED
 		}
-		_, _ = qtx.UpdatePaymentStatus(ctx, db.UpdatePaymentStatusParams{ID: payments[0].ID, Column2: payStatus})
-		_, _ = qtx.UpdateOrderStatus(ctx, db.UpdateOrderStatusParams{ID: ref.OrderId, Status: orderStatus})
+		if _, upErr := qtx.UpdatePaymentStatus(ctx, db.UpdatePaymentStatusParams{ID: payments[0].ID, Column2: payStatus}); upErr != nil {
+			return nil, types.InternalError("Failed to update payment status")
+		}
+		if _, upErr := qtx.UpdateOrderStatus(ctx, db.UpdateOrderStatusParams{ID: ref.OrderId, Status: orderStatus}); upErr != nil {
+			return nil, types.InternalError("Failed to update order status")
+		}
 	}
-	_ = tx.Commit(ctx)
+
+	if cErr := tx.Commit(ctx); cErr != nil {
+		return nil, types.InternalError("Failed to commit refund completion")
+	}
 
 	slog.Info("refunds: manual completion by admin", "refundId", refundID, "adminId", adminUserID)
-	return toRefundResponse(updated), nil
+	return toRefundResponse(&updated), nil
 }
 
 func (s *RefundsService) ListByOrderID(ctx context.Context, orderID string) ([]RefundResponse, *types.AppError) {

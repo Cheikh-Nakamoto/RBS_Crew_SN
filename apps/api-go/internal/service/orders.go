@@ -334,29 +334,51 @@ func toItemResponses(items []db.OrderItem) []model.OrderItemResponse {
 }
 
 func toOrderResponse(o *db.Order, items []model.OrderItemResponse) *model.OrderResponse {
-	return &model.OrderResponse{
+	r := model.OrderResponse{
 		ID: o.ID, OrderNumber: o.OrderNumber,
 		Status: string(o.Status), PaymentStatus: string(o.PaymentStatus),
-		Currency:       o.Currency,
-		Subtotal:       o.Subtotal, TaxAmount: o.TaxAmount,
-		ShippingAmount: o.ShippingAmount, DiscountAmount: o.DiscountAmount,
-		Total:     o.Total,
-		Items:     items,
-		CreatedAt: o.CreatedAt.Time,
+		Currency:        o.Currency,
+		Subtotal:        o.Subtotal, TaxAmount: o.TaxAmount,
+		ShippingAmount:  o.ShippingAmount, DiscountAmount: o.DiscountAmount,
+		Total:           o.Total,
+		Items:           items,
+		CreatedAt:       o.CreatedAt.Time,
+		ShippingCarrier: o.ShippingCarrier,
+		TrackingNumber:  o.TrackingNumber,
 	}
+	if o.ShippedAt.Valid {
+		t := o.ShippedAt.Time
+		r.ShippedAt = &t
+	}
+	if o.DeliveredAt.Valid {
+		t := o.DeliveredAt.Time
+		r.DeliveredAt = &t
+	}
+	return &r
 }
 
 func toOrderResponseFromRow(o *db.Order, items []model.OrderItemResponse) model.OrderResponse {
-	return model.OrderResponse{
+	r := model.OrderResponse{
 		ID: o.ID, OrderNumber: o.OrderNumber,
 		Status: string(o.Status), PaymentStatus: string(o.PaymentStatus),
-		Currency:       o.Currency,
-		Subtotal:       o.Subtotal, TaxAmount: o.TaxAmount,
-		ShippingAmount: o.ShippingAmount, DiscountAmount: o.DiscountAmount,
-		Total:     o.Total,
-		Items:     items,
-		CreatedAt: o.CreatedAt.Time,
+		Currency:        o.Currency,
+		Subtotal:        o.Subtotal, TaxAmount: o.TaxAmount,
+		ShippingAmount:  o.ShippingAmount, DiscountAmount: o.DiscountAmount,
+		Total:           o.Total,
+		Items:           items,
+		CreatedAt:       o.CreatedAt.Time,
+		ShippingCarrier: o.ShippingCarrier,
+		TrackingNumber:  o.TrackingNumber,
 	}
+	if o.ShippedAt.Valid {
+		t := o.ShippedAt.Time
+		r.ShippedAt = &t
+	}
+	if o.DeliveredAt.Valid {
+		t := o.DeliveredAt.Time
+		r.DeliveredAt = &t
+	}
+	return r
 }
 
 // pgtype helper (used in auth.go as well)
