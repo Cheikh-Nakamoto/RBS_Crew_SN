@@ -38,3 +38,21 @@ UPDATE "Order"
 SET "status" = sqlc.arg('status')::"OrderStatus", "updatedAt" = NOW()
 WHERE "id" = $1
 RETURNING *;
+
+-- name: UpdateOrderShipping :one
+UPDATE "Order"
+SET "shippingMethodId" = sqlc.narg('shippingMethodId')::text,
+    "shippingCarrier"  = sqlc.narg('shippingCarrier')::text,
+    "trackingNumber"   = sqlc.narg('trackingNumber')::text,
+    "shippedAt"        = sqlc.narg('shippedAt')::timestamp,
+    "updatedAt"        = NOW()
+WHERE "id" = $1
+RETURNING *;
+
+-- name: UpdateOrderShippingAmount :one
+UPDATE "Order"
+SET "shippingAmount" = $2,
+    "total"          = "subtotal" + "taxAmount" + $2 - "discountAmount",
+    "updatedAt"      = NOW()
+WHERE "id" = $1
+RETURNING *;

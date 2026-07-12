@@ -18,7 +18,7 @@ INSERT INTO "Order" ("id", "orderNumber", "userId", "guestEmail", "status", "pay
                      "total", "shippingAddressId", "billingAddressId", "notes", "locale", "createdAt", "updatedAt")
 VALUES ($1, $2, $3, $4, 'PENDING'::"OrderStatus", 'UNPAID'::"PaymentStatus",
         'XOF', $5, 0, 0, 0, $5, $6, $7, $8, 'fr'::"Locale", NOW(), NOW())
-RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt"
+RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "shippingMethodId", "shippingCarrier", "trackingNumber", "shippedAt", "deliveredAt"
 `
 
 type CreateOrderParams struct {
@@ -66,6 +66,11 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ShippingMethodId,
+		&i.ShippingCarrier,
+		&i.TrackingNumber,
+		&i.ShippedAt,
+		&i.DeliveredAt,
 	)
 	return i, err
 }
@@ -116,7 +121,7 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 }
 
 const getOrderByID = `-- name: GetOrderByID :one
-SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt" FROM "Order" WHERE "id" = $1
+SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "shippingMethodId", "shippingCarrier", "trackingNumber", "shippedAt", "deliveredAt" FROM "Order" WHERE "id" = $1
 `
 
 func (q *Queries) GetOrderByID(ctx context.Context, id string) (Order, error) {
@@ -144,6 +149,11 @@ func (q *Queries) GetOrderByID(ctx context.Context, id string) (Order, error) {
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ShippingMethodId,
+		&i.ShippingCarrier,
+		&i.TrackingNumber,
+		&i.ShippedAt,
+		&i.DeliveredAt,
 	)
 	return i, err
 }
@@ -208,7 +218,7 @@ func (q *Queries) GetProductForOrder(ctx context.Context, id string) (GetProduct
 }
 
 const listMyOrders = `-- name: ListMyOrders :many
-SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", COUNT(*) OVER() AS total_count
+SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "shippingMethodId", "shippingCarrier", "trackingNumber", "shippedAt", "deliveredAt", COUNT(*) OVER() AS total_count
 FROM "Order"
 WHERE "userId" = $1
 ORDER BY "createdAt" DESC
@@ -243,6 +253,11 @@ type ListMyOrdersRow struct {
 	Locale                Locale           `json:"locale"`
 	CreatedAt             pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt             pgtype.Timestamp `json:"updatedAt"`
+	ShippingMethodId      *string          `json:"shippingMethodId"`
+	ShippingCarrier       *string          `json:"shippingCarrier"`
+	TrackingNumber        *string          `json:"trackingNumber"`
+	ShippedAt             pgtype.Timestamp `json:"shippedAt"`
+	DeliveredAt           pgtype.Timestamp `json:"deliveredAt"`
 	TotalCount            int64            `json:"total_count"`
 }
 
@@ -277,6 +292,11 @@ func (q *Queries) ListMyOrders(ctx context.Context, arg ListMyOrdersParams) ([]L
 			&i.Locale,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ShippingMethodId,
+			&i.ShippingCarrier,
+			&i.TrackingNumber,
+			&i.ShippedAt,
+			&i.DeliveredAt,
 			&i.TotalCount,
 		); err != nil {
 			return nil, err
@@ -290,7 +310,7 @@ func (q *Queries) ListMyOrders(ctx context.Context, arg ListMyOrdersParams) ([]L
 }
 
 const listOrders = `-- name: ListOrders :many
-SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", COUNT(*) OVER() AS total_count
+SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "shippingMethodId", "shippingCarrier", "trackingNumber", "shippedAt", "deliveredAt", COUNT(*) OVER() AS total_count
 FROM "Order"
 ORDER BY "createdAt" DESC
 LIMIT $1 OFFSET $2
@@ -323,6 +343,11 @@ type ListOrdersRow struct {
 	Locale                Locale           `json:"locale"`
 	CreatedAt             pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt             pgtype.Timestamp `json:"updatedAt"`
+	ShippingMethodId      *string          `json:"shippingMethodId"`
+	ShippingCarrier       *string          `json:"shippingCarrier"`
+	TrackingNumber        *string          `json:"trackingNumber"`
+	ShippedAt             pgtype.Timestamp `json:"shippedAt"`
+	DeliveredAt           pgtype.Timestamp `json:"deliveredAt"`
 	TotalCount            int64            `json:"total_count"`
 }
 
@@ -357,6 +382,11 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]ListO
 			&i.Locale,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ShippingMethodId,
+			&i.ShippingCarrier,
+			&i.TrackingNumber,
+			&i.ShippedAt,
+			&i.DeliveredAt,
 			&i.TotalCount,
 		); err != nil {
 			return nil, err
@@ -369,11 +399,118 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]ListO
 	return items, nil
 }
 
+const updateOrderShipping = `-- name: UpdateOrderShipping :one
+UPDATE "Order"
+SET "shippingMethodId" = $2::text,
+    "shippingCarrier"  = $3::text,
+    "trackingNumber"   = $4::text,
+    "shippedAt"        = $5::timestamp,
+    "updatedAt"        = NOW()
+WHERE "id" = $1
+RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "shippingMethodId", "shippingCarrier", "trackingNumber", "shippedAt", "deliveredAt"
+`
+
+type UpdateOrderShippingParams struct {
+	ID               string           `json:"id"`
+	ShippingMethodId *string          `json:"shippingMethodId"`
+	ShippingCarrier  *string          `json:"shippingCarrier"`
+	TrackingNumber   *string          `json:"trackingNumber"`
+	ShippedAt        pgtype.Timestamp `json:"shippedAt"`
+}
+
+func (q *Queries) UpdateOrderShipping(ctx context.Context, arg UpdateOrderShippingParams) (Order, error) {
+	row := q.db.QueryRow(ctx, updateOrderShipping,
+		arg.ID,
+		arg.ShippingMethodId,
+		arg.ShippingCarrier,
+		arg.TrackingNumber,
+		arg.ShippedAt,
+	)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.OrderNumber,
+		&i.UserId,
+		&i.GuestEmail,
+		&i.Status,
+		&i.PaymentStatus,
+		&i.PaymentMethod,
+		&i.StripePaymentIntentId,
+		&i.Currency,
+		&i.Subtotal,
+		&i.TaxAmount,
+		&i.ShippingAmount,
+		&i.DiscountAmount,
+		&i.Total,
+		&i.ShippingAddressId,
+		&i.BillingAddressId,
+		&i.Notes,
+		&i.WcId,
+		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ShippingMethodId,
+		&i.ShippingCarrier,
+		&i.TrackingNumber,
+		&i.ShippedAt,
+		&i.DeliveredAt,
+	)
+	return i, err
+}
+
+const updateOrderShippingAmount = `-- name: UpdateOrderShippingAmount :one
+UPDATE "Order"
+SET "shippingAmount" = $2,
+    "total"          = "subtotal" + "taxAmount" + $2 - "discountAmount",
+    "updatedAt"      = NOW()
+WHERE "id" = $1
+RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "shippingMethodId", "shippingCarrier", "trackingNumber", "shippedAt", "deliveredAt"
+`
+
+type UpdateOrderShippingAmountParams struct {
+	ID             string          `json:"id"`
+	ShippingAmount decimal.Decimal `json:"shippingAmount"`
+}
+
+func (q *Queries) UpdateOrderShippingAmount(ctx context.Context, arg UpdateOrderShippingAmountParams) (Order, error) {
+	row := q.db.QueryRow(ctx, updateOrderShippingAmount, arg.ID, arg.ShippingAmount)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.OrderNumber,
+		&i.UserId,
+		&i.GuestEmail,
+		&i.Status,
+		&i.PaymentStatus,
+		&i.PaymentMethod,
+		&i.StripePaymentIntentId,
+		&i.Currency,
+		&i.Subtotal,
+		&i.TaxAmount,
+		&i.ShippingAmount,
+		&i.DiscountAmount,
+		&i.Total,
+		&i.ShippingAddressId,
+		&i.BillingAddressId,
+		&i.Notes,
+		&i.WcId,
+		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ShippingMethodId,
+		&i.ShippingCarrier,
+		&i.TrackingNumber,
+		&i.ShippedAt,
+		&i.DeliveredAt,
+	)
+	return i, err
+}
+
 const updateOrderStatus = `-- name: UpdateOrderStatus :one
 UPDATE "Order"
 SET "status" = $2::"OrderStatus", "updatedAt" = NOW()
 WHERE "id" = $1
-RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt"
+RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "shippingMethodId", "shippingCarrier", "trackingNumber", "shippedAt", "deliveredAt"
 `
 
 type UpdateOrderStatusParams struct {
@@ -406,6 +543,11 @@ func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusPa
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ShippingMethodId,
+		&i.ShippingCarrier,
+		&i.TrackingNumber,
+		&i.ShippedAt,
+		&i.DeliveredAt,
 	)
 	return i, err
 }

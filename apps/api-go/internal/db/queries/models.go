@@ -234,6 +234,50 @@ func (ns NullProductStatus) Value() (driver.Value, error) {
 	return string(ns.ProductStatus), nil
 }
 
+type RefundStatus string
+
+const (
+	RefundStatusPENDING   RefundStatus = "PENDING"
+	RefundStatusSUCCEEDED RefundStatus = "SUCCEEDED"
+	RefundStatusFAILED    RefundStatus = "FAILED"
+	RefundStatusCANCELLED RefundStatus = "CANCELLED"
+)
+
+func (e *RefundStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = RefundStatus(s)
+	case string:
+		*e = RefundStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for RefundStatus: %T", src)
+	}
+	return nil
+}
+
+type NullRefundStatus struct {
+	RefundStatus RefundStatus `json:"RefundStatus"`
+	Valid        bool         `json:"valid"` // Valid is true if RefundStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullRefundStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.RefundStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.RefundStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullRefundStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.RefundStatus), nil
+}
+
 type UserRole string
 
 const (
@@ -424,6 +468,11 @@ type Order struct {
 	Locale                Locale           `json:"locale"`
 	CreatedAt             pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt             pgtype.Timestamp `json:"updatedAt"`
+	ShippingMethodId      *string          `json:"shippingMethodId"`
+	ShippingCarrier       *string          `json:"shippingCarrier"`
+	TrackingNumber        *string          `json:"trackingNumber"`
+	ShippedAt             pgtype.Timestamp `json:"shippedAt"`
+	DeliveredAt           pgtype.Timestamp `json:"deliveredAt"`
 }
 
 type OrderItem struct {
@@ -588,6 +637,24 @@ type Quote struct {
 	UpdatedAt    pgtype.Timestamp `json:"updatedAt"`
 }
 
+type RefundRequest struct {
+	ID               string           `json:"id"`
+	OrderId          string           `json:"orderId"`
+	PaymentId        string           `json:"paymentId"`
+	Amount           decimal.Decimal  `json:"amount"`
+	Currency         string           `json:"currency"`
+	Reason           string           `json:"reason"`
+	Status           RefundStatus     `json:"status"`
+	ProviderRefundId *string          `json:"providerRefundId"`
+	IdempotencyKey   string           `json:"idempotencyKey"`
+	RequestedBy      string           `json:"requestedBy"`
+	RequestedAt      pgtype.Timestamp `json:"requestedAt"`
+	CompletedAt      pgtype.Timestamp `json:"completedAt"`
+	ErrorMessage     *string          `json:"errorMessage"`
+	ManualReference  *string          `json:"manualReference"`
+	JustificationUrl *string          `json:"justificationUrl"`
+}
+
 type Service struct {
 	ID        string           `json:"id"`
 	Slug      string           `json:"slug"`
@@ -606,6 +673,58 @@ type ServiceTranslation struct {
 	Description     string  `json:"description"`
 	MetaTitle       *string `json:"metaTitle"`
 	MetaDescription *string `json:"metaDescription"`
+}
+
+type ShippingMethod struct {
+	ID               string           `json:"id"`
+	Code             string           `json:"code"`
+	IsPickup         bool             `json:"isPickup"`
+	Enabled          bool             `json:"enabled"`
+	EstimatedDaysMin *int32           `json:"estimatedDaysMin"`
+	EstimatedDaysMax *int32           `json:"estimatedDaysMax"`
+	CreatedAt        pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
+}
+
+type ShippingMethodTranslation struct {
+	ID          string  `json:"id"`
+	MethodId    string  `json:"methodId"`
+	Locale      Locale  `json:"locale"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+}
+
+type ShippingRate struct {
+	ID        string              `json:"id"`
+	ZoneId    string              `json:"zoneId"`
+	MethodId  string              `json:"methodId"`
+	FlatFee   decimal.Decimal     `json:"flatFee"`
+	FreeAbove decimal.NullDecimal `json:"freeAbove"`
+	Currency  string              `json:"currency"`
+}
+
+type ShippingZone struct {
+	ID        string           `json:"id"`
+	Code      string           `json:"code"`
+	IsDefault bool             `json:"isDefault"`
+	Priority  int32            `json:"priority"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
+}
+
+type ShippingZoneRule struct {
+	ID                string  `json:"id"`
+	ZoneId            string  `json:"zoneId"`
+	Country           string  `json:"country"`
+	Region            *string `json:"region"`
+	PostalCodePattern *string `json:"postalCodePattern"`
+}
+
+type ShippingZoneTranslation struct {
+	ID     string `json:"id"`
+	ZoneId string `json:"zoneId"`
+	Locale Locale `json:"locale"`
+	Name   string `json:"name"`
 }
 
 type Tag struct {
