@@ -167,6 +167,27 @@ func (h *QuotesHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	types.WriteJSON(w, http.StatusOK, result)
 }
 
+// UpdateShipping sets carrier, tracking number, and shippingMethodId on an order.
+// Available to ADMIN and EDITOR (tracking is operational, not money-sensitive).
+func (h *OrdersHandler) UpdateShipping(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var body struct {
+		Carrier          string  `json:"carrier"`
+		TrackingNumber   string  `json:"trackingNumber"`
+		ShippingMethodID *string `json:"shippingMethodId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		types.WriteError(w, types.BadRequest("Invalid payload"))
+		return
+	}
+	result, appErr := h.svc.UpdateShipping(r.Context(), id, body.Carrier, body.TrackingNumber, body.ShippingMethodID)
+	if appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, result)
+}
+
 func (h *QuotesHandler) AdminDelete(w http.ResponseWriter, r *http.Request) {
 	if appErr := h.svc.Delete(r.Context(), chi.URLParam(r, "id")); appErr != nil {
 		types.WriteError(w, appErr)

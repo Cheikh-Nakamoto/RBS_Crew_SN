@@ -2,13 +2,22 @@ package mail
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"html/template"
 	"log/slog"
-	"text/template"
 
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/config"
 	"gopkg.in/gomail.v2"
 )
+
+// RefundEmailData carries variables for the refund notification email.
+type RefundEmailData struct {
+	OrderNumber     string
+	Amount          float64
+	Currency        string
+	IsManualPending bool // Wave manual refund — not yet processed by provider
+}
 
 type MailService struct {
 	cfg    *config.Config
@@ -78,4 +87,53 @@ func (s *MailService) RenderTemplateString(tmplStr string, data interface{}) (st
 		return "", err
 	}
 	return buf.String(), nil
+}
+
+var refundTemplateFR = template.Must(template.New("refund_fr").Parse(`
+<p>Bonjour,</p>
+<p>Nous avons bien reçu votre demande de remboursement pour la commande <strong>{{.OrderNumber}}</strong>.</p>
+{{if .IsManualPending}}
+<p>Votre remboursement de <strong>{{.Amount}} {{.Currency}}</strong> est en cours de traitement manuel par notre équipe (paiement Wave). Vous serez notifié par email dès qu'il sera finalisé.</p>
+{{else}}
+<p>Un remboursement de <strong>{{.Amount}} {{.Currency}}</strong> a été initié avec succès. Il apparaîtra sur votre compte dans 5 à 10 jours ouvrés selon votre banque.</p>
+{{end}}
+<p>Merci pour votre confiance.</p>
+<p>L'équipe RBS Crew SN</p>
+`))
+
+var refundTemplateEN = template.Must(template.New("refund_en").Parse(`
+<p>Hello,</p>
+<p>We have received your refund request for order <strong>{{.OrderNumber}}</strong>.</p>
+{{if .IsManualPending}}
+<p>Your refund of <strong>{{.Amount}} {{.Currency}}</strong> is being processed manually by our team (Wave payment). You will be notified by email once it is finalized.</p>
+{{else}}
+<p>A refund of <strong>{{.Amount}} {{.Currency}}</strong> has been successfully initiated. It will appear on your account within 5 to 10 business days depending on your bank.</p>
+{{end}}
+<p>Thank you for your trust.</p>
+<p>The RBS Crew SN Team</p>
+`))
+
+// SendRefundEmail sends a refund notification to the customer.
+// Uses html/template (XSS-safe) — never text/template for emails.
+func (s *MailService) SendRefundEmail(_ context.Context, to, locale string, data RefundEmailData) error {
+	if to == "" {
+		slog.Warn("mail: SendRefundEmail called with empty recipient")
+		return nil
+	}
+
+	var tmpl *template.Template
+	subject := "Remboursement de votre commande RBS Crew"
+	if locale == "en" {
+		tmpl = refundTemplateEN
+		subject = "Refund for your RBS Crew order"
+	} else {
+		tmpl = refundTemplateFR
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return fmt.Errorf("mail: render refund template: %w", err)
+	}
+
+	return s.sendHTML(to, subject, buf.String())
 }

@@ -38,6 +38,8 @@ type Handlers struct {
 	ActivityLogs      *handler.ActivityLogsHandler
 	Media         *handler.MediaHandler
 	Cart          *handler.CartHandler
+	Refunds       *handler.RefundsHandler
+	Shipping      *handler.ShippingHandler
 }
 
 func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.ActivityLogRepository) chi.Router {
@@ -114,6 +116,9 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 			r.Use(middleware.RateLimit(rate.Every(300), 3)) // 1 req/5min burst 3
 			r.Post("/quotes", h.Quotes.Create)
 		})
+
+		// Shipping quote — public (server recomputes fee, never trusts client total)
+		r.Post("/shipping/quote", h.Shipping.Quote)
 
 		// Payment webhooks — public, exempt from generic rate limiting
 		r.Post("/payments/webhook", h.Payments.Webhook) // Legacy Stripe
@@ -252,6 +257,36 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 
 		// Activity logs
 		r.Get("/admin/activity-logs", h.ActivityLogs.List)
+
+		// Orders: shipping tracking (ADMIN + EDITOR)
+		r.Patch("/admin/orders/{id}/shipping", h.Orders.UpdateShipping)
+
+		// Shipping zones & methods (ADMIN + EDITOR read, ADMIN write)
+		r.Get("/admin/shipping/zones", h.Shipping.ListZones)
+		r.Get("/admin/shipping/methods", h.Shipping.ListMethods)
+
+		// Refunds list (ADMIN + EDITOR read)
+		r.Get("/admin/orders/{id}/refunds", h.Refunds.List)
+	})
+
+	// ── Admin-only routes (ADMIN only) ─────────────────────────────────────────
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.RequireAuth(cfg.JWTSecret))
+		r.Use(middleware.RequireRoles("ADMIN"))
+		r.Use(middleware.ActivityLogger(activityRepo))
+
+		// Refunds — money-sensitive, ADMIN only
+		r.Post("/admin/orders/{id}/refund", h.Refunds.Create)
+		r.Post("/admin/refunds/{refundId}/mark-completed", h.Refunds.MarkManualCompleted)
+
+		// Shipping CRUD write — ADMIN only
+		r.Post("/admin/shipping/zones", h.Shipping.CreateZone)
+		r.Put("/admin/shipping/zones/{id}", h.Shipping.UpdateZone)
+		r.Delete("/admin/shipping/zones/{id}", h.Shipping.DeleteZone)
+		r.Post("/admin/shipping/methods", h.Shipping.CreateMethod)
+		r.Put("/admin/shipping/methods/{id}", h.Shipping.UpdateMethod)
+		r.Delete("/admin/shipping/methods/{id}", h.Shipping.DeleteMethod)
+		r.Put("/admin/shipping/rates", h.Shipping.UpsertRate)
 	})
 
 	return r

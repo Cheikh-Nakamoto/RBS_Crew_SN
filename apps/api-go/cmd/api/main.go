@@ -92,6 +92,8 @@ func run() error {
 	ordersRepo := repository.NewOrdersRepository(pool)
 	usersRepo := repository.NewUsersRepository(pool)
 	activityLogRepo := repository.NewActivityLogRepository(pool)
+	refundsRepo := repository.NewRefundsRepository(pool)
+	shippingRepo := repository.NewShippingRepository(pool)
 
 	// ── Services ─────────────────────────────────────────────────────────────
 	mailSvc := mail.NewMailService(cfg)
@@ -106,7 +108,8 @@ func run() error {
 	pagesSvc := service.NewPagesService(pagesRepo)
 	servicesSvc := service.NewServicesService(servicesRepo)
 	quotesSvc := service.NewQuotesService(quotesRepo)
-	ordersSvc := service.NewOrdersService(ordersRepo, productsRepo)
+	shippingSvc := service.NewShippingService(shippingRepo)
+	ordersSvc := service.NewOrdersService(ordersRepo, productsRepo, shippingSvc)
 	usersSvc := service.NewUsersService(usersRepo)
 	cartSvc := service.NewCartService(redisClient)
 
@@ -131,6 +134,7 @@ func run() error {
 	}
 
 	paymentsSvc := service.NewPaymentsService(ordersRepo, redisClient, paymentProviders...)
+	refundsSvc := service.NewRefundsService(refundsRepo, ordersRepo, redisClient, mailSvc, paymentProviders...)
 
 	// ── Handlers ────────────────────────────────────────────────────────────
 	handlers := &router.Handlers{
@@ -161,6 +165,8 @@ func run() error {
 		Media:         handler.NewMediaHandler(cfg.R2AccountID, cfg.R2AccessKey, cfg.R2SecretKey, cfg.R2Bucket, cfg.R2PublicURL),
 		Cart:          handler.NewCartHandler(cartSvc),
 		ActivityLogs:  handler.NewActivityLogsHandler(activityLogRepo),
+		Refunds:       handler.NewRefundsHandler(refundsSvc),
+		Shipping:      handler.NewShippingHandler(shippingSvc),
 	}
 
 	// ── HTTP Server ──────────────────────────────────────────────────────────

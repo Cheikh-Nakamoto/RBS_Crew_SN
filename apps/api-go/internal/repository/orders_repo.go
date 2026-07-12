@@ -6,6 +6,7 @@ import (
 	db "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db/queries"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shopspring/decimal"
 )
 
 type OrdersRepository struct {
@@ -95,6 +96,10 @@ func (r *OrdersRepository) CreatePayment(ctx context.Context, params db.CreatePa
 	return &p, nil
 }
 
+func (r *OrdersRepository) GetPaymentsForOrder(ctx context.Context, orderID string) ([]db.Payment, error) {
+	return r.q.GetPaymentsByOrderID(ctx, orderID)
+}
+
 func (r *OrdersRepository) GetPaymentByExternalID(ctx context.Context, externalID string) (*db.Payment, error) {
 	p, err := r.q.GetPaymentByExternalID(ctx, &externalID)
 	if err != nil {
@@ -112,6 +117,25 @@ func (r *OrdersRepository) UpdatePaymentStatus(ctx context.Context, id string, s
 		return nil, err
 	}
 	return &p, nil
+}
+
+func (r *OrdersRepository) UpdateOrderShipping(ctx context.Context, params db.UpdateOrderShippingParams) (*db.Order, error) {
+	o, err := r.q.UpdateOrderShipping(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return &o, nil
+}
+
+func (r *OrdersRepository) UpdateOrderShippingAmount(ctx context.Context, orderID string, amount decimal.Decimal) (*db.Order, error) {
+	o, err := r.q.UpdateOrderShippingAmount(ctx, db.UpdateOrderShippingAmountParams{
+		ID:             orderID,
+		ShippingAmount: amount,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &o, nil
 }
 
 func (r *OrdersRepository) UpdateOrderPaymentMethod(ctx context.Context, orderID string, method db.NullPaymentMethod) (*db.Order, error) {
