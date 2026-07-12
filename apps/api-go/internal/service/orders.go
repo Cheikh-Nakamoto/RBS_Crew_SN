@@ -24,10 +24,15 @@ import (
 type OrdersService struct {
 	ordersRepo   *repository.OrdersRepository
 	productsRepo *repository.ProductsRepository
+	shippingSvc  *ShippingService // optional — nil = no shipping rate calc
 }
 
-func NewOrdersService(ordersRepo *repository.OrdersRepository, productsRepo *repository.ProductsRepository) *OrdersService {
-	return &OrdersService{ordersRepo: ordersRepo, productsRepo: productsRepo}
+func NewOrdersService(ordersRepo *repository.OrdersRepository, productsRepo *repository.ProductsRepository, shippingSvc ...*ShippingService) *OrdersService {
+	svc := &OrdersService{ordersRepo: ordersRepo, productsRepo: productsRepo}
+	if len(shippingSvc) > 0 {
+		svc.shippingSvc = shippingSvc[0]
+	}
+	return svc
 }
 
 func (s *OrdersService) Create(ctx context.Context, dto model.CreateOrderDTO, userID *string) (*model.OrderResponse, *types.AppError) {
@@ -140,6 +145,28 @@ func (s *OrdersService) Create(ctx context.Context, dto model.CreateOrderDTO, us
 		return nil, types.InternalError("Failed to commit transaction")
 	}
 
+	// 5. Apply server-side shipping amount (after commit — shipping failure is non-fatal)
+	if s.shippingSvc != nil && dto.ShippingMethodID != nil && dto.ShippingCountry != "" {
+		shippingOptions, shippingErr := s.shippingSvc.Quote(ctx, dto.ShippingCountry, subtotal)
+		if shippingErr == nil {
+			for _, opt := range shippingOptions {
+				if opt.MethodID == *dto.ShippingMethodID {
+					shippingFee := decimal.NewFromFloat(opt.FlatFee)
+					updated, repoErr := s.ordersRepo.UpdateOrderShippingAmount(ctx, order.ID, shippingFee)
+					if repoErr == nil {
+						order = *updated
+					}
+					// Also set the method on the order
+					_, _ = s.ordersRepo.UpdateOrderShipping(ctx, db.UpdateOrderShippingParams{
+						ID:               order.ID,
+						ShippingMethodId: dto.ShippingMethodID,
+					})
+					break
+				}
+			}
+		}
+	}
+
 	return toOrderResponse(&order, items), nil
 }
 
@@ -233,6 +260,34 @@ func (s *OrdersService) FindOne(ctx context.Context, id, userID, role string) (*
 		return nil, types.Forbidden("Access denied")
 	}
 	items, _ := s.ordersRepo.GetItems(ctx, id)
+	res := toOrderResponseFromRow(order, toItemResponses(items))
+	return &res, nil
+}
+
+// UpdateShipping sets tracking/carrier/shipping info on an order (admin + editor).
+func (s *OrdersService) UpdateShipping(ctx context.Context, orderID, carrier, trackingNumber string, shippingMethodID *string) (*model.OrderResponse, *types.AppError) {
+	params := db.UpdateOrderShippingParams{
+		ID:               orderID,
+		ShippingMethodId: shippingMethodID,
+	}
+	if carrier != "" {
+		params.ShippingCarrier = &carrier
+	}
+	if trackingNumber != "" {
+		params.TrackingNumber = &trackingNumber
+	}
+	// Set shippedAt to now if trackingNumber is provided
+	if trackingNumber != "" {
+		params.ShippedAt = pgtype.Timestamp{Time: time.Now(), Valid: true}
+	}
+	order, err := s.ordersRepo.UpdateOrderShipping(ctx, params)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, types.NotFound("Order not found")
+		}
+		return nil, types.InternalError("Failed to update order shipping")
+	}
+	items, _ := s.ordersRepo.GetItems(ctx, orderID)
 	res := toOrderResponseFromRow(order, toItemResponses(items))
 	return &res, nil
 }
