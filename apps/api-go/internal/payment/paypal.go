@@ -239,3 +239,8 @@ func formatPayPalAmount(amount int64, currency string) string {
 		return fmt.Sprintf("%.2f", float64(amount)/100)
 	}
 }
+
+// Refund implements PaymentRefunder. PayPal refunds are not yet integrated.
+func (p *PayPalProvider) Refund(_ context.Context, _ RefundInput) (RefundOutput, error) {
+	return RefundOutput{}, ErrRefundNotSupported
+}

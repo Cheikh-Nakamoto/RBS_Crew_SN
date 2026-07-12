@@ -121,3 +121,9 @@ func (w *WaveProvider) VerifyWebhook(_ context.Context, payload []byte, headers 
 
 	return nil, nil
 }
+
+// Refund implements PaymentRefunder but Wave does not support programmatic refunds.
+// Callers should fall back to the manual refund workflow.
+func (w *WaveProvider) Refund(_ context.Context, _ RefundInput) (RefundOutput, error) {
+	return RefundOutput{}, ErrRefundNotSupported
+}

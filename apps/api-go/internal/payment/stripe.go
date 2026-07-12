@@ -8,6 +8,7 @@ import (
 
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/checkout/session"
+	striperefund "github.com/stripe/stripe-go/v82/refund"
 	"github.com/stripe/stripe-go/v82/webhook"
 )
 
@@ -119,4 +120,31 @@ func (s *StripeProvider) VerifyWebhook(_ context.Context, payload []byte, header
 
 	// Unhandled event type – return nil (not an error, just ignored)
 	return nil, nil
+}
+
+// Refund implements PaymentRefunder for Stripe.
+func (s *StripeProvider) Refund(_ context.Context, input RefundInput) (RefundOutput, error) {
+	amountCents := int64(input.Amount * 100) // Stripe uses smallest currency unit
+	params := &stripe.RefundParams{
+		PaymentIntent: stripe.String(input.ExternalPaymentID),
+		Amount:        stripe.Int64(amountCents),
+	}
+	params.IdempotencyKey = stripe.String(input.IdempotencyKey)
+
+	r, err := striperefund.New(params)
+	if err != nil {
+		return RefundOutput{}, fmt.Errorf("stripe: refund failed: %w", err)
+	}
+
+	status := "pending"
+	if r.Status == stripe.RefundStatusSucceeded {
+		status = "succeeded"
+	} else if r.Status == stripe.RefundStatusFailed {
+		status = "failed"
+	}
+
+	return RefundOutput{
+		ProviderRefundID: r.ID,
+		Status:           status,
+	}, nil
 }

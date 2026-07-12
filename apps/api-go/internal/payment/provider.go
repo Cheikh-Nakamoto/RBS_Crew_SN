@@ -2,6 +2,7 @@ package payment
 
 import (
 	"context"
+	"errors"
 	"net/http"
 )
 
@@ -67,4 +68,32 @@ type Provider interface {
 
 	// VerifyWebhook validates an incoming webhook request and extracts the event.
 	VerifyWebhook(ctx context.Context, payload []byte, headers http.Header) (*WebhookEvent, error)
+}
+
+// ── Refund port ───────────────────────────────────────────────────────────────
+
+// ErrRefundNotSupported is returned by providers that don't support programmatic refunds.
+// The caller should fall back to a manual refund workflow.
+var ErrRefundNotSupported = errors.New("refund not supported by this provider")
+
+// RefundInput carries the data needed to issue a refund.
+type RefundInput struct {
+	ExternalPaymentID string  // Provider payment intent/transaction ID
+	Amount            float64 // Amount to refund (same units as payment)
+	Currency          string
+	IdempotencyKey    string // Provider-level idempotency key
+	Reason            string
+}
+
+// RefundOutput is the result of a successful programmatic refund.
+type RefundOutput struct {
+	ProviderRefundID string // Provider-assigned refund ID
+	Status           string // "succeeded", "pending", "failed"
+}
+
+// PaymentRefunder is an optional interface that providers implement when they
+// support programmatic refunds. Providers that don't (e.g. Wave) should return
+// ErrRefundNotSupported so the service can fall back to manual processing.
+type PaymentRefunder interface {
+	Refund(ctx context.Context, input RefundInput) (RefundOutput, error)
 }

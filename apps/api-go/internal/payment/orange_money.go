@@ -146,3 +146,8 @@ func (o *OrangeMoneyProvider) VerifyWebhook(_ context.Context, payload []byte, h
 		Status:     status,
 	}, nil
 }
+
+// Refund implements PaymentRefunder. Orange Money refunds are not yet integrated.
+func (o *OrangeMoneyProvider) Refund(_ context.Context, _ RefundInput) (RefundOutput, error) {
+	return RefundOutput{}, ErrRefundNotSupported
+}
