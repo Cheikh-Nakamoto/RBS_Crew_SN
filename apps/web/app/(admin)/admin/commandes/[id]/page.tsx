@@ -8,6 +8,9 @@ import { AdminStatusSelect } from '@/components/admin/admin-status-select';
 import { AdminDeleteButton } from '@/components/admin/admin-delete-button';
 import { updateOrderStatus, deleteOrder } from '../actions';
 import type { OrderStatus } from '@/types/admin';
+import { auth } from '@/lib/auth';
+import { RefundPanel } from './refund-panel';
+import { ShippingTrackingForm } from './shipping-tracking-form';
 
 export const metadata = { title: 'Détail commande' };
 
@@ -24,6 +27,9 @@ const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 
 export default async function CommandeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const session = await auth();
+  const userRole = session?.user?.role ?? '';
+  const accessToken = session?.accessToken ?? '';
 
   let order;
   try {
@@ -149,6 +155,23 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
         options={ORDER_STATUS_LABELS}
         updateAction={(id, value) => updateOrderStatus(id, { status: value })}
       />
+
+      {/* Actions livraison + remboursement */}
+      <div className="flex flex-wrap gap-3">
+        <ShippingTrackingForm
+          orderId={order.id}
+          currentCarrier={(order as unknown as { shippingCarrier?: string }).shippingCarrier}
+          currentTrackingNumber={(order as unknown as { trackingNumber?: string }).trackingNumber}
+          accessToken={accessToken}
+        />
+        <RefundPanel
+          orderId={order.id}
+          orderTotal={order.total}
+          currency={order.currency ?? 'XOF'}
+          userRole={userRole}
+          accessToken={accessToken}
+        />
+      </div>
     </div>
   );
 }

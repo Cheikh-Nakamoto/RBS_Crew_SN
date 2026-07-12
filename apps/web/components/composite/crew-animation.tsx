@@ -144,7 +144,7 @@ export function CrewAnimation({ artists }: CrewAnimationProps) {
 
   // ═════ Logique Auto-Scroll (PlayStation style) ═════
   const scrollRef = useRef<HTMLDivElement>(null);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number>(undefined);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const el = scrollRef.current;
