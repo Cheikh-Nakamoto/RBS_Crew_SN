@@ -677,3 +677,94 @@ ALTER TABLE "FestivalTranslation" ADD CONSTRAINT "FestivalTranslation_festivalEd
 -- FestivalArtist
 ALTER TABLE "FestivalArtist" ADD CONSTRAINT "FestivalArtist_festivalEditionId_fkey" FOREIGN KEY ("festivalEditionId") REFERENCES "FestivalEdition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "FestivalArtist" ADD CONSTRAINT "FestivalArtist_artistId_fkey" FOREIGN KEY ("artistId") REFERENCES "Artist"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- ── Migration 00003: Shipping ──────────────────────────────────────────────
+
+CREATE TABLE "ShippingZone" (
+    "id"        TEXT NOT NULL,
+    "code"      TEXT NOT NULL,
+    "isDefault" BOOLEAN NOT NULL DEFAULT false,
+    "priority"  INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ShippingZone_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "ShippingZoneTranslation" (
+    "id"     TEXT NOT NULL,
+    "zoneId" TEXT NOT NULL,
+    "locale" "Locale" NOT NULL,
+    "name"   TEXT NOT NULL,
+    CONSTRAINT "ShippingZoneTranslation_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "ShippingZoneRule" (
+    "id"                TEXT NOT NULL,
+    "zoneId"            TEXT NOT NULL,
+    "country"           TEXT NOT NULL,
+    "region"            TEXT,
+    "postalCodePattern" TEXT,
+    CONSTRAINT "ShippingZoneRule_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "ShippingMethod" (
+    "id"               TEXT NOT NULL,
+    "code"             TEXT NOT NULL,
+    "isPickup"         BOOLEAN NOT NULL DEFAULT false,
+    "enabled"          BOOLEAN NOT NULL DEFAULT true,
+    "estimatedDaysMin" INTEGER,
+    "estimatedDaysMax" INTEGER,
+    "createdAt"        TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"        TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ShippingMethod_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "ShippingMethodTranslation" (
+    "id"          TEXT NOT NULL,
+    "methodId"    TEXT NOT NULL,
+    "locale"      "Locale" NOT NULL,
+    "name"        TEXT NOT NULL,
+    "description" TEXT,
+    CONSTRAINT "ShippingMethodTranslation_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "ShippingRate" (
+    "id"        TEXT NOT NULL,
+    "zoneId"    TEXT NOT NULL,
+    "methodId"  TEXT NOT NULL,
+    "flatFee"   DECIMAL(10,2) NOT NULL,
+    "freeAbove" DECIMAL(10,2),
+    "currency"  TEXT NOT NULL DEFAULT 'XOF',
+    CONSTRAINT "ShippingRate_pkey" PRIMARY KEY ("id")
+);
+
+-- ── Migration 00004: Refunds ───────────────────────────────────────────────
+
+CREATE TYPE "RefundStatus" AS ENUM ('PENDING','SUCCEEDED','FAILED','CANCELLED');
+
+CREATE TABLE "RefundRequest" (
+    "id"               TEXT NOT NULL,
+    "orderId"          TEXT NOT NULL,
+    "paymentId"        TEXT NOT NULL,
+    "amount"           DECIMAL(10,2) NOT NULL,
+    "currency"         TEXT NOT NULL,
+    "reason"           TEXT NOT NULL,
+    "status"           "RefundStatus" NOT NULL DEFAULT 'PENDING',
+    "providerRefundId" TEXT,
+    "idempotencyKey"   TEXT NOT NULL,
+    "requestedBy"      TEXT NOT NULL,
+    "requestedAt"      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt"      TIMESTAMP(3),
+    "errorMessage"     TEXT,
+    "manualReference"  TEXT,
+    "justificationUrl" TEXT,
+    CONSTRAINT "RefundRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- ── Migration 00005: Order shipping fields ─────────────────────────────────
+
+ALTER TABLE "Order" ADD COLUMN "shippingMethodId" TEXT;
+ALTER TABLE "Order" ADD COLUMN "shippingCarrier"  TEXT;
+ALTER TABLE "Order" ADD COLUMN "trackingNumber"   TEXT;
+ALTER TABLE "Order" ADD COLUMN "shippedAt"        TIMESTAMP(3);
+ALTER TABLE "Order" ADD COLUMN "deliveredAt"      TIMESTAMP(3);
