@@ -34,6 +34,12 @@ func (c *Client) Set(ctx context.Context, key string, value interface{}, expirat
 	return c.client.Set(ctx, key, value, expiration).Err()
 }
 
+// SetNX sets a key only if it does not already exist. Returns true if the key was set,
+// false if it already existed. Used for idempotency (e.g. webhook dedupe).
+func (c *Client) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) (bool, error) {
+	return c.client.SetNX(ctx, key, value, expiration).Result()
+}
+
 func (c *Client) Get(ctx context.Context, key string) (string, error) {
 	return c.client.Get(ctx, key).Result()
 }

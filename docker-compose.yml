@@ -30,13 +30,13 @@ services:
       timeout: 3s
       retries: 5
 
-  nestjs-api:
+  api-go:
     build:
       context: .
       dockerfile: apps/api-go/Dockerfile
     restart: unless-stopped
     # Pas de ports exposés sur l'hôte — accessible uniquement via le réseau Docker interne
-    # et via les rewrites Next.js (nextjs-web → nestjs-api:4000)
+    # et via les rewrites Next.js (nextjs-web → api-go:4000)
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,8 +45,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-rbs}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-rbs_db}
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-jwt-refresh-change-me}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
       API_PORT: 4000
       APP_ENV: ${APP_ENV:-production}
@@ -57,6 +57,15 @@ services:
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
       R2_BUCKET_NAME: ${R2_BUCKET_NAME:-rbs-media}
       R2_PUBLIC_URL: ${R2_PUBLIC_URL:-https://pub-f89062d997054062a74be2228aba1326.r2.dev}
+    # NOTE: the /health endpoint exists (router.go: GET /health). To make this
+    # healthcheck actually run, the Dockerfile runtime stage must be switched
+    # from `FROM scratch` to an image that ships wget or curl (e.g. alpine).
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   nextjs-web:
     build:
@@ -68,9 +77,9 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - nestjs-api
+      - api-go
     environment:
-      INTERNAL_API_URL: http://nestjs-api:4000
+      INTERNAL_API_URL: http://api-go:4000
       NODE_ENV: ${NODE_ENV:-production}
       AUTH_URL: ${AUTH_URL:-http://localhost:3000}
       AUTH_TRUST_HOST: "true"

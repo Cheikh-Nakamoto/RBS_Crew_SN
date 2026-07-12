@@ -4,6 +4,7 @@ import (
 	"context"
 
 	db "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db/queries"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -14,6 +15,26 @@ type ProductsRepository struct {
 
 func NewProductsRepository(pool *pgxpool.Pool) *ProductsRepository {
 	return &ProductsRepository{q: db.New(pool), pool: pool}
+}
+
+// Pool exposes the underlying pool for transaction management by the service layer.
+func (r *ProductsRepository) Pool() *pgxpool.Pool { return r.pool }
+
+// WithTx returns a db.Queries bound to the given transaction. Used by services that
+// need to compose multiple writes atomically (AdminCreate/AdminUpdate).
+func (r *ProductsRepository) WithTx(tx pgx.Tx) *db.Queries { return r.q.WithTx(tx) }
+
+// ── Tx-accepting variants for helpers that live outside the sqlc Queries surface ──
+// These mirror the non-tx methods but execute against a *pgx.Tx.
+
+func (r *ProductsRepository) ClearCategoriesTx(ctx context.Context, tx pgx.Tx, productID string) error {
+	_, err := tx.Exec(ctx, `DELETE FROM "ProductCategory" WHERE "productId" = $1`, productID)
+	return err
+}
+
+func (r *ProductsRepository) ClearTagsTx(ctx context.Context, tx pgx.Tx, productID string) error {
+	_, err := tx.Exec(ctx, `DELETE FROM "ProductTag" WHERE "productId" = $1`, productID)
+	return err
 }
 
 func (r *ProductsRepository) List(ctx context.Context, params db.ListProductsParams) ([]db.ListProductsRow, error) {

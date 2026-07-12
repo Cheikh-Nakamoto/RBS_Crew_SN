@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	db "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db/queries"
@@ -51,7 +52,7 @@ func (s *AuthService) Register(ctx context.Context, req model.RegisterRequest) (
 		return nil, types.Conflict("Email already in use")
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
-		fmt.Printf("GetUserByEmail err: %v\n", err)
+		slog.Error("auth: GetUserByEmail failed", "error", err)
 		return nil, types.InternalError("Database error")
 	}
 
@@ -252,36 +253,6 @@ func (s *AuthService) VerifyEmail(ctx context.Context, token string) *types.AppE
 	return nil
 }
 
-// ── CheckSession — vérifie le JWT depuis le header Authorization ───────────────
-
-func (s *AuthService) CheckSession(_ context.Context, tokenStr string) map[string]interface{} {
-	if tokenStr == "" {
-		return map[string]interface{}{"valid": false, "user": nil}
-	}
-	claims := &types.JWTClaims{}
-	token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method")
-		}
-		return []byte(s.jwtSecret), nil
-	},
-		jwt.WithIssuer(types.JWTIssuer),
-		jwt.WithAudience(types.JWTAudience),
-		jwt.WithExpirationRequired(),
-	)
-	if err != nil || !token.Valid {
-		return map[string]interface{}{"valid": false, "user": nil}
-	}
-	return map[string]interface{}{
-		"valid": true,
-		"user": map[string]string{
-			"id":    claims.Subject,
-			"email": claims.Email,
-			"role":  claims.Role,
-		},
-	}
-}
-
 // ── private ───────────────────────────────────────────────────────────────────
 
 func (s *AuthService) issueTokens(ctx context.Context, userID, email, role string) (*model.TokenPair, *types.AppError) {
@@ -323,7 +294,7 @@ func (s *AuthService) issueTokens(ctx context.Context, userID, email, role strin
 	hexHash := hex.EncodeToString(hash[:])
 	tokenHash, err := bcrypt.GenerateFromPassword([]byte(hexHash), bcryptCost)
 	if err != nil {
-		fmt.Printf("Failed to hash refresh token: %v\n", err)
+		slog.Error("auth: failed to hash refresh token", "error", err)
 		return nil, types.InternalError("Failed to hash refresh token")
 	}
 

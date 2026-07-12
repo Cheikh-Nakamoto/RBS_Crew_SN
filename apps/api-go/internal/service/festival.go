@@ -94,9 +94,6 @@ func (s *FestivalService) LatestGallery(ctx context.Context) (*LatestGalleryResp
 		}
 		return nil, types.InternalError("Database error")
 	}
-	// fmt.Println("f", f)
-	// fmt.Println("err", err)
-
 	// Parse gallery JSON → []string
 	var gallery []string
 	if len(f.Gallery) > 0 {

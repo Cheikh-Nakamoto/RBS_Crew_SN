@@ -68,7 +68,6 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 			r.Post("/auth/reset-password", h.Auth.ResetPassword)
 		})
 
-		r.Post("/auth/session", h.Auth.CheckSession)
 		r.Post("/auth/refresh", h.Auth.Refresh)
 		r.Post("/auth/verify-email", h.Auth.VerifyEmail)
 

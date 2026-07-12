@@ -3,11 +3,14 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"time"
 
 	db "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db/queries"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/payment"
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/redis"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/repository"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 	"github.com/google/uuid"
@@ -15,12 +18,16 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// webhookDedupeTTL is the window during which a duplicate webhook event ID is ignored.
+const webhookDedupeTTL = 24 * time.Hour
+
 type PaymentsService struct {
 	providers  map[payment.Method]payment.Provider
 	ordersRepo *repository.OrdersRepository
+	cache      *redis.Client
 }
 
-func NewPaymentsService(ordersRepo *repository.OrdersRepository, providers ...payment.Provider) *PaymentsService {
+func NewPaymentsService(ordersRepo *repository.OrdersRepository, cache *redis.Client, providers ...payment.Provider) *PaymentsService {
 	pm := make(map[payment.Method]payment.Provider)
 	for _, p := range providers {
 		pm[p.Name()] = p
@@ -28,6 +35,7 @@ func NewPaymentsService(ordersRepo *repository.OrdersRepository, providers ...pa
 	return &PaymentsService{
 		providers:  pm,
 		ordersRepo: ordersRepo,
+		cache:      cache,
 	}
 }
 
@@ -165,6 +173,26 @@ func (s *PaymentsService) HandleWebhook(ctx context.Context, method payment.Meth
 	}
 
 	slog.Info("Payment webhook received", "method", method, "status", event.Status, "externalId", event.ExternalID, "orderId", event.OrderID)
+
+	// Idempotency: dedupe by provider event ID (fallback to externalID) via Redis SETNX.
+	// If the key was already present, another delivery has already applied this event.
+	if s.cache != nil {
+		dedupeID := event.ExternalID
+		if dedupeID == "" {
+			dedupeID = event.OrderID
+		}
+		if dedupeID != "" {
+			key := fmt.Sprintf("webhook:%s:%s", method, dedupeID)
+			acquired, err := s.cache.SetNX(ctx, key, "1", webhookDedupeTTL)
+			if err != nil {
+				// Redis failure should not block webhook processing — log and continue.
+				slog.Warn("webhook dedupe SETNX failed", "method", method, "error", err)
+			} else if !acquired {
+				slog.Info("webhook already processed — skipping", "method", method, "eventId", dedupeID)
+				return nil
+			}
+		}
+	}
 
 	// Find the order
 	orderID := event.OrderID

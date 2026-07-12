@@ -2,7 +2,7 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
@@ -18,13 +18,13 @@ func NewOrdersHandler(svc *service.OrdersService) *OrdersHandler { return &Order
 func (h *OrdersHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var dto model.CreateOrderDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
+		slog.Debug("orders: invalid payload", "error", err)
 		types.WriteError(w, types.BadRequest("Invalid payload"))
-		fmt.Printf("Error decoding CreateOrderDTO: %v\n", err) // Debug log
 		return
 	}
 	if err := validate.Struct(dto); err != nil {
+		slog.Debug("orders: validation failed", "error", err)
 		types.WriteError(w, types.BadRequest(err.Error()))
-		fmt.Printf("Validation error for CreateOrderDTO: %v\n", err) // Debug log
 		return
 	}
 
@@ -35,8 +35,8 @@ func (h *OrdersHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	result, appErr := h.svc.Create(r.Context(), dto, userID)
 	if appErr != nil {
+		slog.Error("orders: create failed", "error", appErr)
 		types.WriteError(w, appErr)
-		fmt.Printf("Error creating order: %v\n", appErr) // Debug log
 		return
 	}
 	types.WriteJSON(w, http.StatusCreated, result)

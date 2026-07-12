@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -99,13 +100,17 @@ func (s *OrdersService) Create(ctx context.Context, dto model.CreateOrderDTO, us
 		})
 	}
 
-	// 3. Create order
+	// 3. Create order — only set guestEmail when this is a guest order (userID == nil).
+	var guestEmail *string
+	if userID == nil {
+		guestEmail = &dto.GuestEmail
+	}
 	orderID := uuid.New().String()
 	order, err := qtx.CreateOrder(ctx, db.CreateOrderParams{
 		ID:                orderID,
 		OrderNumber:       generateOrderNumber(),
 		UserId:            userID,
-		GuestEmail:        &dto.GuestEmail,
+		GuestEmail:        guestEmail,
 		Subtotal:          subtotal,
 		ShippingAddressId: dto.ShippingAddressID,
 		BillingAddressId:  dto.BillingAddressID,
@@ -121,7 +126,7 @@ func (s *OrdersService) Create(ctx context.Context, dto model.CreateOrderDTO, us
 		itemParam.OrderId = order.ID
 		created, err := qtx.CreateOrderItem(ctx, itemParam)
 		if err != nil {
-			fmt.Printf("CreateOrderItem error: %v\n", err)
+			slog.Error("orders: CreateOrderItem failed", "error", err)
 			return nil, types.InternalError("Failed to create order item")
 		}
 		items = append(items, model.OrderItemResponse{

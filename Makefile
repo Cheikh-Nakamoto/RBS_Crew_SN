@@ -1,6 +1,7 @@
 .PHONY: install dev dev-api dev-web up down logs logs-api logs-web \
         build build-api build-web lint test clean health \
         db-sqlc db-docs \
+        migrate-up migrate-down migrate-status migrate-create \
         migrate-extract migrate-upload migrate-db-push migrate-import migrate-full
 
 # ── Node Env ─────────────────────────────────
@@ -69,6 +70,20 @@ lint: ## Run linters (Go + web)
 test: ## Run tests (Go + web)
 	cd apps/api-go && go test -race -cover ./...
 	cd apps/web && npm run test --if-present
+
+# ── Database Migrations (goose) ──────────────
+
+migrate-up: ## Apply all pending goose migrations
+	cd apps/api-go && goose -dir migrations postgres "$$DATABASE_URL" up
+
+migrate-down: ## Roll back the last goose migration
+	cd apps/api-go && goose -dir migrations postgres "$$DATABASE_URL" down
+
+migrate-status: ## Show goose migration status
+	cd apps/api-go && goose -dir migrations postgres "$$DATABASE_URL" status
+
+migrate-create: ## Create a new empty SQL migration (NAME=my_migration)
+	cd apps/api-go && goose -dir migrations create $$NAME sql
 
 # ── Migration from WordPress ─────────────────
 

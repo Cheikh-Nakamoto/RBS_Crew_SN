@@ -57,28 +57,20 @@ func Load() (*Config, error) {
 
 	env := getEnv("APP_ENV", "development")
 
+	// Required secrets — must be set regardless of APP_ENV.
 	jwtSecret, err := requireEnv("JWT_SECRET")
-	if err != nil && env == "production" {
+	if err != nil {
 		return nil, err
-	}
-	if jwtSecret == "" {
-		jwtSecret = "change-me-secret-do-not-use-in-production"
 	}
 
 	jwtRefreshSecret, err := requireEnv("JWT_REFRESH_SECRET")
-	if err != nil && env == "production" {
+	if err != nil {
 		return nil, err
-	}
-	if jwtRefreshSecret == "" {
-		jwtRefreshSecret = "change-me-refresh-secret-do-not-use-in-production"
 	}
 
 	dbURL, err := requireEnv("DATABASE_URL")
-	if err != nil && env == "production" {
+	if err != nil {
 		return nil, err
-	}
-	if dbURL == "" {
-		dbURL = "postgresql://rbs:password@localhost:5432/rbs_db"
 	}
 
 	return &Config{

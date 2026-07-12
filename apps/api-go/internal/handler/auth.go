@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 	"unicode"
 
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
@@ -166,18 +165,6 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	types.WriteJSON(w, http.StatusOK, user)
-}
-
-// CheckSession godoc
-// @Summary      Check session
-// @Tags         Auth
-// @Produce      json
-// @Success      200 {object} map[string]interface{}
-// @Router       /auth/session [post]
-func (h *AuthHandler) CheckSession(w http.ResponseWriter, r *http.Request) {
-	header := r.Header.Get("Authorization")
-	tokenStr := strings.TrimPrefix(header, "Bearer ")
-	types.WriteJSON(w, http.StatusOK, h.svc.CheckSession(r.Context(), tokenStr))
 }
 
 // ── Password Reset & Verification ─────────────────────────────────────────────

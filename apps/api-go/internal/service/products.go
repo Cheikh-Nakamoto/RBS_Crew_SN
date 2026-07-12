@@ -259,7 +259,16 @@ func (s *ProductsService) AdminCreate(ctx context.Context, input model.AdminProd
 	if input.CompareAtPrice != nil {
 		cap = decimal.NullDecimal{Decimal: decimal.NewFromFloat(*input.CompareAtPrice), Valid: true}
 	}
-	p, err := s.repo.Create(ctx, db.CreateProductParams{
+
+	pool := s.repo.Pool()
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return nil, types.InternalError("Failed to start transaction")
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	qtx := s.repo.WithTx(tx)
+
+	created, err := qtx.CreateProduct(ctx, db.CreateProductParams{
 		ID: uuid.New().String(), Slug: slug, Sku: input.SKU,
 		Price: price, CompareAtPrice: cap, Stock: input.Stock,
 		Status: status, FeaturedImageUrl: input.FeaturedImageURL,
@@ -268,28 +277,41 @@ func (s *ProductsService) AdminCreate(ctx context.Context, input model.AdminProd
 		return nil, types.InternalError("Failed to create product")
 	}
 	for _, t := range input.Translations {
-		_ = s.repo.UpsertTranslation(ctx, db.UpsertProductTranslationParams{
-			ID: uuid.New().String(), ProductId: p.ID, Locale: db.Locale(t.Locale),
+		if _, err := qtx.UpsertProductTranslation(ctx, db.UpsertProductTranslationParams{
+			ID: uuid.New().String(), ProductId: created.ID, Locale: db.Locale(t.Locale),
 			Name: t.Title, Slug: t.Slug, Description: t.Description,
 			ShortDescription: t.ShortDescription, MetaTitle: t.MetaTitle, MetaDescription: t.MetaDescription,
-		})
+		}); err != nil {
+			return nil, types.InternalError("Failed to persist translation")
+		}
 	}
 	for _, cid := range input.CategoryIDs {
-		_ = s.repo.AddCategory(ctx, p.ID, cid)
+		if err := qtx.AddProductCategory(ctx, db.AddProductCategoryParams{ProductId: created.ID, CategoryId: cid}); err != nil {
+			return nil, types.InternalError("Failed to link category")
+		}
 	}
 	for _, tid := range input.TagIDs {
-		_ = s.repo.AddTag(ctx, p.ID, tid)
+		if err := qtx.AddProductTag(ctx, db.AddProductTagParams{ProductId: created.ID, TagId: tid}); err != nil {
+			return nil, types.InternalError("Failed to link tag")
+		}
 	}
 	for i, url := range input.Gallery {
-		_ = s.repo.AddImage(ctx, db.AddProductImageParams{
+		if err := qtx.AddProductImage(ctx, db.AddProductImageParams{
 			ID:        uuid.New().String(),
-			ProductId: p.ID,
+			ProductId: created.ID,
 			ImageUrl:  url,
 			Position:  int32(i),
-		})
+		}); err != nil {
+			return nil, types.InternalError("Failed to persist image")
+		}
 	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, types.InternalError("Failed to commit transaction")
+	}
+
 	s.ClearCache(ctx)
-	res := s.toAdminProductResponse(ctx, p)
+	res := s.toAdminProductResponse(ctx, &created)
 	return &res, nil
 }
 
@@ -302,7 +324,16 @@ func (s *ProductsService) AdminUpdate(ctx context.Context, id string, input mode
 	stock := input.Stock
 	status := db.ProductStatus(input.Status)
 	statusPtr := &status
-	p, err := s.repo.Update(ctx, db.UpdateProductParams{
+
+	pool := s.repo.Pool()
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return nil, types.InternalError("Failed to start transaction")
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	qtx := s.repo.WithTx(tx)
+
+	p, err := qtx.UpdateProduct(ctx, db.UpdateProductParams{
 		ID: id, Sku: input.SKU, Price: price, CompareAtPrice: cap,
 		Stock: &stock, Status: statusPtr, FeaturedImageUrl: input.FeaturedImageURL,
 	})
@@ -312,33 +343,54 @@ func (s *ProductsService) AdminUpdate(ctx context.Context, id string, input mode
 		}
 		return nil, types.InternalError("Failed to update product")
 	}
-	_ = s.repo.DeleteTranslations(ctx, id)
+	if err := qtx.DeleteProductTranslations(ctx, id); err != nil {
+		return nil, types.InternalError("Failed to clear translations")
+	}
 	for _, t := range input.Translations {
-		_ = s.repo.UpsertTranslation(ctx, db.UpsertProductTranslationParams{
+		if _, err := qtx.UpsertProductTranslation(ctx, db.UpsertProductTranslationParams{
 			ID: uuid.New().String(), ProductId: id, Locale: db.Locale(t.Locale),
 			Name: t.Title, Slug: t.Slug, Description: t.Description,
 			ShortDescription: t.ShortDescription, MetaTitle: t.MetaTitle, MetaDescription: t.MetaDescription,
-		})
+		}); err != nil {
+			return nil, types.InternalError("Failed to persist translation")
+		}
 	}
-	_ = s.repo.ClearCategories(ctx, id)
+	if err := s.repo.ClearCategoriesTx(ctx, tx, id); err != nil {
+		return nil, types.InternalError("Failed to clear categories")
+	}
 	for _, cid := range input.CategoryIDs {
-		_ = s.repo.AddCategory(ctx, id, cid)
+		if err := qtx.AddProductCategory(ctx, db.AddProductCategoryParams{ProductId: id, CategoryId: cid}); err != nil {
+			return nil, types.InternalError("Failed to link category")
+		}
 	}
-	_ = s.repo.ClearTags(ctx, id)
+	if err := s.repo.ClearTagsTx(ctx, tx, id); err != nil {
+		return nil, types.InternalError("Failed to clear tags")
+	}
 	for _, tid := range input.TagIDs {
-		_ = s.repo.AddTag(ctx, id, tid)
+		if err := qtx.AddProductTag(ctx, db.AddProductTagParams{ProductId: id, TagId: tid}); err != nil {
+			return nil, types.InternalError("Failed to link tag")
+		}
 	}
-	_ = s.repo.ClearImages(ctx, id)
+	if err := qtx.ClearProductImages(ctx, id); err != nil {
+		return nil, types.InternalError("Failed to clear images")
+	}
 	for i, url := range input.Gallery {
-		_ = s.repo.AddImage(ctx, db.AddProductImageParams{
+		if err := qtx.AddProductImage(ctx, db.AddProductImageParams{
 			ID:        uuid.New().String(),
 			ProductId: id,
 			ImageUrl:  url,
 			Position:  int32(i),
-		})
+		}); err != nil {
+			return nil, types.InternalError("Failed to persist image")
+		}
 	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, types.InternalError("Failed to commit transaction")
+	}
+
 	s.ClearCache(ctx)
-	res := s.toAdminProductResponse(ctx, p)
+	res := s.toAdminProductResponse(ctx, &p)
 	return &res, nil
 }
 

@@ -1,7 +1,5 @@
--- FROZEN BASELINE - do not edit.
--- All schema changes must go through goose migrations under ./migrations/.
--- This file is kept for reference only (matches migrations/00001_baseline.sql).
-
+-- +goose Up
+-- +goose StatementBegin
 -- CreateEnum
 CREATE TYPE "Locale" AS ENUM ('fr', 'en', 'de', 'es', 'it');
 
@@ -677,3 +675,9 @@ ALTER TABLE "FestivalTranslation" ADD CONSTRAINT "FestivalTranslation_festivalEd
 -- FestivalArtist
 ALTER TABLE "FestivalArtist" ADD CONSTRAINT "FestivalArtist_festivalEditionId_fkey" FOREIGN KEY ("festivalEditionId") REFERENCES "FestivalEdition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "FestivalArtist" ADD CONSTRAINT "FestivalArtist_artistId_fkey" FOREIGN KEY ("artistId") REFERENCES "Artist"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+-- no-op: baseline
+-- +goose StatementEnd

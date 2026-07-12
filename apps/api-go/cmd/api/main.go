@@ -8,8 +8,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/config"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db"
@@ -21,6 +25,7 @@ import (
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/repository"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/router"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/service"
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/migrations"
 )
 
 func main() {
@@ -54,6 +59,15 @@ func run() error {
 	}
 	defer pool.Close()
 	slog.Info("Connected to PostgreSQL")
+
+	// Optional auto-migrate (default off) — set AUTO_MIGRATE=true to run
+	// pending goose migrations against DATABASE_URL before the server starts.
+	if strings.EqualFold(os.Getenv("AUTO_MIGRATE"), "true") {
+		if err := runMigrations(cfg.DatabaseURL); err != nil {
+			return fmt.Errorf("auto-migrate: %w", err)
+		}
+		slog.Info("Migrations applied")
+	}
 
 	// Redis
 	redisClient, err := redis.NewClient(ctx, cfg.RedisURL)
@@ -116,7 +130,7 @@ func run() error {
 		slog.Info("Payment provider enabled: Orange Money")
 	}
 
-	paymentsSvc := service.NewPaymentsService(ordersRepo, paymentProviders...)
+	paymentsSvc := service.NewPaymentsService(ordersRepo, redisClient, paymentProviders...)
 
 	// ── Handlers ────────────────────────────────────────────────────────────
 	handlers := &router.Handlers{
@@ -183,5 +197,26 @@ func run() error {
 		return fmt.Errorf("shutdown error: %w", err)
 	}
 	slog.Info("Server stopped gracefully")
+	return nil
+}
+
+// runMigrations applies pending goose migrations from the embedded FS.
+// It opens a dedicated *sql.DB via the pgx stdlib driver because goose expects
+// a database/sql handle rather than a pgxpool.
+func runMigrations(databaseURL string) error {
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("postgres"); err != nil {
+		return fmt.Errorf("set dialect: %w", err)
+	}
+
+	sqlDB, err := goose.OpenDBWithDriver("pgx", databaseURL)
+	if err != nil {
+		return fmt.Errorf("open db: %w", err)
+	}
+	defer func() { _ = sqlDB.Close() }()
+
+	if err := goose.Up(sqlDB, "."); err != nil {
+		return fmt.Errorf("goose up: %w", err)
+	}
 	return nil
 }

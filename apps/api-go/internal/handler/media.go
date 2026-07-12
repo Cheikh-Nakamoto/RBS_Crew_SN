@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"path/filepath"
@@ -13,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
+	"github.com/gabriel-vasile/mimetype"
 )
 
 type MediaHandler struct {
@@ -31,12 +34,13 @@ func NewMediaHandler(accountID, accessKey, secretKey, bucket, publicURL string) 
 	return &MediaHandler{s3Client: client, bucket: bucket, publicURL: strings.TrimRight(publicURL, "/")}
 }
 
+// allowedMIME lists the image MIME types accepted by the media uploader.
+// SVG is intentionally excluded — it can carry active content (JS/XSS).
 var allowedMIME = map[string]string{
-	"image/jpeg":    ".jpg",
-	"image/png":     ".png",
-	"image/webp":    ".webp",
-	"image/gif":     ".gif",
-	"image/svg+xml": ".svg",
+	"image/jpeg": ".jpg",
+	"image/png":  ".png",
+	"image/webp": ".webp",
+	"image/gif":  ".gif",
 }
 
 func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
@@ -52,17 +56,40 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	ct := header.Header.Get("Content-Type")
-	if ct == "" {
-		ct = mime.TypeByExtension(filepath.Ext(header.Filename))
+	// Client-declared Content-Type (used to cross-check with detected type).
+	declared := header.Header.Get("Content-Type")
+	if declared == "" {
+		declared = mime.TypeByExtension(filepath.Ext(header.Filename))
 	}
-	ct, _, _ = mime.ParseMediaType(ct)
+	declared, _, _ = mime.ParseMediaType(declared)
 
-	ext, ok := allowedMIME[ct]
-	if !ok {
-		types.WriteError(w, types.BadRequest("Type de fichier non supporté (JPEG, PNG, WebP, GIF, SVG uniquement)"))
+	// Read up to 512 bytes for magic-byte sniffing; the file must remain fully
+	// readable afterwards, so we buffer the sniffed bytes back in front.
+	sniffBuf := make([]byte, 512)
+	n, err := io.ReadFull(file, sniffBuf)
+	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+		types.WriteError(w, types.BadRequest("Impossible de lire le fichier"))
 		return
 	}
+	sniffBuf = sniffBuf[:n]
+
+	detected := mimetype.Detect(sniffBuf).String()
+	// mimetype may include parameters (e.g. "text/plain; charset=utf-8"); strip them.
+	detected, _, _ = mime.ParseMediaType(detected)
+
+	ext, ok := allowedMIME[detected]
+	if !ok {
+		types.WriteError(w, types.BadRequest("Type de fichier non supporté (JPEG, PNG, WebP, GIF uniquement)"))
+		return
+	}
+	// Also require the declared Content-Type to match the sniffed one (if provided).
+	if declared != "" && declared != detected {
+		types.WriteError(w, types.BadRequest("Le type MIME déclaré ne correspond pas au contenu du fichier"))
+		return
+	}
+
+	// Reconstitute the full stream: sniffed prefix + remainder of the uploaded file.
+	body := io.MultiReader(bytes.NewReader(sniffBuf), file)
 
 	key := fmt.Sprintf("uploads/%d_%s%s",
 		time.Now().UnixNano(),
@@ -73,8 +100,8 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	_, err = h.s3Client.PutObject(context.Background(), &s3.PutObjectInput{
 		Bucket:      aws.String(h.bucket),
 		Key:         aws.String(key),
-		Body:        file,
-		ContentType: aws.String(ct),
+		Body:        body,
+		ContentType: aws.String(detected),
 	})
 	if err != nil {
 		types.WriteError(w, types.InternalError("Erreur lors de l'upload vers le stockage"))
