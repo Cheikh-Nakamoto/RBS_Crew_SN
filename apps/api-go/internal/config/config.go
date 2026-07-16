@@ -80,7 +80,7 @@ func Load() (*Config, error) {
 		JWTRefreshSecret:    jwtRefreshSecret,
 		APIPort:             getEnv("API_PORT", "4000"),
 		Environment:         env,
-		CORSOrigin:          getEnv("CORS_ORIGIN", "http://localhost:3000"),
+		CORSOrigin:          getEnv("CORS_ORIGIN", "http://localhost:3000,https://rbs-crew.cheikhmodiouf.org"),
 		AppURL:              getEnv("APP_URL", "http://localhost:3000"),
 		SMTPHost:            getEnv("SMTP_HOST", ""),
 		SMTPPort:            getEnvAsInt("SMTP_PORT", 587),
