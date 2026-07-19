@@ -48,14 +48,14 @@ export function SponsorsMarquee({ logos = DEFAULT_LOGOS }: SponsorsMarqueeProps)
           {[...row1, ...row1, ...row1].map((logo, i) => (
             <div
               key={`r1-${i}`}
-              className="flex-shrink-0 flex items-center justify-center px-8 md:px-12"
+              className="flex-shrink-0 flex items-center justify-center px-4 sm:px-8 md:px-12"
             >
               <Image
                 src={logo}
                 alt={`Partenaire ${(i % row1.length) + 1}`}
                 width={180}
                 height={80}
-                className="object-contain max-h-[70px] md:max-h-[85px] w-auto transition-opacity duration-300"
+                className="object-contain max-h-[50px] sm:max-h-[70px] md:max-h-[85px] w-auto transition-opacity duration-300"
               />
             </div>
           ))}
@@ -68,14 +68,14 @@ export function SponsorsMarquee({ logos = DEFAULT_LOGOS }: SponsorsMarqueeProps)
           {[...row2, ...row2, ...row2].map((logo, i) => (
             <div
               key={`r2-${i}`}
-              className="flex-shrink-0 flex items-center justify-center px-8 md:px-12"
+              className="flex-shrink-0 flex items-center justify-center px-4 sm:px-8 md:px-12"
             >
               <Image
                 src={logo}
                 alt={`Partenaire ${(i % row2.length) + 1}`}
                 width={180}
                 height={80}
-                className="object-contain max-h-[70px] md:max-h-[85px] w-auto transition-opacity duration-300"
+                className="object-contain max-h-[50px] sm:max-h-[70px] md:max-h-[85px] w-auto transition-opacity duration-300"
               />
             </div>
           ))}

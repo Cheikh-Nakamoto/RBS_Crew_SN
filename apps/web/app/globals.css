@@ -503,22 +503,25 @@
     color: white;
   }
 
+  @media (min-width: 768px) {
   ::-webkit-scrollbar {
     width: 6px;
   }
-
   ::-webkit-scrollbar-track {
-    background: oklch(0.08 0.005 240);
+    background: #000;
   }
-
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.52 0.20 18 / 60%);
+    background: oklch(0.20 0 0);
     border-radius: 3px;
   }
-
   ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.65 0.18 18 / 80%);
+    background: var(--rbs-gold);
   }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.20 0 0) #000;
+  }
+}
 }
 
 /* ─── Utility Classes ────────────────────────── */
@@ -902,20 +905,26 @@
 
   /* ── Section spacing ── */
   .section-padding {
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+}
+@media (min-width: 768px) {
+  .section-padding {
     padding-top: 5rem;
     padding-bottom: 5rem;
   }
+}
 
-  /* ── Display number ── */
-  .display-number {
-    font-family: 'Archivo Black', sans-serif;
-    font-size: clamp(6rem, 15vw, 14rem);
-    line-height: 0.85;
-    color: oklch(1 0 0 / 7%);
-    user-select: none;
-    letter-spacing: -0.04em;
-  }
-
+.display-number {
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 12vw, 14rem);
+  font-weight: 900;
+  line-height: 0.8;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.1);
+  text-transform: uppercase;
+  user-select: none;
+}
   /* ── Outline text (Virgil Abloh-esque) ── */
   .text-outline {
     -webkit-text-stroke: 1.5px oklch(1 0 0 / 70%);
@@ -965,13 +974,13 @@
 /* ─── Reduced Motion ─────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
-
   *,
-  *::before,
-  *::after {
+  ::before,
+  ::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 
   .stats-visible .stat-card {
@@ -1038,5 +1047,14 @@
   100% {
     transform: scale(1.2) rotate(0deg);
     opacity: 1;
+  }
+}
+
+@media (max-width: 767px) {
+  .animate-float { 
+    animation: none; 
+  }
+  .noise-overlay::after { 
+    display: none; 
   }
 }

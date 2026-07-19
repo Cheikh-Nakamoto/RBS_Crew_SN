@@ -61,13 +61,12 @@ export function CrewHero({ members, cta }: CrewHeroProps) {
           {displayed.map((member, i) => (
             <ScrollReveal key={member.name} from="bottom" delay={0.1 + i * 0.12}>
               <div
-                className="group relative w-[260px] h-[260px] sm:w-[300px] sm:h-[300px]"
-                style={{ transform: 'rotate(6deg)' }}
+                className="group relative w-[160px] h-[160px] sm:w-[260px] sm:h-[260px] md:w-[300px] md:h-[300px] rotate-[3deg] sm:rotate-[6deg]"
               >
                 {/* Cadre — coin haut-gauche */}
                 <div
                   aria-hidden="true"
-                  className="pointer-events-none select-none absolute -top-[40px] -left-[40px] w-[112px] h-[112px] sm:w-[144px] sm:h-[144px] transition-transform duration-500 ease-out group-hover:scale-105 z-0"
+                  className="pointer-events-none select-none absolute -top-[20px] -left-[20px] sm:-top-[40px] sm:-left-[40px] w-[80px] h-[80px] sm:w-[112px] sm:h-[112px] md:w-[144px] md:h-[144px] transition-transform duration-500 ease-out group-hover:scale-105 z-0"
                 >
                   <Image
                     src="/cadre_nor_top_left.png"
@@ -81,7 +80,7 @@ export function CrewHero({ members, cta }: CrewHeroProps) {
                 {/* Cadre — coin bas-droit */}
                 <div
                   aria-hidden="true"
-                  className="pointer-events-none select-none absolute -bottom-[40px] -right-[50px] w-[112px] h-[112px] sm:w-[144px] sm:h-[144px] transition-transform duration-500 ease-out group-hover:scale-105 z-0"
+                  className="pointer-events-none select-none absolute -bottom-[20px] -right-[25px] sm:-bottom-[40px] sm:-right-[50px] w-[80px] h-[80px] sm:w-[112px] sm:h-[112px] md:w-[144px] md:h-[144px] transition-transform duration-500 ease-out group-hover:scale-105 z-0"
                 >
                   <Image
                     src="/cadre_noir_bottom_right.png"
@@ -135,8 +134,7 @@ export function CrewHero({ members, cta }: CrewHeroProps) {
                 {/* Decorative index number */}
                 <span
                   aria-hidden="true"
-                  className="absolute -top-4 -left-3 font-display text-5xl text-white/[0.06] select-none pointer-events-none leading-none"
-                  style={{ transform: 'rotate(-6deg)' }}
+                  className="absolute -top-3 -left-2 sm:-top-4 sm:-left-3 font-display text-4xl sm:text-5xl text-white/[0.06] select-none pointer-events-none leading-none -rotate-[3deg] sm:-rotate-[6deg]"
                 >
                   {String(i + 1).padStart(2, '0')}
                 </span>

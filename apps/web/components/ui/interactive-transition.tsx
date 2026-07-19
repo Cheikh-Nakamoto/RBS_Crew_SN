@@ -1,11 +1,16 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { motion, useMotionValue, useSpring } from 'framer-motion';
 
 export function InteractiveTransition() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  useEffect(() => {
+    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  }, []);
 
   // Motion values for tracking cursor offset relative to center of the element
   const x = useMotionValue(0);
@@ -49,10 +54,11 @@ export function InteractiveTransition() {
   };
 
   const handleMouseEnter = () => {
-    setIsHovered(true);
+    if (!isTouchDevice) setIsHovered(true);
   };
 
   const handleMouseLeave = () => {
+    if (isTouchDevice) return;
     setIsHovered(false);
     // Reset positions to center
     x.set(0);
@@ -65,7 +71,7 @@ export function InteractiveTransition() {
     <div
       ref={containerRef}
       className="relative w-full overflow-visible py-8 flex justify-center items-center"
-      style={{ perspective: 1000 }} // Enable 3D perspective context
+      style={{ perspective: isTouchDevice ? 'none' : 1000 }}
     >
       <motion.div
         // 1. Slide-in from bottom to top animation on load/scroll
@@ -79,15 +85,15 @@ export function InteractiveTransition() {
           mass: 1,
         }}
         // Mouse event handlers for interactive hover
-        onMouseMove={handleMouseMove}
+        onMouseMove={isTouchDevice ? undefined : handleMouseMove}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         style={{
-          x: springX,
-          y: springY,
-          rotateX: springRotateX,
-          rotateY: springRotateY,
-          transformStyle: 'preserve-3d',
+          x: isTouchDevice ? 0 : springX,
+          y: isTouchDevice ? 0 : springY,
+          rotateX: isTouchDevice ? 0 : springRotateX,
+          rotateY: isTouchDevice ? 0 : springRotateY,
+          transformStyle: isTouchDevice ? 'flat' : 'preserve-3d',
         }}
         animate={{
           scale: isHovered ? 1.025 : 1,

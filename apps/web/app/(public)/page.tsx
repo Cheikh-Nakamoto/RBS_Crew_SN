@@ -207,9 +207,9 @@ export default async function HomePage() {
           <div className="col-span-12 md:col-span-11 lg:col-span-10 flex flex-col gap-7 items-start justify-center">
             {/* Eyebrow — meta tag */}
 
-            <h1 className="font-display text-[3.25rem] sm:text-7xl md:text-8xl lg:text-[7rem] xl:text-[8.5rem] font-bold leading-[0.85] tracking-tighter text-white uppercase text-balance drop-shadow-[0_4px_30px_rgba(0,0,0,0.55)]">
-              <AnimatedTitle className="block text-white" />
-            </h1>
+              <h1 className="font-display text-[2.5rem] sm:text-[3.25rem] md:text-8xl lg:text-[7rem] xl:text-[8.5rem] font-bold leading-[0.85] tracking-tighter text-white uppercase text-balance drop-shadow-[0_4px_30px_rgba(0,0,0,0.55)]">
+                <AnimatedTitle className="block text-white" />
+              </h1>
 
 
             <p className="relative max-w-xl text-base leading-relaxed text-white/85 rounded-xl px-4 py-3.5 md:px-0 md:py-0 bg-black/35 md:bg-transparent border border-white/5 md:border-0 backdrop-blur-md md:backdrop-blur-none">

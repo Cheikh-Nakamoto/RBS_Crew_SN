@@ -43,7 +43,7 @@ export default async function FestivalPage() {
   }
 
   return (
-    <div id="main-content" className="max-w-6xl mx-auto px-4 sm:px-6 pt-32 pb-16">
+    <div id="main-content" className="max-w-6xl mx-auto px-4 sm:px-6 pt-24 sm:pt-32 pb-16">
       <ScrollReveal>
         <SectionHeader
           eyebrow="RBS Crew SN"

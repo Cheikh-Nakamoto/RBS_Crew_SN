@@ -89,7 +89,7 @@ export function EditionHero({
         {/* ── Header: Title + Logo ─────────────────── */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8 lg:gap-12 mb-14">
           <ScrollReveal className="flex-1">
-            <div className="relative inline-block border-[9px] border-[var(--rbs-green)] px-8 py-4">
+            <div className="relative inline-block border-[5px] sm:border-[9px] border-[var(--rbs-green)] px-8 py-4">
               <h1
                 className="text-dj-gross text-[clamp(3rem,8vw,6rem)] leading-[0.92] uppercase text-white"
                 style={{ textShadow: '0px 4px 4px rgba(0,0,0,0.25)' }}
@@ -141,7 +141,7 @@ export function EditionHero({
         </ScrollReveal>
 
         {/* ── Gallery: Masonry grid ─────────────────── */}
-        <div className=" mb-20 w-[75%] h-[655px] ml-auto">
+        <div className="mb-20 w-full sm:w-[85%] lg:w-[75%] h-auto sm:h-[500px] lg:h-[655px] ml-0 sm:ml-auto">
           <StaggerReveal>
             {/* Previous edition marker */}
             <div className="relative mb-4 ml-[clamp(1rem,4vw,4rem)]">
@@ -158,21 +158,21 @@ export function EditionHero({
               </StaggerItem>
             </div>
 
-            {/* Row 1: 65% / 35% */}
+            {/* Row 1: 60% / 40% */}
             <div className="flex flex-col sm:flex-row gap-[16px] mb-[16px]">
-              <StaggerItem className="sm:w-[654px]">
-                <div className="relative h-[196px] w-full overflow-hidden bg-black/40">
+              <StaggerItem className="w-full sm:w-[60%]">
+                <div className="relative h-[140px] sm:h-[180px] lg:h-[196px] w-full overflow-hidden bg-black/40">
                   <Image
                     src={galleryImages[0]}
                     alt={`${themeName} — fresque 1`}
                     fill
-                    sizes="(max-width: 640px) 100vw, 65vw"
+                    sizes="(max-width: 640px) 100vw, 60vw"
                     className="object-cover grayscale-[0.3] hover:grayscale-0 hover:scale-105 transition-all duration-700"
                   />
                 </div>
               </StaggerItem>
-              <StaggerItem className="sm:w-[442px]">
-                <div className="relative h-[196px] w-full overflow-hidden bg-black/40">
+              <StaggerItem className="w-full sm:w-[40%]">
+                <div className="relative h-[140px] sm:h-[180px] lg:h-[196px] w-full overflow-hidden bg-black/40">
                   <Image
                     src={galleryImages[4]}
                     alt={`${themeName} — fresque 2`}
@@ -184,21 +184,21 @@ export function EditionHero({
               </StaggerItem>
             </div>
 
-            {/* Row 2: 40% / 60%, shifted left */}
-            <div className="flex flex-col sm:flex-row gap-[16px] mb-[16px] sm:-translate-x-[33%]">
-              <StaggerItem className="sm:w-[442px]">
-                <div className="relative h-[196px] w-full overflow-hidden bg-black/40">
+            {/* Row 2: 40% / 60%, shifted left on desktop */}
+            <div className="flex flex-col sm:flex-row gap-[16px] mb-[16px] translate-x-0 sm:-translate-x-[33%]">
+              <StaggerItem className="w-full sm:w-[40%]">
+                <div className="relative h-[140px] sm:h-[180px] lg:h-[196px] w-full overflow-hidden bg-black/40">
                   <Image
                     src={galleryImages[5]}
                     alt={`${themeName} — fresque 3`}
                     fill
-                    sizes="(max-width: 640px) 100vw, 46vw"
+                    sizes="(max-width: 640px) 100vw, 40vw"
                     className="object-cover grayscale-[0.3] hover:grayscale-0 hover:scale-105 transition-all duration-700"
                   />
                 </div>
               </StaggerItem>
-              <StaggerItem className="sm:w-[654px]">
-                <div className="relative h-[196px] w-full overflow-hidden bg-black/40">
+              <StaggerItem className="w-full sm:w-[60%]">
+                <div className="relative h-[140px] sm:h-[180px] lg:h-[196px] w-full overflow-hidden bg-black/40">
                   <Image
                     src={galleryImages[1]}
                     alt={`${themeName} — fresque 4`}
@@ -210,21 +210,21 @@ export function EditionHero({
               </StaggerItem>
             </div>
 
-            {/* Row 3: 67% / 33% */}
+            {/* Row 3: 60% / 40% */}
             <div className="flex flex-col sm:flex-row gap-[16px]">
-              <StaggerItem className="sm:w-[654px]">
-                <div className="relative h-[196px] w-full overflow-hidden bg-black/40">
+              <StaggerItem className="w-full sm:w-[60%]">
+                <div className="relative h-[140px] sm:h-[180px] lg:h-[196px] w-full overflow-hidden bg-black/40">
                   <Image
                     src={galleryImages[2]}
                     alt={`${themeName} — fresque 5`}
                     fill
-                    sizes="(max-width: 640px) 100vw, 67vw"
+                    sizes="(max-width: 640px) 100vw, 60vw"
                     className="object-cover grayscale-[0.3] hover:grayscale-0 hover:scale-105 transition-all duration-700"
                   />
                 </div>
               </StaggerItem>
-              <StaggerItem className="sm:w-[442px]">
-                <div className="relative h-[196px] w-full overflow-hidden bg-black/40">
+              <StaggerItem className="w-full sm:w-[40%]">
+                <div className="relative h-[140px] sm:h-[180px] lg:h-[196px] w-full overflow-hidden bg-black/40">
                   <Image
                     src={galleryImages[3]}
                     alt={`${themeName} — fresque 6`}

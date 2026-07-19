@@ -57,6 +57,23 @@ function positionForIndex(
   return 'hidden';
 }
 
+function getCardTargets(isMobile: boolean) {
+  if (isMobile) {
+    return {
+      left:   { xPercent: 0, yPercent: 0, scale: 0.9, opacity: 0, filter: 'brightness(0.7) blur(1px)', zIndex: 10 },
+      center: { xPercent: 0, yPercent: 0, scale: 1,   opacity: 1, filter: 'brightness(1) blur(0px)',   zIndex: 30 },
+      right:  { xPercent: 0, yPercent: 0, scale: 0.9, opacity: 0, filter: 'brightness(0.7) blur(1px)', zIndex: 10 },
+      hidden: { xPercent: 0, yPercent: 0, scale: 0.9, opacity: 0, filter: 'brightness(0.5) blur(3px)', zIndex: 0 },
+    };
+  }
+  return {
+    left:   { xPercent: -50, yPercent: 0, scale: 0.75, opacity: 0.65, filter: 'brightness(0.7) blur(1px)', zIndex: 10 },
+    center: { xPercent: 0,   yPercent: 0, scale: 1,    opacity: 1,    filter: 'brightness(1) blur(0px)',   zIndex: 30 },
+    right:  { xPercent: 50,  yPercent: 0, scale: 0.75, opacity: 0.65, filter: 'brightness(0.7) blur(1px)', zIndex: 10 },
+    hidden: { xPercent: 0,   yPercent: 0, scale: 0.55, opacity: 0,    filter: 'brightness(0.5) blur(3px)', zIndex: 0 },
+  };
+}
+
 /* ── Slideshow ────────────────────────────────────────────────────────────── */
 
 function CardImageSlideshow({
@@ -138,17 +155,27 @@ export function ProjectCarousel({
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const total = projects.length;
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   const isFirstRender = useRef(true);
 
   /* ── Card position animation ────────────────── */
   useEffect(() => {
+    const targets = getCardTargets(isMobile);
     projects.forEach((project, i) => {
       const el = cardRefs.current.get(project.id);
       if (!el) return;
 
       const pos = positionForIndex(i, active, total);
-      const target = cardTargets[pos];
+      const target = targets[pos];
 
       if (isFirstRender.current) {
         gsap.set(el, target);
@@ -162,7 +189,7 @@ export function ProjectCarousel({
     });
 
     isFirstRender.current = false;
-  }, [active, projects, total]);
+  }, [active, projects, total, isMobile]);
 
   /* ── Start cooldown after each navigation ──── */
   const startCooldown = useCallback(() => {
@@ -202,9 +229,9 @@ export function ProjectCarousel({
 
   return (
     <section className="relative w-full overflow-hidden bg-white">
-      <div className="relative mx-auto max-w-[90rem] px-6 pt-20 pb-24 md:pt-28 md:pb-32">
+      <div className="relative mx-auto max-w-[90rem] px-4 sm:px-6 pt-10 pb-16 md:pt-28 md:pb-32">
         {/* ── Carousel track ────────────────────────── */}
-        <div className="relative w-full mt-44 md:mt-52" style={{ height: CARD_CENTER.height + 24 }}>
+        <div className="relative w-full mt-4 md:mt-52 h-[280px] sm:h-[350px] md:h-[414px]">
           <div className="absolute left-1/2 -translate-x-1/2 top-0 w-full max-w-[737px] h-full pointer-events-none">
             {projects.map((project, i) => {
               const pos = positionForIndex(i, active, total);
@@ -219,24 +246,26 @@ export function ProjectCarousel({
                       ? 'pointer-events-auto cursor-pointer'
                       : 'pointer-events-none'
                   }`}
-                  style={{ maxWidth: CARD_CENTER.width }}
+                  style={{ maxWidth: isMobile ? '100%' : CARD_CENTER.width }}
                   onClick={() => isSide && handleSideClick(i)}
                 >
-                  {/* Integrated Header */}
-                  <div
-                    className={`absolute bottom-[100%] left-0 w-full mb-8 md:mb-10 transition-opacity duration-[800ms] ease-out ${
-                      pos === 'center' ? 'opacity-100' : 'opacity-0'
-                    }`}
-                  >
-                    <h2 className="font-display text-[clamp(2rem,5vw,3rem)] leading-[1.05] text-black mb-4">
-                      {project.title}
-                    </h2>
-                    <p className="max-w-[908px] text-[16px] leading-[22px] text-black/65 tracking-[1.28px]">
-                      {project.summary}
-                    </p>
-                  </div>
+                  {/* Integrated Header (Desktop only) */}
+                  {!isMobile && (
+                    <div
+                      className={`absolute bottom-[100%] left-0 w-full mb-8 md:mb-10 transition-opacity duration-[800ms] ease-out ${
+                        pos === 'center' ? 'opacity-100' : 'opacity-0'
+                      }`}
+                    >
+                      <h2 className="font-display text-[clamp(2rem,5vw,3rem)] leading-[1.05] text-black mb-4">
+                        {project.title}
+                      </h2>
+                      <p className="max-w-[908px] text-[16px] leading-[22px] text-black/65 tracking-[1.28px]">
+                        {project.summary}
+                      </p>
+                    </div>
+                  )}
 
-                  <div className="relative w-full h-full rounded-[60px] overflow-hidden shadow-[0_4px_40px_rgba(0,0,0,0.12)]">
+                  <div className="relative w-full h-full rounded-3xl md:rounded-[60px] overflow-hidden shadow-[0_4px_40px_rgba(0,0,0,0.12)]">
                     <CardImageSlideshow
                       images={project.images}
                       alt={project.title}
@@ -253,6 +282,48 @@ export function ProjectCarousel({
             })}
           </div>
         </div>
+
+        {/* Mobile Header (Below Card) */}
+        {isMobile && (
+          <div className="mt-6 mb-8 text-center min-h-[120px]">
+            {projects.map((project, i) => (
+              <div
+                key={`mobile-header-${project.id}`}
+                className={`transition-opacity duration-500 absolute left-4 right-4 ${
+                  active === i ? 'opacity-100 relative z-10' : 'opacity-0 absolute inset-0 z-0 pointer-events-none'
+                }`}
+              >
+                <h2 className="font-display text-2xl leading-tight text-black mb-2">
+                  {project.title}
+                </h2>
+                <p className="text-sm text-black/65 line-clamp-3">
+                  {project.summary}
+                </p>
+              </div>
+            ))}
+            
+            {/* Mobile Navigation Controls */}
+            <div className="flex justify-center items-center gap-6 mt-6">
+               <button 
+                 onClick={() => !isTransitioning && handleSideClick((active - 1 + total) % total)}
+                 className="w-12 h-12 rounded-full border border-black/10 flex items-center justify-center text-black/50 hover:bg-black/5 transition-colors"
+                 aria-label="Previous project"
+               >
+                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+               </button>
+               <span className="text-sm font-medium text-black/50 font-mono">
+                 {String(active + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+               </span>
+               <button 
+                 onClick={() => !isTransitioning && handleSideClick((active + 1) % total)}
+                 className="w-12 h-12 rounded-full border border-black/10 flex items-center justify-center text-black/50 hover:bg-black/5 transition-colors"
+                 aria-label="Next project"
+               >
+                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+               </button>
+            </div>
+          </div>
+        )}
 
         {/* ── CTAs ──────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-10 mt-14">

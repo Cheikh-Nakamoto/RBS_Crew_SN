@@ -44,7 +44,7 @@ export default async function ShopPage({ searchParams }: Props) {
   const meta = data?.meta;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-32 pb-16">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 sm:pt-32 pb-16">
       {/* Header */}
       <SectionHeader
         eyebrow="Boutique"

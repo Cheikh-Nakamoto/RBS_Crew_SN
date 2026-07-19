@@ -53,7 +53,7 @@ export default async function ArtistPage({ params }: Props) {
   const portraitUrl = artist.avatarUrl || artist.featuredImageUrl;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-32 pb-16">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-24 sm:pt-32 pb-16">
       {/* Back */}
       <Link
         href="/crew"

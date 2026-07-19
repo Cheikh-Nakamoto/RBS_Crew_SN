@@ -36,6 +36,9 @@ export function AkademyaCTA({
 
   /* ── Parallax on collage images ─────────────── */
   useEffect(() => {
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    if (isMobile) return; // Disable parallax on mobile
+
     const section = sectionRef.current;
     if (!section) return;
 
@@ -93,7 +96,7 @@ export function AkademyaCTA({
           <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-0 w-full">
 
             {/* Left image */}
-            <ScrollReveal from="bottom" delay={0.1} className="w-full max-w-[259px] shrink-0 z-10 relative">
+            <ScrollReveal from="bottom" delay={0.1} className="w-[85%] sm:w-full sm:max-w-[259px] shrink-0 z-10 relative">
               <div
                 ref={(el) => { imgRefs.current[0] = el; }}
                 className="relative mx-auto w-full aspect-[259/468]"
@@ -111,7 +114,7 @@ export function AkademyaCTA({
             </ScrollReveal>
 
             {/* Center image */}
-            <ScrollReveal from="bottom" delay={0.2} className="w-full max-w-[342px] shrink-0 z-20 relative md:-mx-[1.5%]">
+            <ScrollReveal from="bottom" delay={0.2} className="w-[90%] sm:w-full sm:max-w-[342px] shrink-0 z-20 relative md:-mx-[1.5%]">
               <div className="w-full h-full md:-translate-y-[10%]">
                 <div
                   ref={(el) => { imgRefs.current[1] = el; }}
@@ -157,7 +160,7 @@ export function AkademyaCTA({
             </ScrollReveal>
 
             {/* Right image */}
-            <ScrollReveal from="bottom" delay={0.3} className="w-full max-w-[500px] shrink-0 z-10 relative">
+            <ScrollReveal from="bottom" delay={0.3} className="w-[95%] sm:w-full sm:max-w-[500px] shrink-0 z-10 relative">
               <div
                 ref={(el) => { imgRefs.current[2] = el; }}
                 className="relative mx-auto w-full aspect-[500/468] mt-4 md:mt-0"
