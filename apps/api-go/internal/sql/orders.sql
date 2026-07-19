@@ -1,9 +1,10 @@
 -- name: CreateOrder :one
 INSERT INTO "Order" ("id", "orderNumber", "userId", "guestEmail", "status", "paymentStatus",
                      "currency", "subtotal", "taxAmount", "shippingAmount", "discountAmount",
-                     "total", "shippingAddressId", "billingAddressId", "notes", "locale", "createdAt", "updatedAt")
+                     "total", "shippingAddressId", "billingAddressId", "notes", "locale", "createdAt", "updatedAt",
+                     "customerFirstName", "customerLastName", "customerPhone")
 VALUES ($1, $2, $3, $4, 'PENDING'::"OrderStatus", 'UNPAID'::"PaymentStatus",
-        'XOF', $5, 0, 0, 0, $5, $6, $7, $8, 'fr'::"Locale", NOW(), NOW())
+        'XOF', $5, 0, 0, 0, $5, $6, $7, $8, 'fr'::"Locale", NOW(), NOW(), $9, $10, $11)
 RETURNING *;
 
 -- name: CreateOrderItem :one

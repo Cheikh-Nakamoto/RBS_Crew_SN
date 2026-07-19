@@ -15,10 +15,11 @@ import (
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO "Order" ("id", "orderNumber", "userId", "guestEmail", "status", "paymentStatus",
                      "currency", "subtotal", "taxAmount", "shippingAmount", "discountAmount",
-                     "total", "shippingAddressId", "billingAddressId", "notes", "locale", "createdAt", "updatedAt")
+                     "total", "shippingAddressId", "billingAddressId", "notes", "locale", "createdAt", "updatedAt",
+                     "customerFirstName", "customerLastName", "customerPhone")
 VALUES ($1, $2, $3, $4, 'PENDING'::"OrderStatus", 'UNPAID'::"PaymentStatus",
-        'XOF', $5, 0, 0, 0, $5, $6, $7, $8, 'fr'::"Locale", NOW(), NOW())
-RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "shippingMethodId", "shippingCarrier", "trackingNumber", "shippedAt", "deliveredAt"
+        'XOF', $5, 0, 0, 0, $5, $6, $7, $8, 'fr'::"Locale", NOW(), NOW(), $9, $10, $11)
+RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "shippingMethodId", "shippingCarrier", "trackingNumber", "shippedAt", "deliveredAt", "customerFirstName", "customerLastName", "customerPhone"
 `
 
 type CreateOrderParams struct {
@@ -30,6 +31,9 @@ type CreateOrderParams struct {
 	ShippingAddressId *string         `json:"shippingAddressId"`
 	BillingAddressId  *string         `json:"billingAddressId"`
 	Notes             *string         `json:"notes"`
+	CustomerFirstName *string         `json:"customerFirstName"`
+	CustomerLastName  *string         `json:"customerLastName"`
+	CustomerPhone     *string         `json:"customerPhone"`
 }
 
 func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error) {
@@ -42,6 +46,9 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		arg.ShippingAddressId,
 		arg.BillingAddressId,
 		arg.Notes,
+		arg.CustomerFirstName,
+		arg.CustomerLastName,
+		arg.CustomerPhone,
 	)
 	var i Order
 	err := row.Scan(
@@ -71,6 +78,9 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.TrackingNumber,
 		&i.ShippedAt,
 		&i.DeliveredAt,
+		&i.CustomerFirstName,
+		&i.CustomerLastName,
+		&i.CustomerPhone,
 	)
 	return i, err
 }

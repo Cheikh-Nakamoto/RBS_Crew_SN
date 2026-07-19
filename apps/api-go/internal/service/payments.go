@@ -108,6 +108,16 @@ func (s *PaymentsService) CreateCheckout(ctx context.Context, userID, role strin
 		Email:       email,
 	}
 
+	if order.CustomerFirstName != nil {
+		orderInfo.CustomerFirstName = *order.CustomerFirstName
+	}
+	if order.CustomerLastName != nil {
+		orderInfo.CustomerLastName = *order.CustomerLastName
+	}
+	if order.CustomerPhone != nil {
+		orderInfo.CustomerPhone = *order.CustomerPhone
+	}
+
 	// 5. Create payment with provider
 	result, err := provider.CreatePayment(ctx, orderInfo, payment.CallbackURLs{
 		SuccessURL: dto.SuccessURL,

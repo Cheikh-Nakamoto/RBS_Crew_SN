@@ -16,6 +16,7 @@ const (
 	MethodPayPal      Method = "PAYPAL"
 	MethodWave        Method = "WAVE"
 	MethodOrangeMoney Method = "ORANGE_MONEY"
+	MethodNaboo       Method = "NABOO"	
 )
 
 // CallbackURLs are the URLs that the payment provider will redirect to after payment.
@@ -27,13 +28,16 @@ type CallbackURLs struct {
 
 // OrderInfo contains the order data that providers need to create a payment.
 type OrderInfo struct {
-	ID          string
-	OrderNumber string
-	Currency    string
-	Items       []OrderItem
-	Shipping    int64 // Amount in minor units (or whole units for XOF)
-	Total       int64
-	Email       string
+	ID                string
+	OrderNumber       string
+	Currency          string
+	Items             []OrderItem
+	Shipping          int64 // Amount in minor units (or whole units for XOF)
+	Total             int64
+	Email             string
+	CustomerFirstName string
+	CustomerLastName  string
+	CustomerPhone     string // format E.164 attendu, ex. +221771234567
 }
 
 // OrderItem is a line item for the payment.

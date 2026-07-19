@@ -132,6 +132,14 @@ func run() error {
 		paymentProviders = append(paymentProviders, payment.NewOrangeMoneyProvider(cfg.OrangeMoneyClientID, cfg.OrangeMoneyClientSecret, cfg.OrangeMoneyMerchantKey))
 		slog.Info("Payment provider enabled: Orange Money")
 	}
+	if cfg.NabooAPIKey != "" {
+		naboo := payment.NewNabooProvider(cfg.NabooAPIKey, cfg.NabooWebhookSecret)
+		if cfg.NabooBaseURL != "" {
+			naboo = naboo.WithBaseURL(cfg.NabooBaseURL)
+		}
+		paymentProviders = append(paymentProviders, naboo)
+		slog.Info("Payment provider enabled: Naboo")
+	}
 
 	paymentsSvc := service.NewPaymentsService(ordersRepo, redisClient, paymentProviders...)
 	refundsSvc := service.NewRefundsService(refundsRepo, ordersRepo, redisClient, mailSvc, paymentProviders...)

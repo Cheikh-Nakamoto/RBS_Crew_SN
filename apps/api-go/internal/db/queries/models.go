@@ -473,6 +473,9 @@ type Order struct {
 	TrackingNumber        *string          `json:"trackingNumber"`
 	ShippedAt             pgtype.Timestamp `json:"shippedAt"`
 	DeliveredAt           pgtype.Timestamp `json:"deliveredAt"`
+	CustomerFirstName     *string          `json:"customerFirstName"`
+	CustomerLastName      *string          `json:"customerLastName"`
+	CustomerPhone         *string          `json:"customerPhone"`
 }
 
 type OrderItem struct {

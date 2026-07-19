@@ -126,6 +126,7 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 		r.Post("/payments/webhook/paypal", h.Payments.WebhookFor(payment.MethodPayPal))
 		r.Post("/payments/webhook/wave", h.Payments.WebhookFor(payment.MethodWave))
 		r.Post("/payments/webhook/orange-money", h.Payments.WebhookFor(payment.MethodOrangeMoney))
+		r.Post("/payments/webhook/naboo", h.Payments.WebhookFor(payment.MethodNaboo))
 	})
 
 	// ── Authenticated Routes ─────────────────────────────────────────────────

@@ -122,6 +122,9 @@ func (s *OrdersService) Create(ctx context.Context, dto model.CreateOrderDTO, us
 		ShippingAddressId: dto.ShippingAddressID,
 		BillingAddressId:  dto.BillingAddressID,
 		Notes:             dto.Notes,
+		CustomerFirstName: dto.CustomerFirstName,
+		CustomerLastName:  dto.CustomerLastName,
+		CustomerPhone:     dto.CustomerPhone,
 	})
 	if err != nil {
 		return nil, types.InternalError("Failed to create order")

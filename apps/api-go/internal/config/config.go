@@ -44,6 +44,11 @@ type Config struct {
 	OrangeMoneyClientSecret string
 	OrangeMoneyMerchantKey  string
 
+	// Naboo
+	NabooAPIKey        string
+	NabooWebhookSecret string
+	NabooBaseURL       string
+
 	// Cloudflare R2 (S3-compatible storage)
 	R2AccountID   string
 	R2AccessKey   string
@@ -98,6 +103,9 @@ func Load() (*Config, error) {
 		OrangeMoneyClientID:     getEnv("OM_CLIENT_ID", ""),
 		OrangeMoneyClientSecret: getEnv("OM_CLIENT_SECRET", ""),
 		OrangeMoneyMerchantKey:  getEnv("OM_MERCHANT_KEY", ""),
+		NabooAPIKey:             getEnv("NABOO_API_KEY", ""),
+		NabooWebhookSecret:      getEnv("NABOO_WEBHOOK_SECRET", ""),
+		NabooBaseURL:            getEnv("NABOO_BASE_URL", ""),
 		R2AccountID:             getEnv("R2_ACCOUNT_ID", ""),
 		R2AccessKey:             getEnv("R2_ACCESS_KEY_ID", ""),
 		R2SecretKey:             getEnv("R2_SECRET_ACCESS_KEY", ""),

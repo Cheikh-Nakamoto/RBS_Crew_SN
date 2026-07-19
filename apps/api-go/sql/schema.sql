@@ -768,3 +768,9 @@ ALTER TABLE "Order" ADD COLUMN "shippingCarrier"  TEXT;
 ALTER TABLE "Order" ADD COLUMN "trackingNumber"   TEXT;
 ALTER TABLE "Order" ADD COLUMN "shippedAt"        TIMESTAMP(3);
 ALTER TABLE "Order" ADD COLUMN "deliveredAt"      TIMESTAMP(3);
+
+-- ── Migration 00007: Customer fields for Order ─────────────────────────────
+
+ALTER TABLE "Order" ADD COLUMN "customerFirstName" TEXT;
+ALTER TABLE "Order" ADD COLUMN "customerLastName" TEXT;
+ALTER TABLE "Order" ADD COLUMN "customerPhone" TEXT;

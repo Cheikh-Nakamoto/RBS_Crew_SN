@@ -20,8 +20,11 @@ type CreateOrderDTO struct {
 	Notes             *string              `json:"notes"`
 	// Shipping: client selects a method from POST /shipping/quote first.
 	// The server recomputes the fee from the stored rate — never trusts client prices.
-	ShippingMethodID *string `json:"shippingMethodId"`
-	ShippingCountry  string  `json:"shippingCountry"` // ISO 3166-1 alpha-2 (e.g. "SN")
+	ShippingMethodID  *string `json:"shippingMethodId"`
+	ShippingCountry   string  `json:"shippingCountry"` // ISO 3166-1 alpha-2 (e.g. "SN")
+	CustomerFirstName *string `json:"customerFirstName"`
+	CustomerLastName  *string `json:"customerLastName"`
+	CustomerPhone     *string `json:"customerPhone"`
 }
 
 type OrderItemResponse struct {
