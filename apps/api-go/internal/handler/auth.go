@@ -178,7 +178,7 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := validate.Struct(body); err != nil {
-		types.WriteError(w, types.BadRequest(err.Error()))
+		types.WriteError(w, validationError())
 		return
 	}
 	if appErr := h.svc.ForgotPassword(r.Context(), body.Email); appErr != nil {
@@ -191,14 +191,14 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Token    string `json:"token" validate:"required"`
-		Password string `json:"password" validate:"required,min=8"`
+		Password string `json:"password" validate:"required,password_strength"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		types.WriteError(w, types.BadRequest("Invalid payload"))
 		return
 	}
 	if err := validate.Struct(body); err != nil {
-		types.WriteError(w, types.BadRequest(err.Error()))
+		types.WriteError(w, validationError())
 		return
 	}
 	if appErr := h.svc.ResetPassword(r.Context(), body.Token, body.Password); appErr != nil {
@@ -217,7 +217,7 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := validate.Struct(body); err != nil {
-		types.WriteError(w, types.BadRequest(err.Error()))
+		types.WriteError(w, validationError())
 		return
 	}
 	if appErr := h.svc.VerifyEmail(r.Context(), body.Token); appErr != nil {

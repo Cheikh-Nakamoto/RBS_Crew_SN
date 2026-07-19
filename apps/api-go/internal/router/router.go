@@ -252,8 +252,9 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 		r.Put("/admin/press/{id}", h.AdminPress.Update)
 		r.Delete("/admin/press/{id}", h.AdminPress.Delete)
 
-		// Media upload
-		r.Post("/admin/media", h.Media.Upload)
+		// Media upload — override the global 1 MB body limit with 11 MB
+		// (handler calls ParseMultipartForm(10 MB); the extra 1 MB covers multipart overhead).
+		r.With(middleware.MaxBodySizeLarge).Post("/admin/media", h.Media.Upload)
 
 		// Activity logs
 		r.Get("/admin/activity-logs", h.ActivityLogs.List)

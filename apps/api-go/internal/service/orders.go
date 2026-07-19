@@ -48,13 +48,14 @@ func (s *OrdersService) Create(ctx context.Context, dto model.CreateOrderDTO, us
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	qtx := s.ordersRepo.WithTx(tx)
+	productsTx := s.productsRepo.WithTx(tx)
 
 	// 1. Resolve products server-side (never trust client prices)
 	var subtotal decimal.Decimal
 	itemsData := make([]db.CreateOrderItemParams, 0, len(dto.Items))
 
 	for _, item := range dto.Items {
-		product, err := s.productsRepo.GetForOrder(ctx, item.ProductID)
+		product, err := productsTx.GetProductForOrder(ctx, item.ProductID)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return nil, types.NotFound(fmt.Sprintf("Product %s not found", item.ProductID))
@@ -62,9 +63,10 @@ func (s *OrdersService) Create(ctx context.Context, dto model.CreateOrderDTO, us
 			return nil, types.InternalError("Database error")
 		}
 
-		// 2. Atomic stock decrement (WHERE stock >= qty — no race condition)
+		// 2. Atomic stock decrement inside the transaction (WHERE stock >= qty — no race condition).
+		// If the transaction rolls back, stock is automatically restored.
 		if product.ManageStock {
-			affected, err := s.productsRepo.DecrementStock(ctx, product.ID, int32(item.Quantity))
+			affected, err := productsTx.DecrementStock(ctx, db.DecrementStockParams{ID: product.ID, Stock: int32(item.Quantity)})
 			if err != nil {
 				return nil, types.InternalError("Failed to update stock")
 			}
