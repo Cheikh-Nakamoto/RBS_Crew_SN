@@ -270,7 +270,7 @@ func (s *PaymentsService) HandleWebhook(ctx context.Context, method payment.Meth
 
 	if updateErr != nil {
 		if dedupeKey != "" && s.cache != nil {
-			if delErr := s.cache.Del(ctx, dedupeKey); delErr != nil {
+			if delErr := s.cache.Delete(ctx, dedupeKey); delErr != nil {
 				slog.Error("failed to release webhook dedupe lock after DB error", "key", dedupeKey, "error", delErr)
 			}
 		}
