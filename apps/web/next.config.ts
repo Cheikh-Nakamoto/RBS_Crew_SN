@@ -3,7 +3,6 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   reactCompiler: true,
-  allowedDevOrigins: ['rbs-crew.cheikhmodiouf.org,app-rbs-crew.cheikhmodiouf.org'],
   async rewrites() {
     return [
       {
