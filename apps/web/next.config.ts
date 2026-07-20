@@ -3,15 +3,15 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   reactCompiler: true,
-  // allowedDevOrigins: ['rbs-crew.cheikhmodiouf.org'],
-  // async rewrites() {
-  //   return [
-  //     {
-  //       source: '/backend/:path*',
-  //       destination: process.env.API_REWRITE_TARGET ?? 'http://localhost:4000/:path*',
-  //     },
-  //   ];
-  // },
+  allowedDevOrigins: ['rbs-crew.cheikhmodiouf.org,app-rbs-crew.cheikhmodiouf.org'],
+  async rewrites() {
+    return [
+      {
+        source: '/backend/:path*',
+        destination: process.env.API_REWRITE_TARGET ?? 'http://localhost:4000/:path*',
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
