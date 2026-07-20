@@ -21,6 +21,7 @@ export default function RegisterPage() {
     const password = fd.get('password') as string;
     const firstName = fd.get('firstName') as string;
     const lastName = fd.get('lastName') as string;
+    const phone = fd.get('phone') as string;
 
     const API_URL = process.env.AUTH_URL ?? 'http://localhost:4000';
 
@@ -34,8 +35,10 @@ export default function RegisterPage() {
           password,
           firstName: firstName || undefined,
           lastName: lastName || undefined,
+          phone: phone || undefined,
         }),
       });
+      console.log(" =====> REGISTER RESULT =====> \n\n", res, "\n\n Api Url", API_URL);
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -154,6 +157,20 @@ export default function RegisterPage() {
                   className="w-full px-4 py-3 rounded-xl bg-white/6 border border-white/10 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-red-600/50 focus:border-red-600/30 transition-all duration-200 text-sm"
                 />
               </div>
+            </div>
+            {/* Phone */}
+            <div className="space-y-1.5">
+              <label htmlFor="phone" className="text-sm font-medium text-white/60">
+                Téléphone <span className="text-red-400">*</span>
+              </label>
+              <input
+                id="phone"
+                name="phone"
+                type="tel"
+                required
+                placeholder="+221771234567"
+                className="w-full px-4 py-3 rounded-xl bg-white/6 border border-white/10 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-red-600/50 focus:border-red-600/30 transition-all duration-200 text-sm"
+              />
             </div>
 
             {/* Email */}
