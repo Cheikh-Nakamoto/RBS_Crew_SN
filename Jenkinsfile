@@ -146,11 +146,11 @@ docker compose -f '${env.COMPOSE_FILE}' --env-file "\$ENV_FILE" up -d --wait '${
             }
             post {
                 failure {
-                    sh """#!/bin/bash
-echo "=== 100 DERNIERS LOGS DU CONTENEUR ${params.SERVICE} ==="
-docker compose -f '${env.COMPOSE_FILE}' --env-file "\$ENV_FILE" logs --tail="30 '${params.SERVICE}' || true
+                    sh '''#!/bin/bash
+echo "=== 100 DERNIERS LOGS DU CONTENEUR "''' + params.SERVICE + '''" ==="
+docker compose -f "''' + env.COMPOSE_FILE + '''" logs --tail=100 "''' + params.SERVICE + '''" || true
 echo "=========================================================="
-"""
+'''
                 }
             }
         }

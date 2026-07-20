@@ -27,6 +27,7 @@ services:
       retries: 5
 
   api-go:
+    image: ghcr.io/cheikh-nakamoto/rbs-crew-api-go:latest
     build:
       context: .
       dockerfile: apps/api-go/Dockerfile
@@ -57,13 +58,14 @@ services:
     # healthcheck actually run, the Dockerfile runtime stage must be switched
     # from `FROM scratch` to an image that ships wget or curl (e.g. alpine).
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/health >/dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
 
   nextjs-web:
+    image: ghcr.io/cheikh-nakamoto/rbs-crew-nextjs-web:latest
     build:
       context: .
       dockerfile: apps/web/Dockerfile
