@@ -18,8 +18,8 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import * as dotenv from 'dotenv';
 
-// Load env from the Go API (DATABASE_URL lives there)
-dotenv.config({ path: path.resolve(__dirname, '../apps/api-go/.env') });
+// Load env from the root directory where DATABASE_URL lives
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 // Also load local .env for R2 URLs etc.
 dotenv.config();
 
