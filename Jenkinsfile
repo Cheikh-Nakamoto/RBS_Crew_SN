@@ -181,6 +181,11 @@ docker image prune -f --filter "until=24h" || true
                 sh """#!/bin/bash
 set -eu
 cd "\${WORKSPACE}"
+
+echo "=== LOGS DU CONTENEUR EN ÉCHEC (${params.SERVICE}) ==="
+docker compose -f '${env.COMPOSE_FILE}' --env-file "\$ENV_FILE" logs '${params.SERVICE}' || true
+echo "=================================="
+
 if [ -f "./scripts/rollback.sh" ]; then
     ./scripts/rollback.sh '${params.SERVICE}' || echo "Rollback also failed — investigation manuelle requise"
 else
