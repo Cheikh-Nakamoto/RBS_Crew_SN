@@ -1,8 +1,5 @@
 # ── Stage 1: Build ──
-FROM golang:1.26-alpine AS builder
-
-# Install CA certificates and tzdata
-RUN apk add --no-cache ca-certificates tzdata
+FROM golang:1.26-bookworm AS builder
 
 WORKDIR /build
 
@@ -13,16 +10,18 @@ RUN go mod download
 # Copy the rest of the source code
 COPY apps/api-go/ .
 
-# Build the binary statically
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+# Build the binary with CGO enabled to use glibc DNS resolver (fixes IPv6 SERVFAIL on Jenkins)
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-s -w" -o /api-go ./cmd/api
 
 
 # ── Stage 2: Runtime ──
-FROM alpine:latest
+FROM debian:bookworm-slim
 
-# Install CA certificates and tzdata (also keeps compatibility if needed, though they could be copied from builder)
-RUN apk add --no-cache ca-certificates tzdata
+# Install CA certificates, tzdata and wget
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates tzdata wget && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy the binary
 COPY --from=builder /api-go /api-go
