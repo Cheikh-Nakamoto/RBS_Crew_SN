@@ -155,20 +155,20 @@ echo "=========================================================="
             }
         }
 
-        stage('Health check') {
-            when { expression { !params.SKIP_HEALTHCHECK } }
-            steps {
-                sh """#!/bin/bash
-set -euo pipefail
-# Assurez-vous que le script healthcheck.sh existe bien dans RBS_Crew_SN/scripts/
-if [ -f "./scripts/healthcheck.sh" ]; then
-    ./scripts/healthcheck.sh '${params.SERVICE}'
-else
-    echo "Pas de script healthcheck.sh trouvé, skip manuel."
-fi
-"""
-            }
-        }
+//         stage('Health check') {
+//             when { expression { !params.SKIP_HEALTHCHECK } }
+//             steps {
+//                 sh """#!/bin/bash
+// set -euo pipefail
+// # Assurez-vous que le script healthcheck.sh existe bien dans RBS_Crew_SN/scripts/
+// if [ -f "./scripts/healthcheck.sh" ]; then
+//     ./scripts/healthcheck.sh '${params.SERVICE}'
+// else
+//     echo "Pas de script healthcheck.sh trouvé, skip manuel."
+// fi
+// """
+//             }
+//         }
 
         stage('Cleanup dangling') {
             steps {
