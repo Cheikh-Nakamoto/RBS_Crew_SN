@@ -136,7 +136,7 @@ fi
                     toDeploy.each { svc ->
                         branches["trigger-${svc}"] = {
                             build(
-                                job: 'rbs-crew', // <-- Nom du job Jenkins principal à adapter si besoin
+                                job: 'rbs', // <-- Nom du job Jenkins principal à adapter si besoin
                                 parameters: [
                                     string(name: 'SERVICE', value: svc),
                                     string(name: 'IMAGE_TAG', value: env.DEPLOY_TAG)
