@@ -48,7 +48,7 @@ export default function LabzPage() {
     };
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/quotes`, {
+      const res = await fetch(`${process.env.AUTH_URL}/quotes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

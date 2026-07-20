@@ -22,7 +22,7 @@ export default function RegisterPage() {
     const firstName = fd.get('firstName') as string;
     const lastName = fd.get('lastName') as string;
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+    const API_URL = process.env.AUTH_URL ?? 'http://localhost:4000';
 
     try {
       // 1. Register via Go API

@@ -18,7 +18,7 @@ export function useAuthedFetch() {
 
   const authedFetch = useCallback(
     async (path: string, options: RequestInit = {}): Promise<Response> => {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+      const API_URL = process.env.AUTH_URL ?? 'http://localhost:4000';
       const token = (session as (typeof session & { accessToken?: string }) | null)?.accessToken;
 
       const method = options.method || 'GET';
