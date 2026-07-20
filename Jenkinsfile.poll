@@ -1,0 +1,166 @@
+// ============================================================================
+// RBS Crew SN — Pipeline de POLL GHCR (déclenche le job "rbs-crew")
+// ============================================================================
+//
+// Ce pipeline tourne en CRON (toutes les 5 min). Pour chaque service applicatif :
+//   1. Récupère le digest de l'image :${DEPLOY_TAG} depuis GHCR
+//   2. Compare au digest de l'image running localement
+//   3. Si différent → déclenche le job "rbs-crew" avec SERVICE + IMAGE_TAG=${DEPLOY_TAG}
+//
+// Configuration du job Jenkins :
+//   - Nom : "poll-ghcr" (ou "rbs-crew-poll")
+//   - Type : Pipeline
+//   - Pipeline script from SCM : repo principal, branche main
+//   - Script Path : Jenkinsfile.poll
+//   - Build Triggers : PAS de cron ici → le cron est DANS le pipeline (triggers{})
+// ============================================================================
+
+pipeline {
+    agent { label 'build-test' }
+
+    triggers {
+        // Toutes les 5 min — 'H' répartit la charge si plusieurs jobs
+        cron('H/5 * * * *')
+    }
+
+    environment {
+        GHCR_REGISTRY        = 'ghcr.io'
+        GHCR_OWNER           = 'cheikh-nakamoto' // À adapter avec votre compte exact GitHub
+        IMAGE_PREFIX         = 'rbs-crew'
+        // Tag GHCR à surveiller ET à déployer.
+        DEPLOY_TAG           = 'main' // ou 'latest' selon ce que GH Actions pousse
+        COMPOSE_FILE         = 'docker-compose.yml'
+        COMPOSE_PROJECT_NAME = 'rbs-crew'
+        // Chemin du .env (secrets) fourni par le credential "Secret file" — passé
+        // à docker compose via --env-file, jamais écrit dans le workspace.
+        ENV_FILE             = credentials('rbs-crew-env')
+        SERVICES             = 'api-go nextjs-web'
+    }
+
+    options {
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '50', daysToKeepStr: '7'))
+        timeout(time: 10, unit: 'MINUTES')
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        stage('Checkout infra') {
+            steps { checkout scm }
+        }
+
+        stage('GHCR login') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'ghcr-token',
+                    usernameVariable: 'GHCR_USER',
+                    passwordVariable: 'GHCR_PASS'
+                )]) {
+                    sh '''#!/bin/bash
+set -euo pipefail
+echo "$GHCR_PASS" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+'''
+                }
+            }
+        }
+
+        stage('Poll & trigger') {
+            steps {
+                script {
+                    def servicesList = env.SERVICES.split(' ')
+                    def toDeploy = []
+
+                    for (svc in servicesList) {
+                        def image = "${env.GHCR_REGISTRY}/${env.GHCR_OWNER}/${env.IMAGE_PREFIX}-${svc}:${env.DEPLOY_TAG}"
+                        echo "──> Check ${svc} (${image})"
+
+                        // Pull silencieux — met à jour l'image locale si nouvelle version dispo
+                        sh(
+                            script: """#!/bin/bash
+set -eu
+docker pull '${image}' >/dev/null 2>&1 || true
+""",
+                            label: "Pull ${svc}"
+                        )
+
+                        // Digest de l'image DEPLOY_TAG (fraîchement pull)
+                        def remoteDigest = sh(
+                            script: """#!/bin/bash
+set -eu
+docker image inspect '${image}' --format='{{.Id}}' 2>/dev/null || echo none
+""",
+                            returnStdout: true
+                        ).trim()
+
+                        // Digest de l'image du container running
+                        def runningDigest = sh(
+                            script: """#!/bin/bash
+set -eu
+CID=\$(docker compose -f '${env.COMPOSE_FILE}' --env-file "\$ENV_FILE" ps -q '${svc}' 2>/dev/null || true)
+if [ -n "\$CID" ]; then
+    docker inspect --format='{{.Image}}' "\$CID" 2>/dev/null || echo none
+else
+    echo none
+fi
+""",
+                            returnStdout: true
+                        ).trim()
+
+                        echo "    Remote  : ${remoteDigest}"
+                        echo "    Running : ${runningDigest}"
+
+                        if (remoteDigest == 'none') {
+                            echo "    ⚠ Pas d'image :${env.DEPLOY_TAG} pour ${svc} (pas encore publiée ?)"
+                        } else if (runningDigest == 'none') {
+                            echo "    → Service non déployé, à déployer"
+                            toDeploy << svc
+                        } else if (remoteDigest != runningDigest) {
+                            echo "    → CHANGEMENT détecté, à déployer"
+                            toDeploy << svc
+                        } else {
+                            echo "    ✓ À jour"
+                        }
+                    }
+
+                    if (toDeploy.isEmpty()) {
+                        echo "══> Rien à déployer."
+                        currentBuild.description = 'no changes'
+                        return
+                    }
+
+                    echo "══> Services à déployer : ${toDeploy.join(', ')}"
+                    currentBuild.description = "deploy: ${toDeploy.join(', ')}"
+
+                    // Déclenche le job "rbs-crew" en parallèle pour chaque service qui a changé.
+                    def branches = [:]
+                    toDeploy.each { svc ->
+                        branches["trigger-${svc}"] = {
+                            build(
+                                job: 'rbs-crew', // <-- Nom du job Jenkins principal à adapter si besoin
+                                parameters: [
+                                    string(name: 'SERVICE', value: svc),
+                                    string(name: 'IMAGE_TAG', value: env.DEPLOY_TAG)
+                                ],
+                                wait: false,
+                                propagate: false
+                            )
+                            echo "    ✓ Triggered deploy(${svc})"
+                        }
+                    }
+                    parallel branches
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            sh '''#!/bin/bash
+docker logout ghcr.io || true
+'''
+        }
+        failure {
+            echo "✗ Poll a échoué — vérifier les logs (auth GHCR ? réseau ?)"
+        }
+    }
+}
