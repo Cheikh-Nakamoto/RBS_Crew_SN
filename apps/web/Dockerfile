@@ -1,8 +1,9 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-ARG NEXT_PUBLIC_API_URL=https://rbs-crew.cheikhmodiouf.org/backend
+ARG NEXT_PUBLIC_API_URL=/backend
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV API_REWRITE_TARGET=http://api-go:4000
 
 # Copy workspace root files
 COPY package.json package-lock.json turbo.json ./
@@ -29,6 +30,7 @@ ENV NODE_ENV=production
 
 ARG NEXT_PUBLIC_API_URL=/backend
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV API_REWRITE_TARGET=http://api-go:4000
 
 # Copy standalone output + static assets
 COPY --from=builder /app/apps/web/public ./apps/web/public
