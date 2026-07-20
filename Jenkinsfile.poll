@@ -155,9 +155,11 @@ fi
 
     post {
         always {
-            sh '''#!/bin/bash
+            node('build-test') {
+                sh '''#!/bin/bash
 docker logout ghcr.io || true
 '''
+            }
         }
         failure {
             echo "✗ Poll a échoué — vérifier les logs (auth GHCR ? réseau ?)"
