@@ -144,6 +144,15 @@ echo "==> Deploy ${params.SERVICE} (+ dépendances dans l'ordre) via docker comp
 docker compose -f '${env.COMPOSE_FILE}' --env-file "\$ENV_FILE" up -d --wait '${params.SERVICE}'
 """
             }
+            post {
+                failure {
+                    sh """#!/bin/bash
+echo "=== 100 DERNIERS LOGS DU CONTENEUR ${params.SERVICE} ==="
+docker compose -f '${env.COMPOSE_FILE}' --env-file "\$ENV_FILE" logs --tail=100 '${params.SERVICE}' || true
+echo "=========================================================="
+"""
+                }
+            }
         }
 
         stage('Health check') {
