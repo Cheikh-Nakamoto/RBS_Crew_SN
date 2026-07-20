@@ -30,8 +30,8 @@ pipeline {
         )
         string(
             name: 'IMAGE_TAG',
-            defaultValue: 'latest',
-            description: 'Tag GHCR à déployer (SHA du commit ou "latest"). Sera re-tagué en :latest localement.'
+            defaultValue: 'main',
+            description: 'Tag GHCR à déployer (ex: "main", ou SHA du commit). Sera re-tagué en :latest localement.'
         )
         booleanParam(
             name: 'SKIP_HEALTHCHECK',

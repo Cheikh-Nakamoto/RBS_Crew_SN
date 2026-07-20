@@ -25,8 +25,13 @@ dotenv.config();
 
 const EXTRACT_DIR = path.resolve(__dirname, process.env.EXTRACT_DIR || '../data/raw');
 
+const dbUrl = new URL(process.env.DATABASE_URL || 'postgresql://rbs:password@localhost:5432/rbs_db');
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  host: dbUrl.hostname,
+  port: Number(dbUrl.port) || 5432,
+  user: dbUrl.username,
+  password: dbUrl.password,
+  database: dbUrl.pathname.substring(1), // remove leading slash
 });
 
 function uid(): string {
