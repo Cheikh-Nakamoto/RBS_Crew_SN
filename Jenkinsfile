@@ -97,7 +97,12 @@ echo "$GHCR_PASS" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             steps {
                 sh """#!/bin/bash
 set -euo pipefail
-IMAGE_FULL='${env.GHCR_REGISTRY}/${env.GHCR_OWNER}/${env.IMAGE_PREFIX}-${params.SERVICE}:${params.IMAGE_TAG}'
+TAG="${params.IMAGE_TAG}"
+if [ "\$TAG" == "latest" ]; then
+    echo "⚠️ Attention: Jenkins a gardé l'ancien paramètre 'latest'. Forçage vers 'main'."
+    TAG="main"
+fi
+IMAGE_FULL="${env.GHCR_REGISTRY}/${env.GHCR_OWNER}/${env.IMAGE_PREFIX}-${params.SERVICE}:\$TAG"
 echo "==> Pull \$IMAGE_FULL"
 docker pull "\$IMAGE_FULL"
 """
@@ -127,6 +132,10 @@ fi
 set -eu
 IMAGE_BASE='${env.GHCR_REGISTRY}/${env.GHCR_OWNER}/${env.IMAGE_PREFIX}-${params.SERVICE}'
 TAG='${params.IMAGE_TAG}'
+
+if [ "\$TAG" == "latest" ]; then
+    TAG="main"
+fi
 
 if [ "\$TAG" != "latest" ]; then
     echo "==> Re-tag \${IMAGE_BASE}:\${TAG} → \${IMAGE_BASE}:latest"
