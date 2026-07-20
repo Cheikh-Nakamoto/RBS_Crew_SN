@@ -186,14 +186,15 @@ func (s *PaymentsService) HandleWebhook(ctx context.Context, method payment.Meth
 
 	// Idempotency: dedupe by provider event ID (fallback to externalID) via Redis SETNX.
 	// If the key was already present, another delivery has already applied this event.
+	var dedupeKey string
 	if s.cache != nil {
 		dedupeID := event.ExternalID
 		if dedupeID == "" {
 			dedupeID = event.OrderID
 		}
 		if dedupeID != "" {
-			key := fmt.Sprintf("webhook:%s:%s", method, dedupeID)
-			acquired, err := s.cache.SetNX(ctx, key, "1", webhookDedupeTTL)
+			dedupeKey = fmt.Sprintf("webhook:%s:%s", method, dedupeID)
+			acquired, err := s.cache.SetNX(ctx, dedupeKey, "1", webhookDedupeTTL)
 			if err != nil {
 				// Redis failure should not block webhook processing — log and continue.
 				slog.Warn("webhook dedupe SETNX failed", "method", method, "error", err)
@@ -243,25 +244,37 @@ func (s *PaymentsService) HandleWebhook(ctx context.Context, method payment.Meth
 	}
 
 	// Update order status
+	var updateErr error
 	switch event.Status {
 	case "PAID":
 		processing := db.OrderStatusPROCESSING
 		if _, err := s.ordersRepo.UpdateOrderPaymentStatus(ctx, orderID, db.PaymentStatusPAID, &processing, nil); err != nil {
 			slog.Error("Failed to mark order as paid", "orderId", orderID, "error", err)
-			return types.InternalError("Failed to update order")
+			updateErr = err
 		}
 
 	case "FAILED":
 		failed := db.OrderStatusFAILED
 		if _, err := s.ordersRepo.UpdateOrderPaymentStatus(ctx, orderID, db.PaymentStatusUNPAID, &failed, nil); err != nil {
 			slog.Error("Failed to mark order as failed", "orderId", orderID, "error", err)
+			updateErr = err
 		}
 
 	case "REFUNDED":
 		refunded := db.OrderStatusREFUNDED
 		if _, err := s.ordersRepo.UpdateOrderPaymentStatus(ctx, orderID, db.PaymentStatusREFUNDED, &refunded, nil); err != nil {
 			slog.Error("Failed to mark order as refunded", "orderId", orderID, "error", err)
+			updateErr = err
 		}
+	}
+
+	if updateErr != nil {
+		if dedupeKey != "" && s.cache != nil {
+			if delErr := s.cache.Del(ctx, dedupeKey); delErr != nil {
+				slog.Error("failed to release webhook dedupe lock after DB error", "key", dedupeKey, "error", delErr)
+			}
+		}
+		return types.InternalError("Failed to update order status")
 	}
 
 	return nil

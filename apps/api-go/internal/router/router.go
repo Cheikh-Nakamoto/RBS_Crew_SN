@@ -119,8 +119,10 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 
 		// Shipping quote — public (server recomputes fee, never trusts client total)
 		r.Post("/shipping/quote", h.Shipping.Quote)
+	})
 
-		// Payment webhooks — public, exempt from generic rate limiting
+	// Payment webhooks — véritablement exemptés du rate limit générique par IP
+	r.Group(func(r chi.Router) {
 		r.Post("/payments/webhook", h.Payments.Webhook) // Legacy Stripe
 		r.Post("/payments/webhook/stripe", h.Payments.WebhookFor(payment.MethodStripe))
 		r.Post("/payments/webhook/paypal", h.Payments.WebhookFor(payment.MethodPayPal))

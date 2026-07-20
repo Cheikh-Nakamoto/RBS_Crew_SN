@@ -63,6 +63,8 @@ func (h *PaymentsHandler) WebhookFor(method payment.Method) http.HandlerFunc {
 			"PAYPAL-TRANSMISSION-SIG", "PAYPAL-TRANSMISSION-TIME",
 			// Wave
 			"Wave-Signature",
+			// NabooPay
+			"X-Signature",
 		} {
 			if v := r.Header.Get(key); v != "" {
 				headers[key] = v
