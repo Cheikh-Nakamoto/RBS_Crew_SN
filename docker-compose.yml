@@ -78,6 +78,7 @@ services:
       - api-go
     environment:
       INTERNAL_API_URL: http://api-go:4000
+      API_REWRITE_TARGET: http://api-go:4000
       NODE_ENV: ${NODE_ENV:-production}
       AUTH_URL: ${AUTH_URL:-http://localhost:3000}
       AUTH_TRUST_HOST: "true"

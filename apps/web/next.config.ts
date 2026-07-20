@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/backend/:path*',
-        destination: process.env.API_REWRITE_TARGET ?? 'http://localhost:4000/:path*',
+        destination: process.env.API_REWRITE_TARGET ? `${process.env.API_REWRITE_TARGET}/:path*` : 'http://localhost:4000/:path*',
       },
     ];
   },
