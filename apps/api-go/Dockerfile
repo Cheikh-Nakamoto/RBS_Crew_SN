@@ -19,11 +19,10 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 
 
 # ── Stage 2: Runtime ──
-FROM scratch
+FROM alpine:latest
 
-# Import CA certificates and tzdata from the builder stage
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+# Install CA certificates and tzdata (also keeps compatibility if needed, though they could be copied from builder)
+RUN apk add --no-cache ca-certificates tzdata
 
 # Copy the binary
 COPY --from=builder /api-go /api-go
