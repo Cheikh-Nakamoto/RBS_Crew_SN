@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { fetchAdminOrder } from '@/lib/admin/queries';
 import { AdminStatusSelect } from '@/components/admin/admin-status-select';
 import { AdminDeleteButton } from '@/components/admin/admin-delete-button';
-import { updateOrderStatus, deleteOrder } from '../actions';
+import { setOrderStatus, deleteOrder } from '../actions';
 import type { OrderStatus } from '@/types/admin';
 import { auth } from '@/lib/auth';
 import { RefundPanel } from './refund-panel';
@@ -153,7 +153,7 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
         currentValue={order.status}
         label="Modifier le statut"
         options={ORDER_STATUS_LABELS}
-        updateAction={(id, value) => updateOrderStatus(id, { status: value })}
+        updateAction={setOrderStatus}
       />
 
       {/* Actions livraison + remboursement */}

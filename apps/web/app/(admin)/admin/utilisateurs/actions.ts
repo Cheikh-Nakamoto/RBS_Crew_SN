@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getAdminApi } from '@/lib/admin/api';
 import { getAdminToken } from '@/lib/admin/get-token';
 import type { UserRoleFormValues } from '@/lib/admin/schemas';
+import type { UserRole } from '@/types/admin';
 import { parseApiError, type ActionResult } from '@/lib/admin/errors';
 
 export async function updateUserRole(id: string, data: UserRoleFormValues): Promise<ActionResult> {
@@ -16,6 +17,10 @@ export async function updateUserRole(id: string, data: UserRoleFormValues): Prom
   } catch (err) {
     return { success: false, error: await parseApiError(err) };
   }
+}
+
+export async function setUserRole(id: string, role: UserRole): Promise<ActionResult> {
+  return updateUserRole(id, { role });
 }
 
 export async function deleteUser(id: string): Promise<ActionResult<void>> {

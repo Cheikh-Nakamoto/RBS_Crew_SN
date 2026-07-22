@@ -107,7 +107,7 @@ export default async function DevisDetailPage({ params }: { params: Promise<{ id
         currentValue={quote.status as 'NEW' | 'IN_REVIEW' | 'ANSWERED'}
         label="Modifier le statut"
         options={QUOTE_STATUS_LABELS}
-        updateAction={(id, value) => updateQuoteStatus(id, value)}
+        updateAction={updateQuoteStatus}
       />
     </div>
   );

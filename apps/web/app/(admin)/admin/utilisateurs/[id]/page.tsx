@@ -7,7 +7,7 @@ import { fetchAdminUser } from '@/lib/admin/queries';
 import { RoleBadge } from '@/components/admin/role-badge';
 import { AdminStatusSelect } from '@/components/admin/admin-status-select';
 import { AdminDeleteButton } from '@/components/admin/admin-delete-button';
-import { updateUserRole, deleteUser } from '../actions';
+import { setUserRole, deleteUser } from '../actions';
 import type { UserRole } from '@/types/admin';
 import { VerifyEmailButton } from './_components/verify-email-button';
 
@@ -105,7 +105,7 @@ export default async function UtilisateurDetailPage({ params }: { params: Promis
         currentValue={user.role as UserRole}
         label="Modifier le rôle"
         options={ROLE_LABELS}
-        updateAction={(id, value) => updateUserRole(id, { role: value })}
+        updateAction={setUserRole}
       />
     </div>
   );
