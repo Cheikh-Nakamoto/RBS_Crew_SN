@@ -25,6 +25,25 @@ type PaymentsService struct {
 	providers  map[payment.Method]payment.Provider
 	ordersRepo *repository.OrdersRepository
 	cache      *redis.Client
+	// ordersSvc porte la libération transactionnelle du stock. Injecté après
+	// construction (WithOrdersService) pour ne pas casser les appelants existants.
+	ordersSvc *OrdersService
+}
+
+// WithOrdersService branche la compensation de stock sur les webhooks terminaux.
+func (s *PaymentsService) WithOrdersService(o *OrdersService) *PaymentsService {
+	s.ordersSvc = o
+	return s
+}
+
+// releaseStock rend le stock d'une commande qui n'aboutira pas. La garde SQL
+// rend l'appel idempotent : un webhook rejoué ne restitue pas deux fois.
+func (s *PaymentsService) releaseStock(ctx context.Context, orderID string, status db.OrderStatus, pay db.PaymentStatus) error {
+	if s.ordersSvc == nil {
+		return nil
+	}
+	_, err := s.ordersSvc.ReleaseStock(ctx, orderID, status, &pay)
+	return err
 }
 
 func NewPaymentsService(ordersRepo *repository.OrdersRepository, cache *redis.Client, providers ...payment.Provider) *PaymentsService {
@@ -254,15 +273,15 @@ func (s *PaymentsService) HandleWebhook(ctx context.Context, method payment.Meth
 		}
 
 	case "FAILED":
-		failed := db.OrderStatusFAILED
-		if _, err := s.ordersRepo.UpdateOrderPaymentStatus(ctx, orderID, db.PaymentStatusUNPAID, &failed, nil); err != nil {
+		// Paiement échoué : la commande n'aboutira pas, on rend son stock.
+		if err := s.releaseStock(ctx, orderID, db.OrderStatusFAILED, db.PaymentStatusUNPAID); err != nil {
 			slog.Error("Failed to mark order as failed", "orderId", orderID, "error", err)
 			updateErr = err
 		}
 
 	case "REFUNDED":
-		refunded := db.OrderStatusREFUNDED
-		if _, err := s.ordersRepo.UpdateOrderPaymentStatus(ctx, orderID, db.PaymentStatusREFUNDED, &refunded, nil); err != nil {
+		// Remboursement : les articles reviennent en stock.
+		if err := s.releaseStock(ctx, orderID, db.OrderStatusREFUNDED, db.PaymentStatusREFUNDED); err != nil {
 			slog.Error("Failed to mark order as refunded", "orderId", orderID, "error", err)
 			updateErr = err
 		}

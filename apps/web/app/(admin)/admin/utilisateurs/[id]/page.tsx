@@ -9,9 +9,11 @@ import { AdminStatusSelect } from '@/components/admin/admin-status-select';
 import { AdminDeleteButton } from '@/components/admin/admin-delete-button';
 import { updateUserRole, deleteUser } from '../actions';
 import type { UserRole } from '@/types/admin';
+import { VerifyEmailButton } from './_components/verify-email-button';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: 'Administrateur (accès complet)',
+  ARTIST: 'Artiste (gère sa propre fiche)',
   EDITOR: 'Éditeur (accès back-office)',
   CUSTOMER: 'Client',
 };
@@ -61,9 +63,12 @@ export default async function UtilisateurDetailPage({ params }: { params: Promis
             Email vérifié
           </Badge>
         ) : (
-          <Badge variant="outline" className="bg-orange-500/20 text-orange-400 border-orange-500/30">
-            Email non vérifié
-          </Badge>
+          <>
+            <Badge variant="outline" className="bg-orange-500/20 text-orange-400 border-orange-500/30">
+              Email non vérifié
+            </Badge>
+            <VerifyEmailButton userId={user.id} />
+          </>
         )}
       </div>
 

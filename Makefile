@@ -1,7 +1,7 @@
 .PHONY: install dev dev-api dev-web up down logs logs-api logs-web \
         build build-api build-web lint test clean health help \
         db-sqlc db-docs \
-        db-reset db-push \
+        db-reset db-push seed-admin \
         migrate-extract migrate-upload migrate-import migrate-full
 
 # ── Node Env ─────────────────────────────────
@@ -122,6 +122,14 @@ db-push: ## Initialiser une base VIDE depuis sql/schema.sql (base déjà créée
 		echo "Pour viser une autre base : export DATABASE_URL=postgresql://..."; \
 		exit 1; \
 	fi
+
+# Idempotent : réexécuter la cible met à jour le mot de passe du compte existant.
+# ADMIN_PASSWORD est obligatoire ; ADMIN_EMAIL / ADMIN_FIRST_NAME / ADMIN_LAST_NAME
+# sont optionnels. Exemple :
+#   ADMIN_PASSWORD='MonMotDePasse!2026' make seed-admin
+seed-admin: ## Créer ou mettre à jour le compte administrateur (ADMIN_PASSWORD requis)
+	docker compose up -d --wait postgres
+	cd apps/api-go && go run ./cmd/seed-admin
 
 # ── Migration from WordPress ─────────────────
 

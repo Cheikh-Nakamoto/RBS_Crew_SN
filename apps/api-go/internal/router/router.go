@@ -44,9 +44,10 @@ type Handlers struct {
 	Shipping          *handler.ShippingHandler
 	ArtistMe          *handler.ArtistMeHandler
 	AdminArtistInvite *handler.AdminArtistInviteHandler
+	ArtistClaims      *handler.ArtistClaimHandler
 }
 
-func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.ActivityLogRepository) chi.Router {
+func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.ActivityLogRepository, authRepo *repository.AuthRepository) chi.Router {
 	r := chi.NewRouter()
 
 	// ── Global Middlewares ──────────────────────────────────────────────────
@@ -73,7 +74,7 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 			r.Post("/auth/forgot-password", h.Auth.ForgotPassword)
 			r.Post("/auth/reset-password", h.Auth.ResetPassword)
 			r.Post("/auth/accept-invitation", h.Auth.AcceptInvitation)
-		r.Post("/auth/oauth/google", h.Auth.GoogleOAuth)
+			r.Post("/auth/oauth/google", h.Auth.GoogleOAuth)
 		})
 
 		r.Post("/auth/refresh", h.Auth.Refresh)
@@ -154,8 +155,20 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 		r.Put("/users/me/addresses/{id}", h.Users.UpdateAddress)
 		r.Delete("/users/me/addresses/{id}", h.Users.DeleteAddress)
 
+		// Auto-déclaration « je suis un artiste RBS » — n'accorde aucun droit,
+		// elle attend la validation d'un administrateur.
+		r.Post("/users/me/artist-claim", h.ArtistClaims.Submit)
+
+		// Renvoi du lien de vérification. Rate limit dédié : sans lui, l'endpoint
+		// devient un relais d'envoi d'e-mails.
+		r.With(middleware.RateLimit(rate.Every(time.Minute), 3)).
+			Post("/auth/resend-verification", h.Auth.ResendVerification)
+
 		// Orders — authenticated users
-		r.Post("/orders", h.Orders.Create)
+		// Seule la création de commande exige une adresse vérifiée. Ne pas étendre
+		// au groupe entier : /cart, /users/me et le renvoi du lien doivent rester
+		// accessibles, sinon un client bloqué n'a aucun moyen de se débloquer.
+		r.With(middleware.RequireVerifiedEmail(authRepo)).Post("/orders", h.Orders.Create)
 		r.Get("/orders/my", h.Orders.FindMy)
 		r.Get("/orders/{id}", h.Orders.FindOne)
 
@@ -225,6 +238,9 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 		r.Get("/admin/users", h.Users.ListAll)
 		r.Get("/admin/users/{id}", h.Users.GetByID)
 		r.Put("/admin/users/{id}/role", h.Users.UpdateRole)
+		// Filet de sécurité : débloquer un client dont l'e-mail n'arrive pas.
+		r.With(middleware.RequireRoles("ADMIN")).
+			Post("/admin/users/{id}/verify-email", h.Users.AdminVerifyEmail)
 		r.Delete("/admin/users/{id}", h.Users.AdminDelete)
 
 		// Categories admin
@@ -257,6 +273,14 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 		// Créer un compte est une action privilégiée : ADMIN uniquement.
 		r.With(middleware.RequireRoles("ADMIN")).
 			Post("/admin/artists/{id}/invite", h.AdminArtistInvite.Invite)
+
+		// Demandes artiste : consultation ouverte aux éditeurs, décision réservée
+		// aux administrateurs (elle attribue un rôle).
+		r.Get("/admin/artist-claims", h.ArtistClaims.List)
+		r.With(middleware.RequireRoles("ADMIN")).
+			Post("/admin/artist-claims/{userId}/approve", h.ArtistClaims.Approve)
+		r.With(middleware.RequireRoles("ADMIN")).
+			Post("/admin/artist-claims/{userId}/reject", h.ArtistClaims.Reject)
 
 		// Projects admin
 		r.Get("/admin/projects", h.AdminProjects.List)

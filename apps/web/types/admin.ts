@@ -1,5 +1,5 @@
 export type Locale = 'fr' | 'en' | 'de' | 'es' | 'it';
-export type UserRole = 'CUSTOMER' | 'ADMIN' | 'EDITOR';
+export type UserRole = 'CUSTOMER' | 'ADMIN' | 'EDITOR' | 'ARTIST';
 export type ProductStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 export type OrderStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED' | 'REFUNDED' | 'FAILED';
 export type PaymentStatus = 'UNPAID' | 'PAID' | 'PARTIALLY_REFUNDED' | 'REFUNDED';
@@ -205,6 +205,9 @@ export interface AdminArtist {
   isPublished: boolean;
   translations: AdminTranslation[];
   createdAt: string;
+  /** Compte rattaché à la fiche, exposé par l'API pour l'écran de validation. */
+  accountEmail?: string | null;
+  accountStatus?: string | null;
 }
 
 export interface AdminFestivalEdition {

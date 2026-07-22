@@ -12,6 +12,50 @@ import (
 	decimal "github.com/shopspring/decimal"
 )
 
+type ArtistClaimStatus string
+
+const (
+	ArtistClaimStatusNONE     ArtistClaimStatus = "NONE"
+	ArtistClaimStatusPENDING  ArtistClaimStatus = "PENDING"
+	ArtistClaimStatusAPPROVED ArtistClaimStatus = "APPROVED"
+	ArtistClaimStatusREJECTED ArtistClaimStatus = "REJECTED"
+)
+
+func (e *ArtistClaimStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ArtistClaimStatus(s)
+	case string:
+		*e = ArtistClaimStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ArtistClaimStatus: %T", src)
+	}
+	return nil
+}
+
+type NullArtistClaimStatus struct {
+	ArtistClaimStatus ArtistClaimStatus `json:"ArtistClaimStatus"`
+	Valid             bool              `json:"valid"` // Valid is true if ArtistClaimStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullArtistClaimStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ArtistClaimStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ArtistClaimStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullArtistClaimStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ArtistClaimStatus), nil
+}
+
 type Locale string
 
 const (
@@ -748,22 +792,25 @@ type TagTranslation struct {
 }
 
 type User struct {
-	ID                           string           `json:"id"`
-	Email                        string           `json:"email"`
-	PasswordHash                 string           `json:"passwordHash"`
-	FirstName                    *string          `json:"firstName"`
-	LastName                     *string          `json:"lastName"`
-	Phone                        *string          `json:"phone"`
-	Role                         UserRole         `json:"role"`
-	EmailVerified                bool             `json:"emailVerified"`
-	PreferredLocale              Locale           `json:"preferredLocale"`
-	WcId                         *int32           `json:"wcId"`
-	ResetToken                   *string          `json:"resetToken"`
-	ResetTokenExpiry             pgtype.Timestamp `json:"resetTokenExpiry"`
-	EmailVerificationToken       *string          `json:"emailVerificationToken"`
-	EmailVerificationTokenExpiry pgtype.Timestamp `json:"emailVerificationTokenExpiry"`
-	CreatedAt                    pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt                    pgtype.Timestamp `json:"updatedAt"`
+	ID                           string            `json:"id"`
+	Email                        string            `json:"email"`
+	PasswordHash                 string            `json:"passwordHash"`
+	FirstName                    *string           `json:"firstName"`
+	LastName                     *string           `json:"lastName"`
+	Phone                        *string           `json:"phone"`
+	Role                         UserRole          `json:"role"`
+	EmailVerified                bool              `json:"emailVerified"`
+	PreferredLocale              Locale            `json:"preferredLocale"`
+	WcId                         *int32            `json:"wcId"`
+	ResetToken                   *string           `json:"resetToken"`
+	ResetTokenExpiry             pgtype.Timestamp  `json:"resetTokenExpiry"`
+	EmailVerificationToken       *string           `json:"emailVerificationToken"`
+	EmailVerificationTokenExpiry pgtype.Timestamp  `json:"emailVerificationTokenExpiry"`
+	CreatedAt                    pgtype.Timestamp  `json:"createdAt"`
+	UpdatedAt                    pgtype.Timestamp  `json:"updatedAt"`
+	ArtistClaimStatus            ArtistClaimStatus `json:"artistClaimStatus"`
+	ArtistClaimNote              *string           `json:"artistClaimNote"`
+	ArtistClaimAt                pgtype.Timestamp  `json:"artistClaimAt"`
 }
 
 type UserSession struct {

@@ -171,3 +171,31 @@ type ArtistArtworkInput struct {
 type ArtistInviteInput struct {
 	Email string `json:"email" validate:"required,email"`
 }
+
+// ── Demandes « je suis un artiste RBS » ──────────────────────────────────────
+
+// ArtistClaimInput : auto-déclaration par un client connecté.
+type ArtistClaimInput struct {
+	// Note libre aidant l'administrateur à identifier l'artiste (nom de scène,
+	// discipline…). Facultative.
+	Note *string `json:"note"`
+}
+
+// ArtistClaimResponse : une demande telle que l'administrateur la voit.
+type ArtistClaimResponse struct {
+	UserID         string     `json:"userId"`
+	Email          string     `json:"email"`
+	FirstName      *string    `json:"firstName"`
+	LastName       *string    `json:"lastName"`
+	Phone          *string    `json:"phone"`
+	Role           string     `json:"role"`
+	Status         string     `json:"status"`
+	Note           *string    `json:"note"`
+	RequestedAt    *time.Time `json:"requestedAt"`
+	LinkedArtistID *string    `json:"linkedArtistId"`
+}
+
+// ApproveArtistClaimInput : validation, avec la fiche artiste à rattacher.
+type ApproveArtistClaimInput struct {
+	ArtistID string `json:"artistId" validate:"required"`
+}

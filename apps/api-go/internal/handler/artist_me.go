@@ -156,3 +156,69 @@ func (h *AdminArtistInviteHandler) Invite(w http.ResponseWriter, r *http.Request
 		"emailSent": emailSent,
 	})
 }
+
+// ── Demandes « je suis un artiste RBS » ──────────────────────────────────────
+
+// ArtistClaimHandler : auto-déclaration côté client et validation côté admin.
+type ArtistClaimHandler struct {
+	svc *service.ArtistAccountsService
+}
+
+func NewArtistClaimHandler(svc *service.ArtistAccountsService) *ArtistClaimHandler {
+	return &ArtistClaimHandler{svc: svc}
+}
+
+// POST /users/me/artist-claim — le client connecté se déclare artiste.
+func (h *ArtistClaimHandler) Submit(w http.ResponseWriter, r *http.Request) {
+	uid, ok := r.Context().Value(types.CtxUserID).(string)
+	if !ok || uid == "" {
+		types.WriteError(w, types.Unauthorized("non authentifié"))
+		return
+	}
+	var in model.ArtistClaimInput
+	// Corps facultatif : une demande sans note reste valable.
+	_ = json.NewDecoder(r.Body).Decode(&in)
+
+	if appErr := h.svc.SubmitClaim(r.Context(), uid, in.Note); appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, map[string]string{"status": "PENDING"})
+}
+
+// GET /admin/artist-claims?status=PENDING
+func (h *ArtistClaimHandler) List(w http.ResponseWriter, r *http.Request) {
+	claims, appErr := h.svc.ListClaims(r.Context(), r.URL.Query().Get("status"))
+	if appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, claims)
+}
+
+// POST /admin/artist-claims/{userId}/approve
+func (h *ArtistClaimHandler) Approve(w http.ResponseWriter, r *http.Request) {
+	var in model.ApproveArtistClaimInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		types.WriteError(w, types.BadRequest("payload invalide"))
+		return
+	}
+	if err := validate.Struct(in); err != nil {
+		types.WriteError(w, types.BadRequest("Sélectionnez la fiche artiste à rattacher"))
+		return
+	}
+	if appErr := h.svc.ApproveClaim(r.Context(), chi.URLParam(r, "userId"), in.ArtistID); appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, map[string]string{"status": "APPROVED"})
+}
+
+// POST /admin/artist-claims/{userId}/reject
+func (h *ArtistClaimHandler) Reject(w http.ResponseWriter, r *http.Request) {
+	if appErr := h.svc.RejectClaim(r.Context(), chi.URLParam(r, "userId")); appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, map[string]string{"status": "REJECTED"})
+}

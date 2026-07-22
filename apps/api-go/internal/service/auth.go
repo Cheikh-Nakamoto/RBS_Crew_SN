@@ -84,6 +84,17 @@ func (s *AuthService) Register(ctx context.Context, req model.RegisterRequest) (
 		return nil, types.InternalError("Failed to create user")
 	}
 
+	// Case « es-tu un artiste de RBS ? » : on enregistre une simple demande.
+	// Le compte reste un compte client tant qu'un administrateur ne l'a pas
+	// validée en le rattachant à une fiche artiste. Un échec ici ne doit pas
+	// faire échouer l'inscription : l'utilisateur pourra redemander depuis son
+	// profil.
+	if req.IsArtist {
+		if _, claimErr := s.repo.SubmitArtistClaim(ctx, user.ID, nil); claimErr != nil {
+			slog.Warn("auth: artist claim at registration failed", "error", claimErr, "userId", user.ID)
+		}
+	}
+
 	// Send email verification asynchronously — do not block registration on mail failure
 	verificationToken := uuid.New().String()
 	exp := pgtype.Timestamp{Time: time.Now().Add(24 * time.Hour), Valid: true}
@@ -344,6 +355,32 @@ func (s *AuthService) AcceptInvitation(ctx context.Context, token, password stri
 		return nil, "", appErr
 	}
 	return tokens, user.Email, nil
+}
+
+// ResendVerification réémet un lien de vérification pour le compte courant.
+// Le token d'inscription expire en 24 h : sans ce chemin, un client qui a laissé
+// passer le délai serait définitivement incapable de commander.
+func (s *AuthService) ResendVerification(ctx context.Context, userID string) *types.AppError {
+	user, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return types.NotFound("Utilisateur introuvable")
+	}
+	// Réponse volontairement identique si l'adresse est déjà vérifiée : rien à
+	// renvoyer, et aucune raison de le signaler différemment.
+	if user.EmailVerified {
+		return nil
+	}
+
+	token := uuid.New().String()
+	exp := pgtype.Timestamp{Time: time.Now().Add(24 * time.Hour), Valid: true}
+	if err := s.repo.SetEmailVerificationToken(ctx, user.ID, &token, exp); err != nil {
+		return types.InternalError("Erreur base de données")
+	}
+	if err := s.mailService.SendEmailVerification(user.Email, token); err != nil {
+		slog.Error("auth: resend verification failed", "error", err, "userId", userID)
+		return types.InternalError("Impossible d'envoyer l'e-mail de vérification")
+	}
+	return nil
 }
 
 func (s *AuthService) VerifyEmail(ctx context.Context, token string) *types.AppError {

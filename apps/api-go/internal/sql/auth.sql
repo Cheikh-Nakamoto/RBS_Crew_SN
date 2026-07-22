@@ -7,7 +7,7 @@ VALUES ($1, $2, $3, $4, $5, $6, 'CUSTOMER'::"UserRole", 'fr'::"Locale", NOW(), N
 RETURNING *;
 
 -- name: GetUserByID :one
-SELECT "id", "email", "firstName", "lastName", "role", "preferredLocale", "createdAt"
+SELECT "id", "email", "firstName", "lastName", "role", "preferredLocale", "createdAt", "emailVerified"
 FROM "User" WHERE "id" = $1;
 
 -- name: CreateSession :one
@@ -63,3 +63,30 @@ RETURNING *;
 
 -- name: UpdateUserRole :one
 UPDATE "User" SET "role" = $2::"UserRole", "updatedAt" = NOW() WHERE "id" = $1 RETURNING *;
+
+-- Auto-déclaration « je suis un artiste RBS ». Idempotente : re-soumettre
+-- remplace la note et repasse en PENDING (utile après un refus).
+-- name: SubmitArtistClaim :one
+UPDATE "User"
+SET "artistClaimStatus" = 'PENDING'::"ArtistClaimStatus",
+    "artistClaimNote"   = $2,
+    "artistClaimAt"     = NOW(),
+    "updatedAt"         = NOW()
+WHERE "id" = $1
+RETURNING *;
+
+-- name: ListArtistClaims :many
+SELECT u."id", u."email", u."firstName", u."lastName", u."phone",
+       u."role", u."artistClaimStatus", u."artistClaimNote", u."artistClaimAt",
+       a."id" AS "linkedArtistId"
+FROM "User" u
+LEFT JOIN "Artist" a ON a."userId" = u."id"
+WHERE u."artistClaimStatus" = sqlc.arg('status')::"ArtistClaimStatus"
+ORDER BY u."artistClaimAt" DESC NULLS LAST;
+
+-- name: SetArtistClaimStatus :one
+UPDATE "User"
+SET "artistClaimStatus" = $2::"ArtistClaimStatus",
+    "updatedAt"         = NOW()
+WHERE "id" = $1
+RETURNING *;

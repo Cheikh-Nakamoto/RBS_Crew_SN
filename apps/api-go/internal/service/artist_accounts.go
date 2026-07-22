@@ -329,3 +329,101 @@ func (s *ArtistAccountsService) invalidateCache(ctx context.Context) {
 		s.artistsSvc.ClearCache(ctx)
 	}
 }
+
+// ── Demandes « je suis un artiste RBS » ──────────────────────────────────────
+
+// SubmitClaim enregistre l'auto-déclaration d'un client. Elle n'accorde aucun
+// privilège : seul un administrateur peut la valider, en rattachant une fiche.
+func (s *ArtistAccountsService) SubmitClaim(ctx context.Context, userID string, note *string) *types.AppError {
+	if _, err := s.authRepo.SubmitArtistClaim(ctx, userID, note); err != nil {
+		slog.Error("artist-claims: submit failed", "error", err, "userId", userID)
+		return types.InternalError("Impossible d'enregistrer votre demande")
+	}
+	return nil
+}
+
+// ListClaims renvoie les demandes d'un statut donné (PENDING par défaut).
+func (s *ArtistAccountsService) ListClaims(ctx context.Context, status string) ([]model.ArtistClaimResponse, *types.AppError) {
+	if status == "" {
+		status = "PENDING"
+	}
+	rows, err := s.authRepo.ListArtistClaims(ctx, db.ArtistClaimStatus(status))
+	if err != nil {
+		slog.Error("artist-claims: list failed", "error", err)
+		return nil, types.InternalError("Erreur base de données")
+	}
+
+	out := make([]model.ArtistClaimResponse, 0, len(rows))
+	for _, r := range rows {
+		claim := model.ArtistClaimResponse{
+			UserID:         r.ID,
+			Email:          r.Email,
+			FirstName:      r.FirstName,
+			LastName:       r.LastName,
+			Phone:          r.Phone,
+			Role:           string(r.Role),
+			Status:         string(r.ArtistClaimStatus),
+			Note:           r.ArtistClaimNote,
+			LinkedArtistID: r.LinkedArtistId,
+		}
+		if r.ArtistClaimAt.Valid {
+			t := r.ArtistClaimAt.Time
+			claim.RequestedAt = &t
+		}
+		out = append(out, claim)
+	}
+	return out, nil
+}
+
+// ApproveClaim valide une demande : rôle ARTIST + rattachement à la fiche
+// choisie par l'administrateur. Les deux vont toujours ensemble — un rôle sans
+// fiche donnerait un espace artiste vide.
+func (s *ArtistAccountsService) ApproveClaim(ctx context.Context, userID, artistID string) *types.AppError {
+	artist, err := s.artistsRepo.GetByID(ctx, artistID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return types.NotFound("Fiche artiste introuvable")
+		}
+		return types.InternalError("Erreur base de données")
+	}
+	if artist.UserId != nil && *artist.UserId != userID {
+		return types.Conflict("Un autre compte est déjà rattaché à cette fiche")
+	}
+
+	user, err := s.authRepo.GetUserByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return types.NotFound("Utilisateur introuvable")
+		}
+		return types.InternalError("Erreur base de données")
+	}
+	// Ne jamais rétrograder un compte d'administration en ARTIST.
+	if user.Role == db.UserRoleADMIN || user.Role == db.UserRoleEDITOR {
+		return types.BadRequest("Ce compte est un compte d'administration")
+	}
+
+	if _, err := s.authRepo.UpdateRole(ctx, userID, db.UserRoleARTIST); err != nil {
+		slog.Error("artist-claims: role update failed", "error", err, "userId", userID)
+		return types.InternalError("Impossible d'attribuer le rôle")
+	}
+	if _, err := s.artistsRepo.LinkUser(ctx, artistID, userID); err != nil {
+		slog.Error("artist-claims: link failed", "error", err, "userId", userID)
+		return types.InternalError("Impossible de rattacher la fiche")
+	}
+	if _, err := s.authRepo.SetArtistClaimStatus(ctx, userID, db.ArtistClaimStatus("APPROVED")); err != nil {
+		slog.Error("artist-claims: status update failed", "error", err, "userId", userID)
+		return types.InternalError("Impossible de clôturer la demande")
+	}
+
+	s.invalidateCache(ctx)
+	return nil
+}
+
+// RejectClaim refuse une demande sans toucher au rôle ni aux fiches.
+func (s *ArtistAccountsService) RejectClaim(ctx context.Context, userID string) *types.AppError {
+	if _, err := s.authRepo.SetArtistClaimStatus(ctx, userID, db.ArtistClaimStatus("REJECTED")); err != nil {
+		slog.Error("artist-claims: reject failed", "error", err, "userId", userID)
+		return types.InternalError("Impossible de refuser la demande")
+	}
+	return nil
+}

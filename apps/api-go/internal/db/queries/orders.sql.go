@@ -230,6 +230,33 @@ func (q *Queries) GetProductForOrder(ctx context.Context, id string) (GetProduct
 	return i, err
 }
 
+const listExpiredUnpaidOrders = `-- name: ListExpiredUnpaidOrders :many
+SELECT "id" FROM "Order"
+WHERE "status" = 'PENDING' AND "paymentStatus" = 'UNPAID' AND "createdAt" < $1
+ORDER BY "createdAt"
+`
+
+// Commandes jamais payées, candidates à l'expiration.
+func (q *Queries) ListExpiredUnpaidOrders(ctx context.Context, createdat pgtype.Timestamp) ([]string, error) {
+	rows, err := q.db.Query(ctx, listExpiredUnpaidOrders, createdat)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMyOrders = `-- name: ListMyOrders :many
 SELECT id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "shippingMethodId", "shippingCarrier", "trackingNumber", "shippedAt", "deliveredAt", "customerFirstName", "customerLastName", "customerPhone", COUNT(*) OVER() AS total_count
 FROM "Order"
@@ -422,6 +449,33 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]ListO
 		return nil, err
 	}
 	return items, nil
+}
+
+const releaseOrderStock = `-- name: ReleaseOrderStock :execrows
+UPDATE "Order"
+SET "status" = $2::"OrderStatus",
+    "paymentStatus" = COALESCE($3::"PaymentStatus", "paymentStatus"),
+    "updatedAt" = NOW()
+WHERE "id" = $1
+  AND "status" NOT IN ('FAILED', 'CANCELLED', 'REFUNDED')
+`
+
+type ReleaseOrderStockParams struct {
+	ID            string         `json:"id"`
+	Column2       OrderStatus    `json:"column_2"`
+	PaymentStatus *PaymentStatus `json:"paymentStatus"`
+}
+
+// Transition vers un état terminal qui LIBÈRE le stock. La garde sur le statut
+// courant rend l'opération idempotente : un webhook rejoué, ou une expiration
+// concurrente d'une annulation admin, ne touche aucune ligne et ne restitue donc
+// pas le stock une seconde fois.
+func (q *Queries) ReleaseOrderStock(ctx context.Context, arg ReleaseOrderStockParams) (int64, error) {
+	result, err := q.db.Exec(ctx, releaseOrderStock, arg.ID, arg.Column2, arg.PaymentStatus)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateOrderShipping = `-- name: UpdateOrderShipping :one

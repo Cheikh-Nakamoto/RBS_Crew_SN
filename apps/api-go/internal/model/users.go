@@ -10,7 +10,8 @@ type UpdateUserDTO struct {
 }
 
 type UpdateUserRoleDTO struct {
-	Role string `json:"role" validate:"required,oneof=CUSTOMER EDITOR ADMIN"`
+	// Doit rester aligné sur l'enum "UserRole" de sql/schema.sql.
+	Role string `json:"role" validate:"required,oneof=CUSTOMER EDITOR ADMIN ARTIST"`
 }
 
 type CreateAddressDTO struct {
@@ -48,6 +49,12 @@ type UserProfileResponse struct {
 	Role            string    `json:"role"`
 	PreferredLocale string    `json:"preferredLocale"`
 	CreatedAt       time.Time `json:"createdAt"`
+	// État de la demande « je suis un artiste RBS » : NONE, PENDING, APPROVED
+	// ou REJECTED. Permet au profil d'afficher l'état sans requête dédiée.
+	ArtistClaimStatus string `json:"artistClaimStatus"`
+	// Nécessaire au checkout (blocage de la commande) et à l'affichage admin,
+	// qui prétendait déjà l'afficher sans que l'API ne le renvoie.
+	EmailVerified bool `json:"emailVerified"`
 }
 
 type AddressResponse struct {

@@ -169,7 +169,7 @@ export type OrderStatusFormValues = z.infer<typeof orderStatusSchema>;
 
 // ─── User role update ─────────────────────────────────────────────
 export const userRoleSchema = z.object({
-  role: z.enum(['CUSTOMER', 'ADMIN', 'EDITOR']),
+  role: z.enum(['CUSTOMER', 'ADMIN', 'EDITOR', 'ARTIST']),
 });
 
 export type UserRoleFormValues = z.infer<typeof userRoleSchema>;

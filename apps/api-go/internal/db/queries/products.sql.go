@@ -524,6 +524,28 @@ func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]L
 	return items, nil
 }
 
+const restoreStock = `-- name: RestoreStock :execrows
+UPDATE "Product" SET "stock" = "stock" + $2, "updatedAt" = NOW()
+WHERE "id" = $1 AND "manageStock" = true
+`
+
+type RestoreStockParams struct {
+	ID    string `json:"id"`
+	Stock int32  `json:"stock"`
+}
+
+// Pendant de DecrementStock : rend les unités d'une commande qui n'aboutira pas
+// (paiement échoué, annulation, remboursement, expiration).
+// Le filtre manageStock reflète celui du décrément : un produit non géré en
+// stock n'a jamais été décrémenté, il ne doit pas être incrémenté.
+func (q *Queries) RestoreStock(ctx context.Context, arg RestoreStockParams) (int64, error) {
+	result, err := q.db.Exec(ctx, restoreStock, arg.ID, arg.Stock)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateProduct = `-- name: UpdateProduct :one
 UPDATE "Product"
 SET "sku" = COALESCE($2, "sku"),

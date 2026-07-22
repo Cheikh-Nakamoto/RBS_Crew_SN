@@ -196,6 +196,59 @@ func (q *Queries) GetPaymentsByOrderID(ctx context.Context, orderid string) ([]P
 	return items, nil
 }
 
+const updateOrderPaymentMethodOnly = `-- name: UpdateOrderPaymentMethodOnly :one
+UPDATE "Order"
+SET "paymentMethod" = $2::"PaymentMethod",
+    "updatedAt" = NOW()
+WHERE "id" = $1
+RETURNING id, "orderNumber", "userId", "guestEmail", status, "paymentStatus", "paymentMethod", "stripePaymentIntentId", currency, subtotal, "taxAmount", "shippingAmount", "discountAmount", total, "shippingAddressId", "billingAddressId", notes, "wcId", locale, "createdAt", "updatedAt", "shippingMethodId", "shippingCarrier", "trackingNumber", "shippedAt", "deliveredAt", "customerFirstName", "customerLastName", "customerPhone"
+`
+
+type UpdateOrderPaymentMethodOnlyParams struct {
+	ID      string        `json:"id"`
+	Column2 PaymentMethod `json:"column_2"`
+}
+
+// Mise à jour du SEUL moyen de paiement. UpdateOrderPaymentStatus exige un
+// "paymentStatus" non nul : l'appeler pour ne renseigner que la méthode
+// envoyait une chaîne vide et Postgres rejetait la requête.
+func (q *Queries) UpdateOrderPaymentMethodOnly(ctx context.Context, arg UpdateOrderPaymentMethodOnlyParams) (Order, error) {
+	row := q.db.QueryRow(ctx, updateOrderPaymentMethodOnly, arg.ID, arg.Column2)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.OrderNumber,
+		&i.UserId,
+		&i.GuestEmail,
+		&i.Status,
+		&i.PaymentStatus,
+		&i.PaymentMethod,
+		&i.StripePaymentIntentId,
+		&i.Currency,
+		&i.Subtotal,
+		&i.TaxAmount,
+		&i.ShippingAmount,
+		&i.DiscountAmount,
+		&i.Total,
+		&i.ShippingAddressId,
+		&i.BillingAddressId,
+		&i.Notes,
+		&i.WcId,
+		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ShippingMethodId,
+		&i.ShippingCarrier,
+		&i.TrackingNumber,
+		&i.ShippedAt,
+		&i.DeliveredAt,
+		&i.CustomerFirstName,
+		&i.CustomerLastName,
+		&i.CustomerPhone,
+	)
+	return i, err
+}
+
 const updateOrderPaymentStatus = `-- name: UpdateOrderPaymentStatus :one
 UPDATE "Order"
 SET "paymentStatus" = $2::"PaymentStatus",

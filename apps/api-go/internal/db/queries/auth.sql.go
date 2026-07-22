@@ -61,7 +61,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (U
 const createUser = `-- name: CreateUser :one
 INSERT INTO "User" ("id", "email", "passwordHash", "firstName", "lastName", "phone", "role", "preferredLocale", "createdAt", "updatedAt", "emailVerified")
 VALUES ($1, $2, $3, $4, $5, $6, 'CUSTOMER'::"UserRole", 'fr'::"Locale", NOW(), NOW(), false)
-RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt"
+RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt", "artistClaimStatus", "artistClaimNote", "artistClaimAt"
 `
 
 type CreateUserParams struct {
@@ -100,6 +100,9 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.EmailVerificationTokenExpiry,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ArtistClaimStatus,
+		&i.ArtistClaimNote,
+		&i.ArtistClaimAt,
 	)
 	return i, err
 }
@@ -107,7 +110,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 const createUserWithRole = `-- name: CreateUserWithRole :one
 INSERT INTO "User" ("id", "email", "passwordHash", "firstName", "lastName", "phone", "role", "preferredLocale", "createdAt", "updatedAt", "emailVerified")
 VALUES ($1, $2, $3, $4, $5, $6, $7::"UserRole", 'fr'::"Locale", NOW(), NOW(), false)
-RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt"
+RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt", "artistClaimStatus", "artistClaimNote", "artistClaimAt"
 `
 
 type CreateUserWithRoleParams struct {
@@ -150,6 +153,9 @@ func (q *Queries) CreateUserWithRole(ctx context.Context, arg CreateUserWithRole
 		&i.EmailVerificationTokenExpiry,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ArtistClaimStatus,
+		&i.ArtistClaimNote,
+		&i.ArtistClaimAt,
 	)
 	return i, err
 }
@@ -195,7 +201,7 @@ func (q *Queries) GetActiveSessionsByUser(ctx context.Context, userid string) ([
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt" FROM "User" WHERE "email" = $1
+SELECT id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt", "artistClaimStatus", "artistClaimNote", "artistClaimAt" FROM "User" WHERE "email" = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -218,6 +224,9 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.EmailVerificationTokenExpiry,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ArtistClaimStatus,
+		&i.ArtistClaimNote,
+		&i.ArtistClaimAt,
 	)
 	return i, err
 }
@@ -243,7 +252,7 @@ func (q *Queries) GetUserByEmailVerificationToken(ctx context.Context, emailveri
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT "id", "email", "firstName", "lastName", "role", "preferredLocale", "createdAt"
+SELECT "id", "email", "firstName", "lastName", "role", "preferredLocale", "createdAt", "emailVerified"
 FROM "User" WHERE "id" = $1
 `
 
@@ -255,6 +264,7 @@ type GetUserByIDRow struct {
 	Role            UserRole         `json:"role"`
 	PreferredLocale Locale           `json:"preferredLocale"`
 	CreatedAt       pgtype.Timestamp `json:"createdAt"`
+	EmailVerified   bool             `json:"emailVerified"`
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error) {
@@ -268,6 +278,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, e
 		&i.Role,
 		&i.PreferredLocale,
 		&i.CreatedAt,
+		&i.EmailVerified,
 	)
 	return i, err
 }
@@ -296,6 +307,100 @@ func (q *Queries) GetUserByResetToken(ctx context.Context, resettoken *string) (
 		&i.ResetToken,
 		&i.ResetTokenExpiry,
 		&i.EmailVerified,
+	)
+	return i, err
+}
+
+const listArtistClaims = `-- name: ListArtistClaims :many
+SELECT u."id", u."email", u."firstName", u."lastName", u."phone",
+       u."role", u."artistClaimStatus", u."artistClaimNote", u."artistClaimAt",
+       a."id" AS "linkedArtistId"
+FROM "User" u
+LEFT JOIN "Artist" a ON a."userId" = u."id"
+WHERE u."artistClaimStatus" = $1::"ArtistClaimStatus"
+ORDER BY u."artistClaimAt" DESC NULLS LAST
+`
+
+type ListArtistClaimsRow struct {
+	ID                string            `json:"id"`
+	Email             string            `json:"email"`
+	FirstName         *string           `json:"firstName"`
+	LastName          *string           `json:"lastName"`
+	Phone             *string           `json:"phone"`
+	Role              UserRole          `json:"role"`
+	ArtistClaimStatus ArtistClaimStatus `json:"artistClaimStatus"`
+	ArtistClaimNote   *string           `json:"artistClaimNote"`
+	ArtistClaimAt     pgtype.Timestamp  `json:"artistClaimAt"`
+	LinkedArtistId    *string           `json:"linkedArtistId"`
+}
+
+func (q *Queries) ListArtistClaims(ctx context.Context, status ArtistClaimStatus) ([]ListArtistClaimsRow, error) {
+	rows, err := q.db.Query(ctx, listArtistClaims, status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListArtistClaimsRow{}
+	for rows.Next() {
+		var i ListArtistClaimsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.FirstName,
+			&i.LastName,
+			&i.Phone,
+			&i.Role,
+			&i.ArtistClaimStatus,
+			&i.ArtistClaimNote,
+			&i.ArtistClaimAt,
+			&i.LinkedArtistId,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setArtistClaimStatus = `-- name: SetArtistClaimStatus :one
+UPDATE "User"
+SET "artistClaimStatus" = $2::"ArtistClaimStatus",
+    "updatedAt"         = NOW()
+WHERE "id" = $1
+RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt", "artistClaimStatus", "artistClaimNote", "artistClaimAt"
+`
+
+type SetArtistClaimStatusParams struct {
+	ID      string            `json:"id"`
+	Column2 ArtistClaimStatus `json:"column_2"`
+}
+
+func (q *Queries) SetArtistClaimStatus(ctx context.Context, arg SetArtistClaimStatusParams) (User, error) {
+	row := q.db.QueryRow(ctx, setArtistClaimStatus, arg.ID, arg.Column2)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.FirstName,
+		&i.LastName,
+		&i.Phone,
+		&i.Role,
+		&i.EmailVerified,
+		&i.PreferredLocale,
+		&i.WcId,
+		&i.ResetToken,
+		&i.ResetTokenExpiry,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationTokenExpiry,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ArtistClaimStatus,
+		&i.ArtistClaimNote,
+		&i.ArtistClaimAt,
 	)
 	return i, err
 }
@@ -347,8 +452,52 @@ func (q *Queries) SetPasswordResetToken(ctx context.Context, arg SetPasswordRese
 	return err
 }
 
+const submitArtistClaim = `-- name: SubmitArtistClaim :one
+UPDATE "User"
+SET "artistClaimStatus" = 'PENDING'::"ArtistClaimStatus",
+    "artistClaimNote"   = $2,
+    "artistClaimAt"     = NOW(),
+    "updatedAt"         = NOW()
+WHERE "id" = $1
+RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt", "artistClaimStatus", "artistClaimNote", "artistClaimAt"
+`
+
+type SubmitArtistClaimParams struct {
+	ID              string  `json:"id"`
+	ArtistClaimNote *string `json:"artistClaimNote"`
+}
+
+// Auto-déclaration « je suis un artiste RBS ». Idempotente : re-soumettre
+// remplace la note et repasse en PENDING (utile après un refus).
+func (q *Queries) SubmitArtistClaim(ctx context.Context, arg SubmitArtistClaimParams) (User, error) {
+	row := q.db.QueryRow(ctx, submitArtistClaim, arg.ID, arg.ArtistClaimNote)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.FirstName,
+		&i.LastName,
+		&i.Phone,
+		&i.Role,
+		&i.EmailVerified,
+		&i.PreferredLocale,
+		&i.WcId,
+		&i.ResetToken,
+		&i.ResetTokenExpiry,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationTokenExpiry,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ArtistClaimStatus,
+		&i.ArtistClaimNote,
+		&i.ArtistClaimAt,
+	)
+	return i, err
+}
+
 const updateUserRole = `-- name: UpdateUserRole :one
-UPDATE "User" SET "role" = $2::"UserRole", "updatedAt" = NOW() WHERE "id" = $1 RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt"
+UPDATE "User" SET "role" = $2::"UserRole", "updatedAt" = NOW() WHERE "id" = $1 RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt", "artistClaimStatus", "artistClaimNote", "artistClaimAt"
 `
 
 type UpdateUserRoleParams struct {
@@ -376,6 +525,9 @@ func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) 
 		&i.EmailVerificationTokenExpiry,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ArtistClaimStatus,
+		&i.ArtistClaimNote,
+		&i.ArtistClaimAt,
 	)
 	return i, err
 }

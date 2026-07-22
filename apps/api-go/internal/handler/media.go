@@ -1,20 +1,20 @@
 package handler
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/types"
 	"github.com/gabriel-vasile/mimetype"
 )
 
@@ -27,8 +27,8 @@ type MediaHandler struct {
 func NewMediaHandler(accountID, accessKey, secretKey, bucket, publicURL string) *MediaHandler {
 	endpoint := fmt.Sprintf("https://%s.r2.cloudflarestorage.com", accountID)
 	client := s3.New(s3.Options{
-		Region:      "auto",
-		Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
+		Region:       "auto",
+		Credentials:  aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
 		BaseEndpoint: aws.String(endpoint),
 	})
 	return &MediaHandler{s3Client: client, bucket: bucket, publicURL: strings.TrimRight(publicURL, "/")}
@@ -63,8 +63,9 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 	declared, _, _ = mime.ParseMediaType(declared)
 
-	// Read up to 512 bytes for magic-byte sniffing; the file must remain fully
-	// readable afterwards, so we buffer the sniffed bytes back in front.
+	// Read up to 512 bytes for magic-byte sniffing. multipart.File est un
+	// io.Seeker : on rembobine ensuite plutôt que de reconstituer le flux, ce qui
+	// garde un corps seekable pour l'upload (voir plus bas).
 	sniffBuf := make([]byte, 512)
 	n, err := io.ReadFull(file, sniffBuf)
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
@@ -88,8 +89,16 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Reconstitute the full stream: sniffed prefix + remainder of the uploaded file.
-	body := io.MultiReader(bytes.NewReader(sniffBuf), file)
+	// Rembobiner après le sniffing. Un io.MultiReader ferait l'affaire pour
+	// relire le contenu, mais il n'est ni seekable ni de taille connue : le SDK
+	// bascule alors en envoi streaming et R2 — contrairement à S3 — refuse la
+	// requête avec « 411 MissingContentLength ». Le fichier multipart est un
+	// io.Seeker, on s'en sert pour fournir un corps seekable et sa taille exacte.
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		slog.Error("media: seek failed", "error", err)
+		types.WriteError(w, types.InternalError("Impossible de relire le fichier"))
+		return
+	}
 
 	key := fmt.Sprintf("uploads/%d_%s%s",
 		time.Now().UnixNano(),
@@ -98,12 +107,18 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	)
 
 	_, err = h.s3Client.PutObject(context.Background(), &s3.PutObjectInput{
-		Bucket:      aws.String(h.bucket),
-		Key:         aws.String(key),
-		Body:        body,
-		ContentType: aws.String(detected),
+		Bucket:        aws.String(h.bucket),
+		Key:           aws.String(key),
+		Body:          file,
+		ContentLength: aws.Int64(header.Size),
+		ContentType:   aws.String(detected),
 	})
 	if err != nil {
+		// Sans cette trace, un échec d'upload est indiagnosticable : le client ne
+		// reçoit qu'un 500 générique (à dessein) et la cause réelle — bucket
+		// absent, identifiants invalides, réseau — était perdue.
+		slog.Error("media: R2 upload failed",
+			"error", err, "bucket", h.bucket, "key", key)
 		types.WriteError(w, types.InternalError("Erreur lors de l'upload vers le stockage"))
 		return
 	}

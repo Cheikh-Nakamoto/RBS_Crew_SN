@@ -162,3 +162,12 @@ func (h *UsersHandler) AdminDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	types.WriteJSON(w, http.StatusOK, map[string]string{"message": "User deleted"})
 }
+
+// POST /admin/users/{id}/verify-email
+func (h *UsersHandler) AdminVerifyEmail(w http.ResponseWriter, r *http.Request) {
+	if appErr := h.svc.AdminVerifyEmail(r.Context(), chi.URLParam(r, "id")); appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, map[string]bool{"emailVerified": true})
+}

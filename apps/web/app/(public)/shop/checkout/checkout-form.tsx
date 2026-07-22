@@ -4,108 +4,48 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
-import { useCallback, useEffect, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { checkoutSchema, type CheckoutFormValues } from '@/lib/checkout-schema';
 import { createNabooCheckout } from './actions';
 import type { CartItem } from '@/lib/cart-store';
 import { formatXOF } from '@/lib/format';
-import { Lock, ArrowRight, Truck } from 'lucide-react';
-import { apiUrl } from '@/lib/api-base';
+import { Lock, ArrowRight } from 'lucide-react';
 
-interface ShippingOption {
-  methodId: string;
-  methodCode: string;
-  name: Record<string, string>;
-  flatFee: number;
-  currency: string;
-  isFree: boolean;
-  estimatedDaysMin?: number;
-  estimatedDaysMax?: number;
-}
 
 export function CheckoutForm({
   items,
   total,
   shippingFee,
   sessionExists,
-  onShippingChange,
+  emailVerified,
 }: {
   items: CartItem[];
   total: number;
   shippingFee: number;
   sessionExists: boolean;
-  onShippingChange: (methodId: string | null, fee: number) => void;
+  /** null tant que l'état est inconnu — on ne bloque pas dans ce cas. */
+  emailVerified: boolean | null;
 }) {
   const [isPending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
-  const [options, setOptions] = useState<ShippingOption[]>([]);
-  const [methodId, setMethodId] = useState<string | null>(null);
-  const [loadingOptions, setLoadingOptions] = useState(false);
 
   const {
     control,
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: { customerPhone: '+221', shippingAddress: { country: 'SN' } },
   });
 
-  const country = watch('shippingAddress.country');
-
-  const select = useCallback(
-    (opt: ShippingOption | null) => {
-      setMethodId(opt?.methodId ?? null);
-      onShippingChange(opt?.methodId ?? null, opt ? (opt.isFree ? 0 : opt.flatFee) : 0);
-    },
-    [onShippingChange],
-  );
-
-  // Les frais de port sont recalculés côté serveur à la création de la commande :
-  // ce devis ne sert qu'à afficher les options et le montant attendu.
-  useEffect(() => {
-    if (!country || total <= 0) return;
-    let cancelled = false;
-    setLoadingOptions(true);
-
-    fetch(apiUrl('/shipping/quote'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ country, orderTotal: total }),
-    })
-      .then((res) => (res.ok ? (res.json() as Promise<ShippingOption[]>) : []))
-      .then((data) => {
-        if (cancelled) return;
-        const list = Array.isArray(data) ? data : [];
-        setOptions(list);
-        select(list[0] ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setOptions([]);
-          select(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingOptions(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [country, total, select]);
-
   const onSubmit = (values: CheckoutFormValues) => {
     setServerError(null);
     startTransition(async () => {
-      const result = await createNabooCheckout(values, items, methodId);
+      const result = await createNabooCheckout(values, items);
       if (result?.error) setServerError(result.error);
     });
   };
-
-  const noShippingAvailable = !loadingOptions && options.length === 0;
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
@@ -225,63 +165,6 @@ export function CheckoutForm({
         </select>
       </div>
 
-      {/* ── Mode de livraison ─────────────────────────────────────── */}
-      <div className="mt-8 pt-6 border-t border-white/10 space-y-3">
-        <h2 className="text-xs font-bold uppercase tracking-widest text-white/40 flex items-center gap-2">
-          <Truck className="w-3.5 h-3.5" /> Livraison
-        </h2>
-
-        {loadingOptions && (
-          <p className="text-xs text-white/40">Calcul des frais de livraison…</p>
-        )}
-
-        {noShippingAvailable && (
-          <p role="alert" className="text-xs text-red-300">
-            Aucun mode de livraison n&apos;est disponible pour ce pays. Contactez-nous pour
-            organiser l&apos;expédition.
-          </p>
-        )}
-
-        {options.map((opt) => (
-          <label
-            key={opt.methodId}
-            className={`flex items-center justify-between gap-4 px-4 py-3 rounded-xl border cursor-pointer transition-colors ${
-              methodId === opt.methodId
-                ? 'bg-white/8 border-red-600/40'
-                : 'bg-white/4 border-white/10 hover:bg-white/6'
-            }`}
-          >
-            <span className="flex items-center gap-3">
-              <input
-                type="radio"
-                name="shippingMethod"
-                value={opt.methodId}
-                checked={methodId === opt.methodId}
-                onChange={() => select(opt)}
-                className="accent-red-600"
-              />
-              <span>
-                <span className="block text-sm text-white">
-                  {opt.name.fr ?? opt.name.en ?? opt.methodCode}
-                </span>
-                {opt.estimatedDaysMin != null && (
-                  <span className="block text-[11px] text-white/40">
-                    Livraison estimée : {opt.estimatedDaysMin}
-                    {opt.estimatedDaysMax != null && opt.estimatedDaysMax !== opt.estimatedDaysMin
-                      ? `–${opt.estimatedDaysMax}`
-                      : ''}{' '}
-                    jours
-                  </span>
-                )}
-              </span>
-            </span>
-            <span className="text-sm font-semibold text-white shrink-0">
-              {opt.isFree ? 'Gratuite' : formatXOF(opt.flatFee)}
-            </span>
-          </label>
-        ))}
-      </div>
-
       <div className="mt-8 pt-6 border-t border-white/10">
         {serverError && (
           <div className="p-3 mb-4 rounded-lg bg-red-500/10 border border-red-500/30">
@@ -291,7 +174,7 @@ export function CheckoutForm({
 
         <button
           type="submit"
-          disabled={isPending || !sessionExists || !methodId}
+          disabled={isPending || !sessionExists || emailVerified === false}
           className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm uppercase tracking-wider transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-red-600/25"
         >
           {isPending ? (

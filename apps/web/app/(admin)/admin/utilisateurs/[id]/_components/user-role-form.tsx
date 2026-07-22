@@ -10,6 +10,7 @@ import type { UserRole } from '@/types/admin';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   CUSTOMER: 'Client',
+  ARTIST: 'Artiste (gère sa propre fiche)',
   EDITOR: 'Éditeur (accès back-office)',
   ADMIN: 'Administrateur (accès complet)',
 };
@@ -43,6 +44,8 @@ export function UserRoleForm({ userId, currentRole }: UserRoleFormProps) {
         <p className="text-sm font-semibold text-white">Modifier le rôle</p>
         <p className="text-xs text-white/40 mt-0.5">
           Attention : donner le rôle Admin donne un accès total au back-office.
+          Le rôle Artiste n&apos;ouvre l&apos;espace artiste que si une fiche lui est
+          rattachée, depuis la page de l&apos;artiste concerné.
         </p>
       </div>
       <div className="flex items-center gap-3">

@@ -11,15 +11,25 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'success'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const [isArtist, setIsArtist] = useState(false);
+  const [password, setPassword] = useState('');
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    // Le Go API rejette un mot de passe faible par un 400 générique : on
+    // arrête avant l'appel réseau pour pointer la règle non respectée.
+    if (!passwordValid) {
+      setStatus('error');
+      setErrorMsg('Le mot de passe ne respecte pas toutes les règles ci-dessous.');
+      return;
+    }
+
     setStatus('loading');
     setErrorMsg('');
 
     const fd = new FormData(e.currentTarget);
     const email = fd.get('email') as string;
-    const password = fd.get('password') as string;
     const firstName = fd.get('firstName') as string;
     const lastName = fd.get('lastName') as string;
     const phone = fd.get('phone') as string;
@@ -36,6 +46,7 @@ export default function RegisterPage() {
           firstName: firstName || undefined,
           lastName: lastName || undefined,
           phone: phone || undefined,
+          isArtist,
         }),
       });
 
@@ -68,12 +79,15 @@ export default function RegisterPage() {
     }
   }
 
+  // Doit rester aligné sur la validation `password_strength` du Go API
+  // (apps/api-go/internal/handler/auth.go) — sinon l'API répond 400.
   const passwordRules = [
-    'Au moins 8 caractères',
-    'Une majuscule et une minuscule',
-    'Un chiffre',
-    'Un caractère spécial (!@#$...)',
+    { label: 'Au moins 8 caractères', ok: password.length >= 8 },
+    { label: 'Une majuscule et une minuscule', ok: /[A-Z]/.test(password) && /[a-z]/.test(password) },
+    { label: 'Un chiffre', ok: /\d/.test(password) },
+    { label: 'Un caractère spécial (!@#$...)', ok: /[^\p{L}\p{N}\s]/u.test(password) },
   ];
+  const passwordValid = passwordRules.every((r) => r.ok);
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-16 relative overflow-hidden">
@@ -199,6 +213,8 @@ export default function RegisterPage() {
                   type={showPassword ? 'text' : 'password'}
                   required
                   minLength={8}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full px-4 py-3 pr-12 rounded-xl bg-white/6 border border-white/10 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-red-600/50 focus:border-red-600/30 transition-all duration-200 text-sm"
                 />
@@ -213,13 +229,41 @@ export default function RegisterPage() {
               </div>
               <ul className="mt-2 space-y-1">
                 {passwordRules.map((rule) => (
-                  <li key={rule} className="text-[11px] text-white/25 flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-white/20" />
-                    {rule}
+                  <li
+                    key={rule.label}
+                    className={`text-[11px] flex items-center gap-1.5 transition-colors ${
+                      rule.ok ? 'text-emerald-400/70' : 'text-white/25'
+                    }`}
+                  >
+                    {rule.ok ? (
+                      <Check className="w-3 h-3 shrink-0" />
+                    ) : (
+                      <span className="w-1 h-1 mx-1 rounded-full bg-white/20" />
+                    )}
+                    {rule.label}
                   </li>
                 ))}
               </ul>
             </div>
+
+            {/* Déclaration artiste */}
+            <label className="flex items-start gap-3 p-4 rounded-xl bg-white/4 border border-white/10 cursor-pointer hover:bg-white/6 transition-colors">
+              <input
+                type="checkbox"
+                checked={isArtist}
+                onChange={(e) => setIsArtist(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-red-600 shrink-0"
+              />
+              <span>
+                <span className="block text-sm font-medium text-white/80">
+                  Es-tu un artiste de RBS ?
+                </span>
+                <span className="block text-[11px] text-white/35 mt-0.5">
+                  Un administrateur vérifiera ta demande et rattachera ton compte à ta fiche
+                  d&apos;artiste. Tu pourras alors la mettre à jour toi-même.
+                </span>
+              </span>
+            </label>
 
             {/* Submit */}
             <button

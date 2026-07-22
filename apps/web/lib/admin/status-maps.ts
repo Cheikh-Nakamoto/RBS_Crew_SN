@@ -38,6 +38,7 @@ export const QUOTE_STATUS_META: Record<string, { label: string; className: strin
 export const ROLE_META_BADGE: Record<string, { label: string; className: string }> = {
   ADMIN: { label: 'Admin', className: 'bg-[var(--rbs-red)]/20 text-[var(--rbs-red)] border-[var(--rbs-red)]/30' },
   EDITOR: { label: 'Éditeur', className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  ARTIST: { label: 'Artiste', className: 'bg-purple-500/20 text-purple-300 border-purple-500/30' },
   CUSTOMER: { label: 'Client', className: 'bg-white/10 text-white/60 border-white/20' },
 };
 
@@ -45,11 +46,13 @@ export const ROLE_META_BADGE: Record<string, { label: string; className: string 
 export const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrateur',
   EDITOR: 'Éditeur',
+  ARTIST: 'Artiste',
   CUSTOMER: 'Client',
 };
 
 export const ROLE_META_HEADER: Record<string, { label: string; color: string }> = {
   ADMIN: { label: 'Administrateur', color: 'bg-[var(--rbs-red)]/20 text-[var(--rbs-red)]' },
   EDITOR: { label: 'Éditeur', color: 'bg-blue-500/20 text-blue-400' },
+  ARTIST: { label: 'Artiste', color: 'bg-purple-500/20 text-purple-300' },
   CUSTOMER: { label: 'Client', color: 'bg-white/10 text-white/60' },
 };

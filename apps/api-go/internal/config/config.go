@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -45,6 +46,12 @@ type Config struct {
 	OrangeMoneyClientSecret string
 	OrangeMoneyMerchantKey  string
 
+	// Expiration des commandes impayées : au-delà de ce délai, la commande est
+	// annulée et son stock rendu. Doit rester supérieur au temps réel d'un
+	// paiement (redirection provider, saisie, confirmation).
+	OrderExpiry              time.Duration
+	OrderExpirySweepInterval time.Duration
+
 	// Google OAuth — seul le client ID est nécessaire côté API : il sert à
 	// vérifier l'audience de l'id_token émis par Google.
 	GoogleClientID string
@@ -55,11 +62,11 @@ type Config struct {
 	NabooBaseURL       string
 
 	// Cloudflare R2 (S3-compatible storage)
-	R2AccountID   string
-	R2AccessKey   string
-	R2SecretKey   string
-	R2Bucket      string
-	R2PublicURL   string
+	R2AccountID string
+	R2AccessKey string
+	R2SecretKey string
+	R2Bucket    string
+	R2PublicURL string
 }
 
 func Load() (*Config, error) {
@@ -84,40 +91,43 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		DatabaseURL:         dbURL,
-		RedisURL:            getEnv("REDIS_URL", "redis://localhost:6379"),
-		JWTSecret:           jwtSecret,
-		JWTRefreshSecret:    jwtRefreshSecret,
-		APIPort:             getEnv("API_PORT", "4000"),
-		Environment:         env,
-		CORSOrigin:          getEnv("CORS_ORIGIN", "http://localhost:3000,https://rbs-crew.cheikhmodiouf.org"),
-		AppURL:              getEnv("APP_URL", "http://localhost:3000"),
-		SMTPHost:            getEnv("SMTP_HOST", ""),
-		SMTPPort:            getEnvAsInt("SMTP_PORT", 587),
-		SMTPUser:            getEnv("SMTP_USER", ""),
-		SMTPPass:            getEnv("SMTP_PASS", ""),
-		SMTPFrom:            getEnv("SMTP_FROM", "RBS Crew <noreply@rbscrew.sn>"),
-		GoogleClientID:      getEnv("GOOGLE_CLIENT_ID", ""),
-		StripeSecretKey:         getEnv("STRIPE_SECRET_KEY", ""),
-		StripeWebhookSecret:     getEnv("STRIPE_WEBHOOK_SECRET", ""),
-		PayPalClientID:          getEnv("PAYPAL_CLIENT_ID", ""),
-		PayPalClientSecret:      getEnv("PAYPAL_CLIENT_SECRET", ""),
-		PayPalWebhookID:         getEnv("PAYPAL_WEBHOOK_ID", ""),
-		PayPalSandbox:           getEnv("PAYPAL_SANDBOX", "true") == "true",
-		WaveAPIKey:              getEnv("WAVE_API_KEY", ""),
-		WaveSecretKey:           getEnv("WAVE_SECRET_KEY", ""),
-		EnableOrangeMoney:       getEnv("ENABLE_ORANGE_MONEY", "false") == "true",
-		OrangeMoneyClientID:     getEnv("OM_CLIENT_ID", ""),
-		OrangeMoneyClientSecret: getEnv("OM_CLIENT_SECRET", ""),
-		OrangeMoneyMerchantKey:  getEnv("OM_MERCHANT_KEY", ""),
-		NabooAPIKey:             getEnv("NABOO_API_KEY", ""),
-		NabooWebhookSecret:      getEnv("NABOO_WEBHOOK_SECRET", ""),
-		NabooBaseURL:            getEnv("NABOO_BASE_URL", ""),
-		R2AccountID:             getEnv("R2_ACCOUNT_ID", ""),
-		R2AccessKey:             getEnv("R2_ACCESS_KEY_ID", ""),
-		R2SecretKey:             getEnv("R2_SECRET_ACCESS_KEY", ""),
-		R2Bucket:                getEnv("R2_BUCKET_NAME", ""),
-		R2PublicURL:             getEnv("R2_PUBLIC_URL", ""),
+		DatabaseURL:      dbURL,
+		RedisURL:         getEnv("REDIS_URL", "redis://localhost:6379"),
+		JWTSecret:        jwtSecret,
+		JWTRefreshSecret: jwtRefreshSecret,
+		APIPort:          getEnv("API_PORT", "4000"),
+		Environment:      env,
+		CORSOrigin:       getEnv("CORS_ORIGIN", "http://localhost:3000,https://rbs-crew.cheikhmodiouf.org"),
+		AppURL:           getEnv("APP_URL", "http://localhost:3000"),
+		SMTPHost:         getEnv("SMTP_HOST", ""),
+		SMTPPort:         getEnvAsInt("SMTP_PORT", 587),
+		SMTPUser:         getEnv("SMTP_USER", ""),
+		SMTPPass:         getEnv("SMTP_PASS", ""),
+		SMTPFrom:         getEnv("SMTP_FROM", "RBS Crew <noreply@rbscrew.sn>"),
+		GoogleClientID:   getEnv("GOOGLE_CLIENT_ID", ""),
+
+		OrderExpiry:              time.Duration(getEnvAsInt("ORDER_EXPIRY_MINUTES", 45)) * time.Minute,
+		OrderExpirySweepInterval: time.Duration(getEnvAsInt("ORDER_EXPIRY_SWEEP_MINUTES", 5)) * time.Minute,
+		StripeSecretKey:          getEnv("STRIPE_SECRET_KEY", ""),
+		StripeWebhookSecret:      getEnv("STRIPE_WEBHOOK_SECRET", ""),
+		PayPalClientID:           getEnv("PAYPAL_CLIENT_ID", ""),
+		PayPalClientSecret:       getEnv("PAYPAL_CLIENT_SECRET", ""),
+		PayPalWebhookID:          getEnv("PAYPAL_WEBHOOK_ID", ""),
+		PayPalSandbox:            getEnv("PAYPAL_SANDBOX", "true") == "true",
+		WaveAPIKey:               getEnv("WAVE_API_KEY", ""),
+		WaveSecretKey:            getEnv("WAVE_SECRET_KEY", ""),
+		EnableOrangeMoney:        getEnv("ENABLE_ORANGE_MONEY", "false") == "true",
+		OrangeMoneyClientID:      getEnv("OM_CLIENT_ID", ""),
+		OrangeMoneyClientSecret:  getEnv("OM_CLIENT_SECRET", ""),
+		OrangeMoneyMerchantKey:   getEnv("OM_MERCHANT_KEY", ""),
+		NabooAPIKey:              getEnv("NABOO_API_KEY", ""),
+		NabooWebhookSecret:       getEnv("NABOO_WEBHOOK_SECRET", ""),
+		NabooBaseURL:             getEnv("NABOO_BASE_URL", ""),
+		R2AccountID:              getEnv("R2_ACCOUNT_ID", ""),
+		R2AccessKey:              getEnv("R2_ACCESS_KEY_ID", ""),
+		R2SecretKey:              getEnv("R2_SECRET_ACCESS_KEY", ""),
+		R2Bucket:                 getEnv("R2_BUCKET_NAME", ""),
+		R2PublicURL:              getEnv("R2_PUBLIC_URL", ""),
 	}, nil
 }
 

@@ -8,6 +8,9 @@ type RegisterRequest struct {
 	FirstName *string `json:"firstName"`
 	LastName  *string `json:"lastName"`
 	Phone     *string `json:"phone"`
+	// Case « es-tu un artiste de RBS ? ». N'accorde AUCUN privilège : elle
+	// enregistre seulement une demande qu'un administrateur devra valider.
+	IsArtist bool `json:"isArtist"`
 }
 
 type LoginRequest struct {

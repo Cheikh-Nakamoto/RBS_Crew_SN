@@ -308,6 +308,24 @@ func (s *OrdersService) AdminDelete(ctx context.Context, id string) *types.AppEr
 }
 
 func (s *OrdersService) UpdateStatus(ctx context.Context, id, status string) (*model.OrderResponse, *types.AppError) {
+	// Passer une commande en CANCELLED depuis le back-office doit rendre son
+	// stock, exactement comme une expiration ou un paiement échoué.
+	if status == string(db.OrderStatusCANCELLED) {
+		if _, err := s.ReleaseStock(ctx, id, db.OrderStatusCANCELLED, nil); err != nil {
+			slog.Error("orders: release stock on admin cancel failed", "orderId", id, "error", err)
+			return nil, types.InternalError("Failed to cancel order")
+		}
+		order, err := s.ordersRepo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, types.NotFound("Order not found")
+			}
+			return nil, types.InternalError("Failed to load order")
+		}
+		items, _ := s.ordersRepo.GetItems(ctx, id)
+		return toOrderResponse(order, toItemResponses(items)), nil
+	}
+
 	order, err := s.ordersRepo.UpdateStatus(ctx, id, status)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -342,9 +360,9 @@ func toOrderResponse(o *db.Order, items []model.OrderItemResponse) *model.OrderR
 	r := model.OrderResponse{
 		ID: o.ID, OrderNumber: o.OrderNumber,
 		Status: string(o.Status), PaymentStatus: string(o.PaymentStatus),
-		Currency:        o.Currency,
-		Subtotal:        o.Subtotal, TaxAmount: o.TaxAmount,
-		ShippingAmount:  o.ShippingAmount, DiscountAmount: o.DiscountAmount,
+		Currency: o.Currency,
+		Subtotal: o.Subtotal, TaxAmount: o.TaxAmount,
+		ShippingAmount: o.ShippingAmount, DiscountAmount: o.DiscountAmount,
 		Total:           o.Total,
 		Items:           items,
 		CreatedAt:       o.CreatedAt.Time,
@@ -366,9 +384,9 @@ func toOrderResponseFromRow(o *db.Order, items []model.OrderItemResponse) model.
 	r := model.OrderResponse{
 		ID: o.ID, OrderNumber: o.OrderNumber,
 		Status: string(o.Status), PaymentStatus: string(o.PaymentStatus),
-		Currency:        o.Currency,
-		Subtotal:        o.Subtotal, TaxAmount: o.TaxAmount,
-		ShippingAmount:  o.ShippingAmount, DiscountAmount: o.DiscountAmount,
+		Currency: o.Currency,
+		Subtotal: o.Subtotal, TaxAmount: o.TaxAmount,
+		ShippingAmount: o.ShippingAmount, DiscountAmount: o.DiscountAmount,
 		Total:           o.Total,
 		Items:           items,
 		CreatedAt:       o.CreatedAt.Time,
@@ -389,4 +407,95 @@ func toOrderResponseFromRow(o *db.Order, items []model.OrderItemResponse) model.
 // pgtype helper (used in auth.go as well)
 func pgTime(t time.Time) pgtype.Timestamp {
 	return pgtype.Timestamp{Time: t, Valid: true}
+}
+
+// ── Libération du stock ───────────────────────────────────────────────────────
+
+// ReleaseStock fait passer une commande dans un état terminal qui ne consomme
+// pas de stock (FAILED, CANCELLED, REFUNDED) et rend les unités décrémentées à
+// sa création.
+//
+// C'est l'action compensatoire du décrément fait dans Create : la commande et le
+// stock vivant dans la même base, les deux tiennent dans UNE transaction — il ne
+// peut donc pas y avoir de compensation partielle.
+//
+// L'idempotence vient de la garde SQL sur le statut courant (ReleaseOrderStock
+// ignore les commandes déjà terminales) : un webhook rejoué, ou une expiration
+// concurrente d'une annulation admin, ne restitue jamais deux fois.
+// Renvoie true si cet appel a effectivement libéré le stock.
+func (s *OrdersService) ReleaseStock(
+	ctx context.Context,
+	orderID string,
+	newStatus db.OrderStatus,
+	paymentStatus *db.PaymentStatus,
+) (bool, error) {
+	pool := s.ordersRepo.Pool()
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return false, fmt.Errorf("begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	qtx := s.ordersRepo.WithTx(tx)
+
+	affected, err := qtx.ReleaseOrderStock(ctx, db.ReleaseOrderStockParams{
+		ID:            orderID,
+		Column2:       newStatus,
+		PaymentStatus: paymentStatus,
+	})
+	if err != nil {
+		return false, fmt.Errorf("release order: %w", err)
+	}
+	if affected == 0 {
+		// Déjà dans un état terminal : rien à restituer.
+		return false, nil
+	}
+
+	items, err := qtx.GetOrderItems(ctx, orderID)
+	if err != nil {
+		return false, fmt.Errorf("order items: %w", err)
+	}
+
+	productsTx := s.productsRepo.WithTx(tx)
+	for _, item := range items {
+		if _, err := productsTx.RestoreStock(ctx, db.RestoreStockParams{
+			ID:    item.ProductId,
+			Stock: item.Quantity,
+		}); err != nil {
+			return false, fmt.Errorf("restore stock %s: %w", item.ProductId, err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return false, fmt.Errorf("commit: %w", err)
+	}
+
+	slog.Info("stock released", "orderId", orderID, "newStatus", newStatus, "items", len(items))
+	return true, nil
+}
+
+// ExpireUnpaidOrders annule les commandes jamais payées au-delà du délai et rend
+// leur stock. Sans ce balayage, un client qui ferme son onglet immobilise du
+// stock indéfiniment.
+func (s *OrdersService) ExpireUnpaidOrders(ctx context.Context, olderThan time.Duration) (int, error) {
+	cutoff := pgtype.Timestamp{Time: time.Now().Add(-olderThan), Valid: true}
+	ids, err := s.ordersRepo.Queries().ListExpiredUnpaidOrders(ctx, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("list expired: %w", err)
+	}
+
+	released := 0
+	for _, id := range ids {
+		unpaid := db.PaymentStatusUNPAID
+		ok, err := s.ReleaseStock(ctx, id, db.OrderStatusCANCELLED, &unpaid)
+		if err != nil {
+			// Une commande en échec ne doit pas interrompre le balayage.
+			slog.Error("expire: release failed", "orderId", id, "error", err)
+			continue
+		}
+		if ok {
+			released++
+		}
+	}
+	return released, nil
 }

@@ -28,3 +28,20 @@ export async function deleteUser(id: string): Promise<ActionResult<void>> {
     return { success: false, error: await parseApiError(err) };
   }
 }
+
+/**
+ * Filet de sécurité : valider l'adresse d'un client dont l'e-mail de
+ * vérification n'arrive pas (spam, adresse invalide, panne SMTP). Sans ça,
+ * un tel client ne peut jamais commander.
+ */
+export async function verifyUserEmail(id: string): Promise<ActionResult> {
+  try {
+    const token = await getAdminToken();
+    const result = await getAdminApi(token).post(`users/${id}/verify-email`).json();
+    revalidatePath('/admin/utilisateurs');
+    revalidatePath(`/admin/utilisateurs/${id}`);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, error: await parseApiError(err) };
+  }
+}

@@ -3,6 +3,7 @@
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { ArtistClaimCard } from '@/components/artist-claim-card';
 import { useCart } from '@/lib/cart-store';
 import { formatXOF, formatDate } from '@/lib/format';
 import { useAuthedFetch } from '@/lib/use-authed-fetch';
@@ -123,6 +124,26 @@ export default function ProfilePage() {
     }
     setLoading(false);
   }, [authedFetch]);
+
+  // Statut de la demande « je suis un artiste RBS », renvoyé par /users/me.
+  const [artistClaimStatus, setArtistClaimStatus] = useState<string | undefined>();
+
+  const fetchArtistClaim = useCallback(async () => {
+    try {
+      const res = await authedFetch('/users/me');
+      if (!res.ok) return;
+      const me = (await res.json()) as { artistClaimStatus?: string };
+      setArtistClaimStatus(me.artistClaimStatus);
+    } catch {
+      // non bloquant : la carte s'affiche avec son état par défaut
+    }
+  }, [authedFetch]);
+
+  useEffect(() => {
+    if (!session) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchArtistClaim();
+  }, [session, fetchArtistClaim]);
 
   const [lastTab, setLastTab] = useState(activeTab);
   if (lastTab !== activeTab) {
@@ -351,6 +372,11 @@ export default function ProfilePage() {
                   </p>
                 </div>
               </div>
+
+              <ArtistClaimCard
+                initialStatus={artistClaimStatus}
+                role={(user as { role?: string }).role}
+              />
             </div>
           )}
 

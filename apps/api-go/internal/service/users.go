@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	db "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db/queries"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/model"
@@ -266,6 +267,9 @@ func toProfileResponse(row *db.GetUserByIDFullRow) *model.UserProfileResponse {
 		Role:            string(row.Role),
 		PreferredLocale: string(row.PreferredLocale),
 		CreatedAt:       row.CreatedAt.Time,
+
+		ArtistClaimStatus: string(row.ArtistClaimStatus),
+		EmailVerified:     row.EmailVerified,
 	}
 }
 
@@ -283,4 +287,21 @@ func toAddressResponse(a *db.Address) model.AddressResponse {
 		Country:    a.Country,
 		IsDefault:  a.IsDefault,
 	}
+}
+
+// AdminVerifyEmail permet à un administrateur de débloquer un client dont
+// l'e-mail de vérification n'arrive pas (spam, adresse invalide, panne SMTP).
+// Sans ce filet, un tel client ne pourrait jamais commander.
+func (s *UsersService) AdminVerifyEmail(ctx context.Context, userID string) *types.AppError {
+	if _, err := s.repo.GetByID(ctx, userID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return types.NotFound("User not found")
+		}
+		return types.InternalError("Database error")
+	}
+	if err := s.repo.MarkEmailVerified(ctx, userID); err != nil {
+		slog.Error("users: admin verify email failed", "error", err, "userId", userID)
+		return types.InternalError("Failed to verify email")
+	}
+	return nil
 }

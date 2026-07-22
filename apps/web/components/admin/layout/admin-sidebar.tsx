@@ -19,6 +19,7 @@ import {
   Activity,
   MapPin,
   Truck,
+  UserCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { NavGroup } from '@/types/admin';
@@ -54,6 +55,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/admin/services', label: 'Services', icon: Briefcase },
       { href: '/admin/projets', label: 'Projets', icon: Palette },
       { href: '/admin/artistes', label: 'Artistes', icon: Music },
+      { href: '/admin/artistes/demandes', label: 'Demandes artiste', icon: UserCheck },
       { href: '/admin/editions', label: 'Éditions festival', icon: Newspaper },
       { href: '/admin/presse', label: 'Presse', icon: FileText },
     ],

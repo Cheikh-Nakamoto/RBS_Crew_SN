@@ -147,19 +147,22 @@ func (q *Queries) GetUserAddresses(ctx context.Context, userid string) ([]Addres
 }
 
 const getUserByIDFull = `-- name: GetUserByIDFull :one
-SELECT "id", "email", "firstName", "lastName", "role", "preferredLocale", "phone", "createdAt"
+SELECT "id", "email", "firstName", "lastName", "role", "preferredLocale", "phone", "createdAt",
+       "artistClaimStatus", "emailVerified"
 FROM "User" WHERE "id" = $1
 `
 
 type GetUserByIDFullRow struct {
-	ID              string           `json:"id"`
-	Email           string           `json:"email"`
-	FirstName       *string          `json:"firstName"`
-	LastName        *string          `json:"lastName"`
-	Role            UserRole         `json:"role"`
-	PreferredLocale Locale           `json:"preferredLocale"`
-	Phone           *string          `json:"phone"`
-	CreatedAt       pgtype.Timestamp `json:"createdAt"`
+	ID                string            `json:"id"`
+	Email             string            `json:"email"`
+	FirstName         *string           `json:"firstName"`
+	LastName          *string           `json:"lastName"`
+	Role              UserRole          `json:"role"`
+	PreferredLocale   Locale            `json:"preferredLocale"`
+	Phone             *string           `json:"phone"`
+	CreatedAt         pgtype.Timestamp  `json:"createdAt"`
+	ArtistClaimStatus ArtistClaimStatus `json:"artistClaimStatus"`
+	EmailVerified     bool              `json:"emailVerified"`
 }
 
 func (q *Queries) GetUserByIDFull(ctx context.Context, id string) (GetUserByIDFullRow, error) {
@@ -174,12 +177,15 @@ func (q *Queries) GetUserByIDFull(ctx context.Context, id string) (GetUserByIDFu
 		&i.PreferredLocale,
 		&i.Phone,
 		&i.CreatedAt,
+		&i.ArtistClaimStatus,
+		&i.EmailVerified,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
 SELECT "id", "email", "firstName", "lastName", "role", "preferredLocale", "phone", "createdAt",
+       "emailVerified",
        COUNT(*) OVER() AS total_count
 FROM "User"
 WHERE ($3::text IS NULL OR
@@ -205,6 +211,7 @@ type ListUsersRow struct {
 	PreferredLocale Locale           `json:"preferredLocale"`
 	Phone           *string          `json:"phone"`
 	CreatedAt       pgtype.Timestamp `json:"createdAt"`
+	EmailVerified   bool             `json:"emailVerified"`
 	TotalCount      int64            `json:"total_count"`
 }
 
@@ -226,6 +233,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 			&i.PreferredLocale,
 			&i.Phone,
 			&i.CreatedAt,
+			&i.EmailVerified,
 			&i.TotalCount,
 		); err != nil {
 			return nil, err

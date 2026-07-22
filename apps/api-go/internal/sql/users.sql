@@ -1,5 +1,6 @@
 -- name: ListUsers :many
 SELECT "id", "email", "firstName", "lastName", "role", "preferredLocale", "phone", "createdAt",
+       "emailVerified",
        COUNT(*) OVER() AS total_count
 FROM "User"
 WHERE (sqlc.narg('search')::text IS NULL OR
@@ -10,7 +11,8 @@ ORDER BY "createdAt" DESC
 LIMIT $1 OFFSET $2;
 
 -- name: GetUserByIDFull :one
-SELECT "id", "email", "firstName", "lastName", "role", "preferredLocale", "phone", "createdAt"
+SELECT "id", "email", "firstName", "lastName", "role", "preferredLocale", "phone", "createdAt",
+       "artistClaimStatus", "emailVerified"
 FROM "User" WHERE "id" = $1;
 
 -- name: UpdateUser :one

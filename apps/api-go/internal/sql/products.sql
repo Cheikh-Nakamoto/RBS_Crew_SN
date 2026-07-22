@@ -115,3 +115,11 @@ WHERE "id" = $1 AND "stock" >= $2;
 INSERT INTO "ProductVariant" ("id", "productId", "sku", "price", "stock", "options")
 VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
+
+-- Pendant de DecrementStock : rend les unités d'une commande qui n'aboutira pas
+-- (paiement échoué, annulation, remboursement, expiration).
+-- Le filtre manageStock reflète celui du décrément : un produit non géré en
+-- stock n'a jamais été décrémenté, il ne doit pas être incrémenté.
+-- name: RestoreStock :execrows
+UPDATE "Product" SET "stock" = "stock" + $2, "updatedAt" = NOW()
+WHERE "id" = $1 AND "manageStock" = true;

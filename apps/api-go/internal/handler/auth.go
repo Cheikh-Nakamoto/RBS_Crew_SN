@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"unicode"
 
@@ -43,6 +44,21 @@ func validationError() *types.AppError {
 	return types.BadRequest("Invalid or missing required fields")
 }
 
+// passwordValidationError distingue le rejet « mot de passe trop faible » des
+// autres erreurs de validation. Les règles sont déjà publiées sur le formulaire
+// d'inscription, donc les rappeler ne divulgue rien et évite un 400 opaque.
+func passwordValidationError(err error) *types.AppError {
+	var verrs validator.ValidationErrors
+	if errors.As(err, &verrs) {
+		for _, fe := range verrs {
+			if fe.Field() == "Password" && fe.Tag() == "password_strength" {
+				return types.BadRequest("Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a digit and a special character")
+			}
+		}
+	}
+	return validationError()
+}
+
 type AuthHandler struct {
 	svc *service.AuthService
 }
@@ -68,7 +84,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := validate.Struct(req); err != nil {
-		types.WriteError(w, validationError())
+		types.WriteError(w, passwordValidationError(err))
 		return
 	}
 
@@ -255,6 +271,20 @@ func (h *AuthHandler) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
 		"refreshToken": tokens.RefreshToken,
 		"email":        email,
 	})
+}
+
+// POST /auth/resend-verification — renvoie le lien au compte connecté.
+func (h *AuthHandler) ResendVerification(w http.ResponseWriter, r *http.Request) {
+	uid, ok := r.Context().Value(types.CtxUserID).(string)
+	if !ok || uid == "" {
+		types.WriteError(w, types.Unauthorized("non authentifié"))
+		return
+	}
+	if appErr := h.svc.ResendVerification(r.Context(), uid); appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, map[string]string{"status": "sent"})
 }
 
 func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {

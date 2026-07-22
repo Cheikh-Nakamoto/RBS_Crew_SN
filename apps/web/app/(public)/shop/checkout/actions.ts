@@ -8,17 +8,10 @@ import { API_BASE } from '@/lib/api-base';
 
 const API_URL = API_BASE;
 
-export async function createNabooCheckout(
-  values: CheckoutFormValues,
-  items: CartItem[],
-  shippingMethodId: string | null,
-) {
+export async function createNabooCheckout(values: CheckoutFormValues, items: CartItem[]) {
   const parsed = checkoutSchema.safeParse(values);
   if (!parsed.success) {
     return { error: 'Formulaire invalide, vérifiez les champs.' };
-  }
-  if (!shippingMethodId) {
-    return { error: 'Sélectionnez un mode de livraison.' };
   }
 
   const session = await auth();
@@ -46,15 +39,19 @@ export async function createNabooCheckout(
         customerLastName: parsed.data.customerLastName,
         customerPhone: parsed.data.customerPhone,
         shippingAddress: parsed.data.shippingAddress,
-        // Le backend recalcule les frais depuis ces deux champs — le montant
-        // affiché au client n'est jamais celui qui est facturé.
-        shippingMethodId,
-        shippingCountry: parsed.data.shippingAddress.country,
       }),
     });
 
     if (!orderRes.ok) {
       const body = await orderRes.json().catch(() => null);
+      // Le serveur est la seule autorité sur la vérification d'e-mail : on
+      // traduit son code plutôt que d'afficher une erreur générique.
+      if (body?.code === 'email_not_verified') {
+        return {
+          error:
+            "Vérifiez votre adresse e-mail avant de commander. Un lien vous a été envoyé — vous pouvez le renvoyer depuis cette page.",
+        };
+      }
       return { error: body?.message || "Erreur lors de la création de la commande." };
     }
 

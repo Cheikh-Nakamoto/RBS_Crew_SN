@@ -57,3 +57,21 @@ SET "shippingAmount" = $2,
     "updatedAt"      = NOW()
 WHERE "id" = $1
 RETURNING *;
+
+-- Transition vers un état terminal qui LIBÈRE le stock. La garde sur le statut
+-- courant rend l'opération idempotente : un webhook rejoué, ou une expiration
+-- concurrente d'une annulation admin, ne touche aucune ligne et ne restitue donc
+-- pas le stock une seconde fois.
+-- name: ReleaseOrderStock :execrows
+UPDATE "Order"
+SET "status" = $2::"OrderStatus",
+    "paymentStatus" = COALESCE(sqlc.narg('paymentStatus')::"PaymentStatus", "paymentStatus"),
+    "updatedAt" = NOW()
+WHERE "id" = $1
+  AND "status" NOT IN ('FAILED', 'CANCELLED', 'REFUNDED');
+
+-- Commandes jamais payées, candidates à l'expiration.
+-- name: ListExpiredUnpaidOrders :many
+SELECT "id" FROM "Order"
+WHERE "status" = 'PENDING' AND "paymentStatus" = 'UNPAID' AND "createdAt" < $1
+ORDER BY "createdAt";

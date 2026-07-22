@@ -132,7 +132,8 @@ func run() error {
 		slog.Info("Payment provider enabled: Naboo")
 	}
 
-	paymentsSvc := service.NewPaymentsService(ordersRepo, redisClient, paymentProviders...)
+	paymentsSvc := service.NewPaymentsService(ordersRepo, redisClient, paymentProviders...).
+		WithOrdersService(ordersSvc)
 	refundsSvc := service.NewRefundsService(refundsRepo, ordersRepo, redisClient, mailSvc, paymentProviders...)
 
 	// ── Handlers ────────────────────────────────────────────────────────────
@@ -158,6 +159,7 @@ func run() error {
 		AdminArtists:      handler.NewAdminArtistsHandler(artistsSvc),
 		ArtistMe:          handler.NewArtistMeHandler(artistAccountsSvc),
 		AdminArtistInvite: handler.NewAdminArtistInviteHandler(artistAccountsSvc),
+		ArtistClaims:      handler.NewArtistClaimHandler(artistAccountsSvc),
 		AdminProjects:     handler.NewAdminProjectsHandler(projectsSvc),
 		AdminPages:        handler.NewAdminPagesHandler(pagesSvc),
 		AdminServices:     handler.NewAdminServicesHandler(servicesSvc),
@@ -171,7 +173,7 @@ func run() error {
 	}
 
 	// ── HTTP Server ──────────────────────────────────────────────────────────
-	r := router.NewRouter(cfg, handlers, activityLogRepo)
+	r := router.NewRouter(cfg, handlers, activityLogRepo, authRepo)
 	srv := &http.Server{
 		Addr:         ":" + cfg.APIPort,
 		Handler:      r,
@@ -179,6 +181,31 @@ func run() error {
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  time.Minute,
 	}
+
+	// Balayage des commandes jamais payées : sans lui, un client qui ferme son
+	// onglet immobilise du stock indéfiniment. Le délai doit couvrir la durée
+	// réelle d'un paiement NabooPay, sinon on annulerait des règlements en cours.
+	sweepCtx, stopSweep := context.WithCancel(ctx)
+	defer stopSweep()
+	go func() {
+		ticker := time.NewTicker(cfg.OrderExpirySweepInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-sweepCtx.Done():
+				return
+			case <-ticker.C:
+				released, err := ordersSvc.ExpireUnpaidOrders(sweepCtx, cfg.OrderExpiry)
+				if err != nil {
+					slog.Error("order expiry sweep failed", "error", err)
+					continue
+				}
+				if released > 0 {
+					slog.Info("expired unpaid orders", "count", released, "olderThan", cfg.OrderExpiry)
+				}
+			}
+		}
+	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

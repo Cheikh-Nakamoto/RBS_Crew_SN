@@ -76,6 +76,15 @@ CREATE TYPE "UserRole" AS ENUM (
     'ARTIST'
 );
 
+-- Demande d'un client se déclarant artiste RBS. Un administrateur la valide en
+-- rattachant le compte à une fiche Artist précise (voir Artist."userId").
+CREATE TYPE "ArtistClaimStatus" AS ENUM (
+    'NONE',
+    'PENDING',
+    'APPROVED',
+    'REJECTED'
+);
+
 -- ── Tables (ordre topologique — FK déclarées en ligne) ───────────────────────
 
 CREATE TABLE "ActivityLog" (
@@ -109,6 +118,11 @@ CREATE TABLE "User" (
     "emailVerificationTokenExpiry" timestamp(3) without time zone,
     "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updatedAt" timestamp(3) without time zone NOT NULL,
+    -- Auto-déclaration « je suis un artiste RBS ». Le rôle ARTIST n'est accordé
+    -- qu'après validation par un administrateur, qui rattache aussi la fiche.
+    "artistClaimStatus" "ArtistClaimStatus" DEFAULT 'NONE'::"ArtistClaimStatus" NOT NULL,
+    "artistClaimNote" text,
+    "artistClaimAt" timestamp(3) without time zone,
 
     CONSTRAINT "User_pkey" PRIMARY KEY (id)
 );
@@ -705,5 +719,6 @@ CREATE UNIQUE INDEX "Tag_wpId_key" ON "Tag" USING btree ("wpId");
 CREATE UNIQUE INDEX "UserSession_tokenHash_key" ON "UserSession" USING btree ("tokenHash");
 CREATE UNIQUE INDEX "User_emailVerificationToken_key" ON "User" USING btree ("emailVerificationToken");
 CREATE UNIQUE INDEX "User_email_key" ON "User" USING btree (email);
+CREATE INDEX "User_artistClaimStatus_idx" ON "User"("artistClaimStatus") WHERE "artistClaimStatus" = 'PENDING';
 CREATE UNIQUE INDEX "User_resetToken_key" ON "User" USING btree ("resetToken");
 CREATE UNIQUE INDEX "User_wcId_key" ON "User" USING btree ("wcId");

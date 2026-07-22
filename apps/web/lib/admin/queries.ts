@@ -164,6 +164,25 @@ export async function fetchAdminArtist(id: string): Promise<AdminArtist> {
   return getAdminApi(token).get(`artists/${id}`).json();
 }
 
+export interface ArtistClaim {
+  userId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  role: string;
+  status: string;
+  note: string | null;
+  requestedAt: string | null;
+  linkedArtistId: string | null;
+}
+
+/** Demandes « je suis un artiste RBS » en attente de validation. */
+export async function fetchArtistClaims(status = 'PENDING'): Promise<ArtistClaim[]> {
+  const token = await getToken();
+  return getAdminApi(token).get(`artist-claims?status=${status}`).json();
+}
+
 // ─── Festival Editions ───────────────────────────────────────────
 export async function fetchAdminFestivalEditions(params: { page?: number; limit?: number } = {}): Promise<PaginatedResponse<AdminFestivalEdition>> {
   const token = await getToken();

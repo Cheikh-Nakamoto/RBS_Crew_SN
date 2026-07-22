@@ -11,6 +11,16 @@ SET "paymentStatus" = $2::"PaymentStatus",
 WHERE "id" = $1
 RETURNING *;
 
+-- Mise à jour du SEUL moyen de paiement. UpdateOrderPaymentStatus exige un
+-- "paymentStatus" non nul : l'appeler pour ne renseigner que la méthode
+-- envoyait une chaîne vide et Postgres rejetait la requête.
+-- name: UpdateOrderPaymentMethodOnly :one
+UPDATE "Order"
+SET "paymentMethod" = $2::"PaymentMethod",
+    "updatedAt" = NOW()
+WHERE "id" = $1
+RETURNING *;
+
 -- name: CreatePayment :one
 INSERT INTO "Payment" ("id", "orderId", "method", "externalId", "amount", "currency", "status", "metadata")
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)

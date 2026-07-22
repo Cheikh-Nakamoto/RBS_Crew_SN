@@ -122,3 +122,25 @@ func (r *AuthRepository) UpdateRole(ctx context.Context, id string, role db.User
 	}
 	return &u, nil
 }
+
+// ── Demandes artiste ─────────────────────────────────────────────────────────
+
+func (r *AuthRepository) SubmitArtistClaim(ctx context.Context, userID string, note *string) (*db.User, error) {
+	u, err := r.q.SubmitArtistClaim(ctx, db.SubmitArtistClaimParams{ID: userID, ArtistClaimNote: note})
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+func (r *AuthRepository) ListArtistClaims(ctx context.Context, status db.ArtistClaimStatus) ([]db.ListArtistClaimsRow, error) {
+	return r.q.ListArtistClaims(ctx, status)
+}
+
+func (r *AuthRepository) SetArtistClaimStatus(ctx context.Context, userID string, status db.ArtistClaimStatus) (*db.User, error) {
+	u, err := r.q.SetArtistClaimStatus(ctx, db.SetArtistClaimStatusParams{ID: userID, Column2: status})
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}

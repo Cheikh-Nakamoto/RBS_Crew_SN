@@ -6,6 +6,14 @@ type AppError struct {
 	StatusCode int    `json:"statusCode"`
 	Message    string `json:"message"`
 	Error      string `json:"error"`
+	// Code machine facultatif, pour que le client distingue deux refus de même
+	// statut HTTP (ex. « e-mail non vérifié » vs permission insuffisante).
+	Code string `json:"code,omitempty"`
+}
+
+// ForbiddenWithCode : refus 403 accompagné d'un code exploitable par le client.
+func ForbiddenWithCode(msg, code string) *AppError {
+	return &AppError{StatusCode: 403, Message: msg, Error: "Forbidden", Code: code}
 }
 
 func (e *AppError) Err() error {

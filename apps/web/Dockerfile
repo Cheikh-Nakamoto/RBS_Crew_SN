@@ -47,4 +47,8 @@ COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 
 EXPOSE 3000
 ENV PORT=3000
+# Le serveur standalone de Next.js écoute sur $HOSTNAME, que Docker renseigne
+# avec l'identifiant du conteneur : sans cette ligne il ne se lie qu'à cette
+# interface, et 127.0.0.1 (donc le healthcheck) est refusé.
+ENV HOSTNAME=0.0.0.0
 CMD ["node", "apps/web/server.js"]

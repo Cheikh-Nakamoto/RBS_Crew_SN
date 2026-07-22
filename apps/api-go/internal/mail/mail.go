@@ -44,7 +44,9 @@ func (s *MailService) SendPasswordReset(to, token string) error {
 }
 
 func (s *MailService) SendEmailVerification(to, token string) error {
-	verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", s.cfg.AppURL, token)
+	// Hors de /api/auth/* : ce préfixe est capté par le catch-all NextAuth côté
+	// Next.js, qui répondait une erreur au lieu de vérifier l'adresse.
+	verifyURL := fmt.Sprintf("%s/verifier-email?token=%s", s.cfg.AppURL, token)
 
 	subject := "Vérifiez votre adresse e-mail - RBS Crew"
 	body := fmt.Sprintf(`
@@ -64,7 +66,7 @@ func (s *MailService) sendHTML(to, subject, htmlBody string) error {
 	m.SetBody("text/html", htmlBody)
 
 	slog.Info("Sending email", "to", to, "subject", subject)
-	
+
 	if s.cfg.SMTPHost == "" {
 		slog.Warn("SMTP not configured. Skipping real email send.", "to", to, "subject", subject)
 		return nil

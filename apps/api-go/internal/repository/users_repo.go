@@ -75,3 +75,9 @@ func (r *UsersRepository) DeleteAddress(ctx context.Context, id string) error {
 func (r *UsersRepository) UnsetDefaultAddresses(ctx context.Context, userID string) error {
 	return r.q.UnsetDefaultAddresses(ctx, userID)
 }
+
+// MarkEmailVerified réutilise la requête SetEmailVerified déjà définie pour le
+// flux d'inscription — aucune requête SQL supplémentaire n'est nécessaire.
+func (r *UsersRepository) MarkEmailVerified(ctx context.Context, id string) error {
+	return r.q.SetEmailVerified(ctx, id)
+}

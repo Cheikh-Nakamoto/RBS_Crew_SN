@@ -90,7 +90,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
     (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => {
       const qty = item.quantity ?? 1;
 
-      addCartItem(accessToken, { ...item, quantity: qty })
+      // L'API sérialise les montants (`numeric`) en CHAÎNE pour préserver la
+      // précision : `price` arrive donc en "15000" malgré le type déclaré.
+      // Sans cette conversion, POST /cart/items rejette le corps en 400 —
+      // le champ y est attendu en nombre. On normalise ici, unique point
+      // d'entrée du panier, plutôt qu'à chaque appelant.
+      const normalized: CartItem = {
+        ...item,
+        price: Number(item.price),
+        maxStock: Number(item.maxStock),
+        quantity: qty,
+      };
+
+      addCartItem(accessToken, normalized)
         .then((data) => setItems(data.items))
         .catch(() => {
           // Mise à jour optimiste locale en cas d'erreur réseau
@@ -100,11 +112,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
               const updated = [...prev];
               updated[idx] = {
                 ...updated[idx],
-                quantity: Math.min(updated[idx].quantity + qty, item.maxStock),
+                quantity: Math.min(updated[idx].quantity + qty, normalized.maxStock),
               };
               return updated;
             }
-            return [...prev, { ...item, quantity: qty }];
+            return [...prev, normalized];
           });
         });
 

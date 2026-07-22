@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	db "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db/queries"
 	"github.com/jackc/pgx/v5"
@@ -19,6 +20,9 @@ func NewOrdersRepository(pool *pgxpool.Pool) *OrdersRepository {
 }
 
 func (r *OrdersRepository) Pool() *pgxpool.Pool { return r.pool }
+
+// Queries expose les requêtes générées pour les lectures simples hors transaction.
+func (r *OrdersRepository) Queries() *db.Queries { return r.q }
 
 func (r *OrdersRepository) WithTx(tx pgx.Tx) *db.Queries {
 	return r.q.WithTx(tx)
@@ -139,17 +143,17 @@ func (r *OrdersRepository) UpdateOrderShippingAmount(ctx context.Context, orderI
 }
 
 func (r *OrdersRepository) UpdateOrderPaymentMethod(ctx context.Context, orderID string, method db.NullPaymentMethod) (*db.Order, error) {
-	var pm *db.PaymentMethod
-	if method.Valid {
-		pm = &method.PaymentMethod
+	// La requête exige une valeur : on refuse explicitement plutôt que de
+	// déréférencer un pointeur nul.
+	if !method.Valid {
+		return nil, errors.New("payment method is required")
 	}
-	o, err := r.q.UpdateOrderPaymentStatus(ctx, db.UpdateOrderPaymentStatusParams{
-		ID:            orderID,
-		PaymentMethod: pm,
+	o, err := r.q.UpdateOrderPaymentMethodOnly(ctx, db.UpdateOrderPaymentMethodOnlyParams{
+		ID:      orderID,
+		Column2: method.PaymentMethod,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &o, nil
 }
-

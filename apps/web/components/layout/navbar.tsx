@@ -236,7 +236,7 @@ export function Navbar() {
                       href="/espace-artiste"
                       className="hidden md:flex items-center gap-2 text-xs font-semibold text-white/60 hover:text-white transition-colors uppercase tracking-wider min-h-[44px]"
                     >
-                      Espace artiste
+                      Mon espace
                     </Link>
                   )}
                   <Link
@@ -405,7 +405,7 @@ export function Navbar() {
                           className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-white/70 hover:text-white hover:bg-white/6 transition-all min-h-[44px]"
                         >
                           <LogIn className="w-5 h-5 text-white/40" aria-hidden="true" />
-                          Espace artiste
+                          Mon espace
                         </Link>
                       )}
                       <Link

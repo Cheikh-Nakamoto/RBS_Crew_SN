@@ -6,7 +6,14 @@
     },
     "build": {
       "dependsOn": ["^build", "generate"],
-      "outputs": ["dist/**", ".next/**", "public/dist/**"]
+      "outputs": ["dist/**", ".next/**", "public/dist/**"],
+      // Turborepo 2 filtre l'environnement des tâches (envMode strict par
+      // défaut) : toute variable non déclarée ici est INVISIBLE pour
+      // `next build`. Or ces trois-là sont figées dans le bundle au build —
+      // sans cette liste, le rewrite /backend pointait sur localhost:4000 et
+      // les URLs de retour NabooPay sur localhost:3000, quelles que soient les
+      // valeurs passées à Docker au runtime.
+      "env": ["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_SITE_URL", "API_REWRITE_TARGET"]
     },
     "lint": {
       "dependsOn": ["^lint"]

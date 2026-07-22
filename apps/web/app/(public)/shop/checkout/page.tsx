@@ -8,6 +8,7 @@ import { Suspense, useState } from 'react';
 import { formatXOF } from '@/lib/format';
 import { ArrowLeft, Minus, Plus, Trash2, ShoppingBag, AlertTriangle, RefreshCw } from 'lucide-react';
 import { CheckoutForm } from './checkout-form';
+import { EmailVerificationNotice } from '@/components/email-verification-notice';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 export default function CheckoutPage() {
@@ -30,10 +31,13 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // Frais réels renvoyés par POST /shipping/quote, remontés depuis le formulaire.
-  // Le backend les recalcule de toute façon à la création de la commande.
-  const [shippingFee, setShippingFee] = useState(0);
-  const [, setShippingMethodId] = useState<string | null>(null);
+  // Livraison reportée à une version ultérieure : aucun frais n'est facturé et
+  // aucun mode n'est proposé au client. Le module (zones, méthodes, tarifs)
+  // reste en place côté API et back-office pour être rebranché plus tard.
+  const shippingFee = 0;
+  // `null` tant que l'état n'est pas connu : on ne désactive pas le paiement
+  // avant d'avoir la réponse, le serveur restant de toute façon l'autorité.
+  const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
 
   const isCancelled = searchParams.has('cancelled');
 
@@ -160,15 +164,18 @@ function CheckoutContent() {
               ))}
             </div>
             
-            <CheckoutForm 
-              items={items} 
-              total={total} 
+            {status === 'authenticated' && (
+              <div className="mb-6">
+                <EmailVerificationNotice onStatusChange={setEmailVerified} />
+              </div>
+            )}
+
+            <CheckoutForm
+              items={items}
+              total={total}
               shippingFee={shippingFee}
-              onShippingChange={(id, fee) => {
-                setShippingMethodId(id);
-                setShippingFee(fee);
-              }} 
-              sessionExists={status === 'authenticated'} 
+              sessionExists={status === 'authenticated'}
+              emailVerified={emailVerified}
             />
           </div>
 
