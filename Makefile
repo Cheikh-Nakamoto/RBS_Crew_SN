@@ -139,7 +139,25 @@ migrate-extract: ## Extraire toutes les données de WordPress vers JSON
 migrate-upload: ## Envoyer toutes les images locales vers Cloudflare S3
 	cd migration-scripts && npm run upload-s3
 
+# DATABASE_URL est construite depuis le conteneur en cours plutôt que recopiée
+# du .env : le port publié est lu via `docker compose port`, et les identifiants
+# viennent des mêmes variables que celles ayant servi à créer la base. Changer le
+# mapping de ports dans docker-compose ne casse donc plus cette cible.
+# Une DATABASE_URL déjà exportée reste prioritaire (base distante, staging…).
 migrate-import: ## Injecter les fichiers JSON dans PostgreSQL
+	@set -eu; \
+	if [ -z "$${DATABASE_URL:-}" ]; then \
+		hostport="$$(docker compose port postgres 5432 2>/dev/null || true)"; \
+		if [ -z "$$hostport" ]; then \
+			echo "postgres ne publie aucun port (conteneur arrêté ?)."; \
+			echo "Démarrez-le — docker compose up -d postgres — ou exportez DATABASE_URL."; \
+			exit 1; \
+		fi; \
+		[ -f .env ] && . ./.env || true; \
+		DATABASE_URL="postgresql://$${POSTGRES_USER:-rbs}:$${POSTGRES_PASSWORD:-password}@$$hostport/$${POSTGRES_DB:-rbs_db}"; \
+		export DATABASE_URL; \
+		echo "==> Base ciblée : $$hostport"; \
+	fi; \
 	cd migration-scripts && npm run import-db
 
 migrate-full: migrate-extract migrate-upload migrate-import ## Pipeline complet de migration
