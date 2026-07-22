@@ -93,8 +93,35 @@ db-reset: ## ⚠️ DÉTRUIT la base et la recrée depuis sql/schema.sql (toutes
 	@echo "Note : le volume redis a également été supprimé (paniers + caches)."
 	@echo "Pour réinjecter les données WordPress : make migrate-import"
 
-db-push: ## Appliquer sql/schema.sql sur une base EXISTANTE (ne droppe rien)
-	psql "$$DATABASE_URL" -f apps/api-go/sql/schema.sql
+# Passe par le conteneur : postgres n'expose aucun port sur l'hôte, et make ne
+# charge pas .env — `psql "$$DATABASE_URL"` tombait donc sur la socket locale
+# avec un message trompeur. DATABASE_URL reste honorée si elle est exportée,
+# pour initialiser une base externe (managée, staging…).
+#
+# schema.sql ne contient que des CREATE : cette cible ne peut s'appliquer qu'à
+# une base VIDE. Sur une base déjà initialisée, la recréation passe par db-reset.
+db-push: ## Initialiser une base VIDE depuis sql/schema.sql (base déjà créée → db-reset)
+	@if [ -n "$$DATABASE_URL" ]; then \
+		echo "==> Initialisation de \$$DATABASE_URL"; \
+		psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api-go/sql/schema.sql; \
+	elif docker compose ps --status running --services 2>/dev/null | grep -qx postgres; then \
+		count=$$(docker compose exec -T postgres psql -tAq \
+			-U "$${POSTGRES_USER:-rbs}" -d "$${POSTGRES_DB:-rbs_db}" \
+			-c "select count(*) from information_schema.tables where table_schema='public'" | tr -d '\r'); \
+		if [ "$$count" != "0" ]; then \
+			echo "La base contient déjà $$count tables — schema.sql ne sait que créer."; \
+			echo "Pour la recréer depuis zéro : make db-reset  (⚠️ détruit les données)"; \
+			exit 1; \
+		fi; \
+		echo "==> Initialisation du conteneur postgres"; \
+		docker compose exec -T postgres psql -v ON_ERROR_STOP=1 \
+			-U "$${POSTGRES_USER:-rbs}" -d "$${POSTGRES_DB:-rbs_db}" \
+			< apps/api-go/sql/schema.sql; \
+	else \
+		echo "Le conteneur postgres n'est pas démarré (docker compose up -d postgres)."; \
+		echo "Pour viser une autre base : export DATABASE_URL=postgresql://..."; \
+		exit 1; \
+	fi
 
 # ── Migration from WordPress ─────────────────
 

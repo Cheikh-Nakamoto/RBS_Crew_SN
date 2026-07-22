@@ -2,6 +2,10 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    # Lié à 127.0.0.1 : joignable depuis la machine de dev (make dev-api, psql,
+    # scripts de migration) mais jamais exposé sur le réseau.
+    ports:
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-rbs}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
@@ -26,6 +30,9 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    # Même principe que postgres : accès local seulement.
+    ports:
+      - "127.0.0.1:6379:6379"
     volumes:
       - redisdata:/data
     healthcheck:
