@@ -197,6 +197,11 @@ docker image prune -f --filter "until=24h" || true
         failure {
             echo "✗ Déploiement KO : ${params.SERVICE}:${params.IMAGE_TAG} — rollback…"
             node('build-test') {
+                // Ce node() alloue son propre workspace (souvent distinct de celui
+                // des stages précédents, ex. "rbs@2"), vierge de tout checkout :
+                // sans ce checkout, ./scripts/rollback.sh y est introuvable et le
+                // rollback est silencieusement sauté.
+                checkout scm
                 sh """#!/bin/bash
 set -eu
 cd "\${WORKSPACE}"
