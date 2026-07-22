@@ -22,6 +22,9 @@ WHERE "userId" = $1 AND "expiresAt" > NOW();
 -- name: DeleteUserSessions :exec
 DELETE FROM "UserSession" WHERE "userId" = $1;
 
+-- name: DeleteExpiredSessions :execrows
+DELETE FROM "UserSession" WHERE "expiresAt" <= NOW();
+
 -- name: SetPasswordResetToken :exec
 UPDATE "User" SET "resetToken" = $2, "resetTokenExpiry" = $3, "updatedAt" = NOW()
 WHERE "email" = $1;

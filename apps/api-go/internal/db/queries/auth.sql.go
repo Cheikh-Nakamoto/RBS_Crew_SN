@@ -160,6 +160,18 @@ func (q *Queries) CreateUserWithRole(ctx context.Context, arg CreateUserWithRole
 	return i, err
 }
 
+const deleteExpiredSessions = `-- name: DeleteExpiredSessions :execrows
+DELETE FROM "UserSession" WHERE "expiresAt" <= NOW()
+`
+
+func (q *Queries) DeleteExpiredSessions(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredSessions)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteUserSessions = `-- name: DeleteUserSessions :exec
 DELETE FROM "UserSession" WHERE "userId" = $1
 `

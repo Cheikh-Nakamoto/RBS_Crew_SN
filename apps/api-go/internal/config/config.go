@@ -52,6 +52,12 @@ type Config struct {
 	OrderExpiry              time.Duration
 	OrderExpirySweepInterval time.Duration
 
+	// Balayage des sessions dont le refresh token a expiré : sans lui, la table
+	// UserSession s'accumule indéfiniment pour les utilisateurs qui ne se
+	// reconnectent jamais explicitement, ce qui ralentit la boucle bcrypt de
+	// Refresh (une comparaison par session active).
+	SessionSweepInterval time.Duration
+
 	// Google OAuth — seul le client ID est nécessaire côté API : il sert à
 	// vérifier l'audience de l'id_token émis par Google.
 	GoogleClientID string
@@ -108,6 +114,7 @@ func Load() (*Config, error) {
 
 		OrderExpiry:              time.Duration(getEnvAsInt("ORDER_EXPIRY_MINUTES", 45)) * time.Minute,
 		OrderExpirySweepInterval: time.Duration(getEnvAsInt("ORDER_EXPIRY_SWEEP_MINUTES", 5)) * time.Minute,
+		SessionSweepInterval:     time.Duration(getEnvAsInt("SESSION_SWEEP_MINUTES", 60)) * time.Minute,
 		StripeSecretKey:          getEnv("STRIPE_SECRET_KEY", ""),
 		StripeWebhookSecret:      getEnv("STRIPE_WEBHOOK_SECRET", ""),
 		PayPalClientID:           getEnv("PAYPAL_CLIENT_ID", ""),

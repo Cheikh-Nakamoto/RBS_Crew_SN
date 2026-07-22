@@ -207,6 +207,29 @@ func run() error {
 		}
 	}()
 
+	// Balayage des sessions expirées : sans lui, "UserSession" s'accumule pour
+	// tout utilisateur qui ne se reconnecte jamais explicitement, ce qui
+	// ralentit la boucle bcrypt de Refresh (une comparaison par session active).
+	go func() {
+		ticker := time.NewTicker(cfg.SessionSweepInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-sweepCtx.Done():
+				return
+			case <-ticker.C:
+				deleted, err := authRepo.DeleteExpiredSessions(sweepCtx)
+				if err != nil {
+					slog.Error("session expiry sweep failed", "error", err)
+					continue
+				}
+				if deleted > 0 {
+					slog.Info("expired sessions purged", "count", deleted)
+				}
+			}
+		}
+	}()
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 

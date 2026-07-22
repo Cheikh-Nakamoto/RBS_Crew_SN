@@ -126,11 +126,6 @@ func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (*model
 		return nil, types.Unauthorized("Invalid credentials")
 	}
 
-	// Nettoyage : lors d'une reconnexion (saisie manuelle des identifiants),
-	// on purge toutes les sessions de cet utilisateur pour éviter l'accumulation
-	// (ce qui cause des ralentissements majeurs sur la boucle de Refresh)
-	_ = s.repo.DeleteUserSessions(ctx, user.ID)
-
 	return s.issueTokens(ctx, user.ID, user.Email, string(user.Role))
 }
 

@@ -57,6 +57,14 @@ func (r *AuthRepository) DeleteUserSessions(ctx context.Context, userID string) 
 	return r.q.DeleteUserSessions(ctx, userID)
 }
 
+// DeleteExpiredSessions purge les sessions dont le refresh token n'est plus
+// valide. Sans balayage périodique, la table s'accumule indéfiniment (aucune
+// autre voie ne supprime les sessions qu'un utilisateur laisse expirer sans
+// jamais se reconnecter), ce qui ralentit la boucle bcrypt de Refresh.
+func (r *AuthRepository) DeleteExpiredSessions(ctx context.Context) (int64, error) {
+	return r.q.DeleteExpiredSessions(ctx)
+}
+
 func (r *AuthRepository) DeleteSession(ctx context.Context, id string) error {
 	_, err := r.pool.Exec(ctx, `DELETE FROM "UserSession" WHERE "id" = $1`, id)
 	return err
