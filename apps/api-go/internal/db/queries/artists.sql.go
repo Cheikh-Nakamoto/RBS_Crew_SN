@@ -50,7 +50,7 @@ INSERT INTO "Artist" (
     "createdAt", "updatedAt"
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW())
-RETURNING id, slug, city, country, "avatarUrl", "featuredImageUrl", "instagramUrl", genre, nationality, "facebookUrl", "twitterUrl", "youtubeUrl", "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl", status, "wpId", "createdAt", "updatedAt"
+RETURNING id, slug, city, country, "avatarUrl", "featuredImageUrl", "instagramUrl", genre, nationality, "facebookUrl", "twitterUrl", "youtubeUrl", "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl", status, "wpId", "createdAt", "updatedAt", "userId"
 `
 
 type CreateArtistParams struct {
@@ -116,6 +116,7 @@ func (q *Queries) CreateArtist(ctx context.Context, arg CreateArtistParams) (Art
 		&i.WpId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserId,
 	)
 	return i, err
 }
@@ -127,6 +128,25 @@ DELETE FROM "Artist" WHERE "id" = $1
 func (q *Queries) DeleteArtist(ctx context.Context, id string) error {
 	_, err := q.db.Exec(ctx, deleteArtist, id)
 	return err
+}
+
+const deleteArtistArtworkOwned = `-- name: DeleteArtistArtworkOwned :execrows
+DELETE FROM "ArtistArtwork" WHERE "id" = $1 AND "artistId" = $2
+`
+
+type DeleteArtistArtworkOwnedParams struct {
+	ID       string `json:"id"`
+	ArtistId string `json:"artistId"`
+}
+
+// Suppression d'une œuvre portant son propre contrôle d'appartenance : le
+// prédicat sur artistId rend impossible la suppression de l'œuvre d'un autre.
+func (q *Queries) DeleteArtistArtworkOwned(ctx context.Context, arg DeleteArtistArtworkOwnedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteArtistArtworkOwned, arg.ID, arg.ArtistId)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getArtistArtworks = `-- name: GetArtistArtworks :many
@@ -159,7 +179,7 @@ func (q *Queries) GetArtistArtworks(ctx context.Context, artistid string) ([]Art
 }
 
 const getArtistByID = `-- name: GetArtistByID :one
-SELECT id, slug, city, country, "avatarUrl", "featuredImageUrl", "instagramUrl", genre, nationality, "facebookUrl", "twitterUrl", "youtubeUrl", "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl", status, "wpId", "createdAt", "updatedAt" FROM "Artist" WHERE "id" = $1
+SELECT id, slug, city, country, "avatarUrl", "featuredImageUrl", "instagramUrl", genre, nationality, "facebookUrl", "twitterUrl", "youtubeUrl", "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl", status, "wpId", "createdAt", "updatedAt", "userId" FROM "Artist" WHERE "id" = $1
 `
 
 func (q *Queries) GetArtistByID(ctx context.Context, id string) (Artist, error) {
@@ -187,12 +207,13 @@ func (q *Queries) GetArtistByID(ctx context.Context, id string) (Artist, error) 
 		&i.WpId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserId,
 	)
 	return i, err
 }
 
 const getArtistBySlug = `-- name: GetArtistBySlug :one
-SELECT id, slug, city, country, "avatarUrl", "featuredImageUrl", "instagramUrl", genre, nationality, "facebookUrl", "twitterUrl", "youtubeUrl", "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl", status, "wpId", "createdAt", "updatedAt" FROM "Artist" WHERE "slug" = $1
+SELECT id, slug, city, country, "avatarUrl", "featuredImageUrl", "instagramUrl", genre, nationality, "facebookUrl", "twitterUrl", "youtubeUrl", "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl", status, "wpId", "createdAt", "updatedAt", "userId" FROM "Artist" WHERE "slug" = $1
 `
 
 func (q *Queries) GetArtistBySlug(ctx context.Context, slug string) (Artist, error) {
@@ -220,6 +241,41 @@ func (q *Queries) GetArtistBySlug(ctx context.Context, slug string) (Artist, err
 		&i.WpId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserId,
+	)
+	return i, err
+}
+
+const getArtistByUserID = `-- name: GetArtistByUserID :one
+SELECT id, slug, city, country, "avatarUrl", "featuredImageUrl", "instagramUrl", genre, nationality, "facebookUrl", "twitterUrl", "youtubeUrl", "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl", status, "wpId", "createdAt", "updatedAt", "userId" FROM "Artist" WHERE "userId" = $1
+`
+
+func (q *Queries) GetArtistByUserID(ctx context.Context, userid *string) (Artist, error) {
+	row := q.db.QueryRow(ctx, getArtistByUserID, userid)
+	var i Artist
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.City,
+		&i.Country,
+		&i.AvatarUrl,
+		&i.FeaturedImageUrl,
+		&i.InstagramUrl,
+		&i.Genre,
+		&i.Nationality,
+		&i.FacebookUrl,
+		&i.TwitterUrl,
+		&i.YoutubeUrl,
+		&i.TiktokUrl,
+		&i.WebsiteUrl,
+		&i.SpotifyUrl,
+		&i.SoundcloudUrl,
+		&i.VideoUrl,
+		&i.Status,
+		&i.WpId,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.UserId,
 	)
 	return i, err
 }
@@ -254,8 +310,47 @@ func (q *Queries) GetArtistTranslations(ctx context.Context, artistid string) ([
 	return items, nil
 }
 
+const linkArtistUser = `-- name: LinkArtistUser :one
+UPDATE "Artist" SET "userId" = $2, "updatedAt" = NOW() WHERE "id" = $1 RETURNING id, slug, city, country, "avatarUrl", "featuredImageUrl", "instagramUrl", genre, nationality, "facebookUrl", "twitterUrl", "youtubeUrl", "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl", status, "wpId", "createdAt", "updatedAt", "userId"
+`
+
+type LinkArtistUserParams struct {
+	ID     string  `json:"id"`
+	UserId *string `json:"userId"`
+}
+
+func (q *Queries) LinkArtistUser(ctx context.Context, arg LinkArtistUserParams) (Artist, error) {
+	row := q.db.QueryRow(ctx, linkArtistUser, arg.ID, arg.UserId)
+	var i Artist
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.City,
+		&i.Country,
+		&i.AvatarUrl,
+		&i.FeaturedImageUrl,
+		&i.InstagramUrl,
+		&i.Genre,
+		&i.Nationality,
+		&i.FacebookUrl,
+		&i.TwitterUrl,
+		&i.YoutubeUrl,
+		&i.TiktokUrl,
+		&i.WebsiteUrl,
+		&i.SpotifyUrl,
+		&i.SoundcloudUrl,
+		&i.VideoUrl,
+		&i.Status,
+		&i.WpId,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.UserId,
+	)
+	return i, err
+}
+
 const listArtists = `-- name: ListArtists :many
-SELECT a.id, a.slug, a.city, a.country, a."avatarUrl", a."featuredImageUrl", a."instagramUrl", a.genre, a.nationality, a."facebookUrl", a."twitterUrl", a."youtubeUrl", a."tiktokUrl", a."websiteUrl", a."spotifyUrl", a."soundcloudUrl", a."videoUrl", a.status, a."wpId", a."createdAt", a."updatedAt", COUNT(*) OVER() AS total_count
+SELECT a.id, a.slug, a.city, a.country, a."avatarUrl", a."featuredImageUrl", a."instagramUrl", a.genre, a.nationality, a."facebookUrl", a."twitterUrl", a."youtubeUrl", a."tiktokUrl", a."websiteUrl", a."spotifyUrl", a."soundcloudUrl", a."videoUrl", a.status, a."wpId", a."createdAt", a."updatedAt", a."userId", COUNT(*) OVER() AS total_count
 FROM "Artist" a
 WHERE a."status" = 'PUBLISHED'::"ProductStatus"
 ORDER BY a."createdAt" DESC
@@ -289,6 +384,7 @@ type ListArtistsRow struct {
 	WpId             *int32           `json:"wpId"`
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
+	UserId           *string          `json:"userId"`
 	TotalCount       int64            `json:"total_count"`
 }
 
@@ -323,6 +419,7 @@ func (q *Queries) ListArtists(ctx context.Context, arg ListArtistsParams) ([]Lis
 			&i.WpId,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.UserId,
 			&i.TotalCount,
 		); err != nil {
 			return nil, err
@@ -356,7 +453,7 @@ SET "slug"          = COALESCE($2, "slug"),
     "status"        = COALESCE($18::"ProductStatus", "status"),
     "updatedAt"     = NOW()
 WHERE "id" = $1
-RETURNING id, slug, city, country, "avatarUrl", "featuredImageUrl", "instagramUrl", genre, nationality, "facebookUrl", "twitterUrl", "youtubeUrl", "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl", status, "wpId", "createdAt", "updatedAt"
+RETURNING id, slug, city, country, "avatarUrl", "featuredImageUrl", "instagramUrl", genre, nationality, "facebookUrl", "twitterUrl", "youtubeUrl", "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl", status, "wpId", "createdAt", "updatedAt", "userId"
 `
 
 type UpdateArtistParams struct {
@@ -424,6 +521,7 @@ func (q *Queries) UpdateArtist(ctx context.Context, arg UpdateArtistParams) (Art
 		&i.WpId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserId,
 	)
 	return i, err
 }

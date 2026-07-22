@@ -48,6 +48,16 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Vet
+        run: go vet ./...
+
+      # Les tests d'intégration démarrent un conteneur Postgres (testcontainers)
+      # et appliquent sql/schema.sql. Sans cette étape, ils ne sont jamais
+      # exécutés — c'est ce qui avait laissé passer des tests écrits contre un
+      # schéma inexistant.
+      - name: Test
+        run: go test -race ./...
+
       - name: Build
         run: go build -v ./cmd/api
 
@@ -90,3 +100,9 @@ jobs:
           file: apps/web/Dockerfile
           push: true
           tags: ghcr.io/${{ env.REPO_OWNER }}/rbs-crew-nextjs-web:main
+          # Variables NEXT_PUBLIC_* : figées au build. C'est cette image que
+          # Jenkins déploie, donc les passer ici est indispensable — les
+          # build.args de docker-compose ne servent qu'aux builds locaux.
+          build-args: |
+            NEXT_PUBLIC_API_URL=/backend
+            NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL || 'https://rbs-crew.cheikhmodiouf.org' }}

@@ -4,7 +4,7 @@ declare module 'next-auth' {
   interface Session {
     accessToken: string;
     /** Propagé depuis le JWT quand le refresh token est expiré */
-    error?: 'RefreshTokenError';
+    error?: 'RefreshTokenError' | 'GoogleAuthError';
     user: {
       id: string;
       role: string;

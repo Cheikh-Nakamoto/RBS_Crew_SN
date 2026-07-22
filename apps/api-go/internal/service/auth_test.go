@@ -18,7 +18,7 @@ func newAuthService(t *testing.T) *AuthService {
 	pool := getTestPool(t)
 	truncateAll(t, pool)
 	repo := repository.NewAuthRepository(pool)
-	return NewAuthService(repo, mailStub(), "access-secret-for-tests", "refresh-secret-for-tests")
+	return NewAuthService(repo, mailStub(), "access-secret-for-tests", "refresh-secret-for-tests", "")
 }
 
 func mkRegisterReq(email string) model.RegisterRequest {

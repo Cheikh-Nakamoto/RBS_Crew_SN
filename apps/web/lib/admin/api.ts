@@ -1,13 +1,9 @@
 import ky from 'ky';
-
-const API_URL =
-  typeof window === 'undefined'
-    ? (process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000')
-    : (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000');
+import { API_BASE } from '../api-base';
 
 export function getAdminApi(token: string) {
   return ky.create({
-    prefixUrl: `${API_URL}/admin`,
+    prefixUrl: `${API_BASE}/admin`,
     timeout: 15000,
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -15,7 +11,7 @@ export function getAdminApi(token: string) {
 
 export function getAuthedApi(token: string) {
   return ky.create({
-    prefixUrl: API_URL,
+    prefixUrl: API_BASE,
     timeout: 15000,
     headers: { Authorization: `Bearer ${token}` },
   });

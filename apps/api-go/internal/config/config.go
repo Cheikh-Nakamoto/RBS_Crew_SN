@@ -39,10 +39,15 @@ type Config struct {
 	WaveAPIKey    string
 	WaveSecretKey string
 
-	// Orange Money
+	// Orange Money — désactivé par défaut, voir EnableOrangeMoney.
+	EnableOrangeMoney       bool
 	OrangeMoneyClientID     string
 	OrangeMoneyClientSecret string
 	OrangeMoneyMerchantKey  string
+
+	// Google OAuth — seul le client ID est nécessaire côté API : il sert à
+	// vérifier l'audience de l'id_token émis par Google.
+	GoogleClientID string
 
 	// Naboo
 	NabooAPIKey        string
@@ -92,6 +97,7 @@ func Load() (*Config, error) {
 		SMTPUser:            getEnv("SMTP_USER", ""),
 		SMTPPass:            getEnv("SMTP_PASS", ""),
 		SMTPFrom:            getEnv("SMTP_FROM", "RBS Crew <noreply@rbscrew.sn>"),
+		GoogleClientID:      getEnv("GOOGLE_CLIENT_ID", ""),
 		StripeSecretKey:         getEnv("STRIPE_SECRET_KEY", ""),
 		StripeWebhookSecret:     getEnv("STRIPE_WEBHOOK_SECRET", ""),
 		PayPalClientID:          getEnv("PAYPAL_CLIENT_ID", ""),
@@ -100,6 +106,7 @@ func Load() (*Config, error) {
 		PayPalSandbox:           getEnv("PAYPAL_SANDBOX", "true") == "true",
 		WaveAPIKey:              getEnv("WAVE_API_KEY", ""),
 		WaveSecretKey:           getEnv("WAVE_SECRET_KEY", ""),
+		EnableOrangeMoney:       getEnv("ENABLE_ORANGE_MONEY", "false") == "true",
 		OrangeMoneyClientID:     getEnv("OM_CLIENT_ID", ""),
 		OrangeMoneyClientSecret: getEnv("OM_CLIENT_SECRET", ""),
 		OrangeMoneyMerchantKey:  getEnv("OM_MERCHANT_KEY", ""),

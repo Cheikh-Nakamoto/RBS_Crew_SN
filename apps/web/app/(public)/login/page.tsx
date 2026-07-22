@@ -1,6 +1,6 @@
 'use client';
 import { useState, Suspense } from 'react';
-import { signIn } from 'next-auth/react';
+import { getSession, signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { LogIn, Eye, EyeOff, AlertCircle, Clock } from 'lucide-react';
@@ -41,7 +41,16 @@ function LoginForm() {
       setStatus('error');
       setErrorMsg('Email ou mot de passe incorrect.');
     } else {
-      router.push(callbackUrl);
+      // Sans destination explicite, on emmène chacun chez lui : un artiste sur
+      // son espace, un administrateur sur le back-office.
+      let destination = callbackUrl;
+      if (destination === '/') {
+        const session = await getSession();
+        const role = (session?.user as { role?: string } | undefined)?.role;
+        if (role === 'ARTIST') destination = '/espace-artiste';
+        else if (role === 'ADMIN' || role === 'EDITOR') destination = '/admin';
+      }
+      router.push(destination);
       router.refresh();
     }
   }

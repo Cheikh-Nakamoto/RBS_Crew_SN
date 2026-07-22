@@ -13,6 +13,7 @@ import {
   Send,
   AlertCircle,
 } from 'lucide-react';
+import { apiUrl } from '@/lib/api-base';
 
 const ORDER_TYPES = [
   { label: 'Sérigraphie',           icon: Printer },
@@ -48,7 +49,7 @@ export default function LabzPage() {
     };
 
     try {
-      const res = await fetch(`${process.env.AUTH_URL}/quotes`, {
+      const res = await fetch(apiUrl('/quotes'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

@@ -40,3 +40,21 @@ export async function deleteArtistes(id: string): Promise<ActionResult<void>> {
     return { success: false, error: await parseApiError(err) };
   }
 }
+
+/**
+ * Rattache un compte à une fiche artiste et envoie l'invitation par e-mail.
+ * L'artiste définit son mot de passe via le lien reçu, puis accède à son espace.
+ */
+export async function inviteArtiste(id: string, email: string): Promise<ActionResult> {
+  try {
+    const token = await getAdminToken();
+    const result = await getAdminApi(token)
+      .post(`artists/${id}/invite`, { json: { email } })
+      .json();
+    revalidatePath('/admin/artistes');
+    revalidatePath(`/admin/artistes/${id}`);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, error: await parseApiError(err) };
+  }
+}

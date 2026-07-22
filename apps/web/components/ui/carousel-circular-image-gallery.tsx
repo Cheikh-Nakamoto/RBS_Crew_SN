@@ -3,10 +3,14 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
+// GSAP est chargé par script externe : on ne dispose pas de ses types ici, mais
+// `unknown` suffit — le composant ne fait que transmettre ces objets.
+type GsapGlobal = Record<string, (...args: never[]) => unknown>;
+
 declare global {
   interface Window {
-    gsap: any;
-    MotionPathPlugin: any;
+    gsap: GsapGlobal;
+    MotionPathPlugin: unknown;
   }
 }
 
@@ -46,7 +50,6 @@ const defaultImages: ImageData[] = [
 export function ImageGallery({ images = defaultImages }: { images?: ImageData[] }) {
   const [opened, setOpened] = useState(0)
   const [inPlace, setInPlace] = useState(0)
-  const [disabled, setDisabled] = useState(false)
   const [gsapReady, setGsapReady] = useState(false)
   const autoplayTimer = useRef<number | null>(null)
 
@@ -100,9 +103,10 @@ export function ImageGallery({ images = defaultImages }: { images?: ImageData[] 
     })
   }, [images.length])
 
-  // Disable clicks during animation transitions
-  useEffect(() => setDisabled(true), [opened])
-  useEffect(() => setDisabled(false), [inPlace])
+  // Les clics sont bloqués pendant les transitions : état dérivé de la
+  // progression de l'animation, calculé au rendu plutôt que via deux effets
+  // qui se déclenchaient en cascade.
+  const disabled = opened !== inPlace
 
   // Autoplay and timer reset logic
   useEffect(() => {

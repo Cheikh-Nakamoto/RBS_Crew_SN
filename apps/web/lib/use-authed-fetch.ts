@@ -3,6 +3,7 @@
 import { useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { apiUrl } from './api-base';
 
 /**
  * Hook pour les appels API authentifiés côté client.
@@ -18,23 +19,17 @@ export function useAuthedFetch() {
 
   const authedFetch = useCallback(
     async (path: string, options: RequestInit = {}): Promise<Response> => {
-      const API_URL = process.env.INTERNAL_API_URL ?? 'http://localhost:4000';
       const token = (session as (typeof session & { accessToken?: string }) | null)?.accessToken;
 
-      const method = options.method || 'GET';
-      const url = `${API_URL}${path}`;
-      console.log(`[API REQUEST] ${method} ${url}`);
-
-      const res = await fetch(url, {
+      const res = await fetch(apiUrl(path), {
         ...options,
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...(options.headers ?? {}),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
-
-      console.log(`[API RESPONSE] ${method} ${url} - Status: ${res.status}`);
 
       // Token expiré ou invalide → déconnexion + redirect /login
       if (res.status === 401) {

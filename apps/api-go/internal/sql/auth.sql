@@ -27,7 +27,7 @@ UPDATE "User" SET "resetToken" = $2, "resetTokenExpiry" = $3, "updatedAt" = NOW(
 WHERE "email" = $1;
 
 -- name: GetUserByResetToken :one
-SELECT "id", "email", "resetToken", "resetTokenExpiry", "emailVerified"
+SELECT "id", "email", "role", "resetToken", "resetTokenExpiry", "emailVerified"
 FROM "User" WHERE "resetToken" = $1 AND "resetTokenExpiry" > NOW();
 
 -- name: ClearResetToken :exec
@@ -53,3 +53,13 @@ SET "emailVerified" = true,
     "emailVerificationTokenExpiry" = NULL,
     "updatedAt" = NOW()
 WHERE "id" = $1;
+
+-- CreateUser fige le rôle CUSTOMER ; cette variante sert au provisionnement des
+-- comptes artiste par un administrateur.
+-- name: CreateUserWithRole :one
+INSERT INTO "User" ("id", "email", "passwordHash", "firstName", "lastName", "phone", "role", "preferredLocale", "createdAt", "updatedAt", "emailVerified")
+VALUES ($1, $2, $3, $4, $5, $6, $7::"UserRole", 'fr'::"Locale", NOW(), NOW(), false)
+RETURNING *;
+
+-- name: UpdateUserRole :one
+UPDATE "User" SET "role" = $2::"UserRole", "updatedAt" = NOW() WHERE "id" = $1 RETURNING *;

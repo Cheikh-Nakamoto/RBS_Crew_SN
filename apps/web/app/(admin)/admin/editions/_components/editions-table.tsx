@@ -8,16 +8,13 @@ import { DataTableToolbar } from '@/components/admin/data-table/data-table-toolb
 import { DeleteConfirmDialog } from '@/components/admin/delete-confirm-dialog';
 import { deleteEditions } from '../actions';
 import { getEditionColumns } from '../columns';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-import type { PaginatedMeta } from '@/types/admin';
+import type { PaginatedMeta, AdminFestivalEdition } from '@/types/admin';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface EditionsTableProps {
-  data: any[];
+  data: AdminFestivalEdition[];
   pagination: PaginatedMeta;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function EditionsTable({ data, pagination }: EditionsTableProps) {
   const router = useRouter();
   const pathname = usePathname();

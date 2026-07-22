@@ -72,13 +72,21 @@ function NavLink({ href, label, active }: { href: string; label: string; active:
 export function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const isArtist = (session?.user as { role?: string } | undefined)?.role === 'ARTIST';
   const { count, setIsOpen: openCart } = useCart();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const navId = useId();
   const mobileNavId = `mobile-nav-${navId}`;
 
-  useEffect(() => { setMobileOpen(false); }, [pathname]);
+  // Fermer le menu à chaque navigation. Ajustement d'état pendant le rendu
+  // (pattern documenté par React) plutôt qu'un effet : il n'y a aucun système
+  // externe à synchroniser ici.
+  const [lastPath, setLastPath] = useState(pathname);
+  if (lastPath !== pathname) {
+    setLastPath(pathname);
+    setMobileOpen(false);
+  }
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20);
@@ -223,6 +231,14 @@ export function Navbar() {
               {/* Auth — desktop */}
               {session ? (
                 <>
+                  {isArtist && (
+                    <Link
+                      href="/espace-artiste"
+                      className="hidden md:flex items-center gap-2 text-xs font-semibold text-white/60 hover:text-white transition-colors uppercase tracking-wider min-h-[44px]"
+                    >
+                      Espace artiste
+                    </Link>
+                  )}
                   <Link
                     href="/profile"
                     className="hidden md:flex items-center gap-2 text-xs font-semibold text-white/60 hover:text-white transition-colors uppercase tracking-wider min-h-[44px]"
@@ -383,6 +399,15 @@ export function Navbar() {
                       variants={itemVariants}
                       transition={{ delay: (links.length + 1) * 0.04, duration: 0.2, ease: EASE_OUT }}
                     >
+                      {isArtist && (
+                        <Link
+                          href="/espace-artiste"
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-white/70 hover:text-white hover:bg-white/6 transition-all min-h-[44px]"
+                        >
+                          <LogIn className="w-5 h-5 text-white/40" aria-hidden="true" />
+                          Espace artiste
+                        </Link>
+                      )}
                       <Link
                         href="/profile"
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-white/70 hover:text-white hover:bg-white/6 transition-all min-h-[44px]"

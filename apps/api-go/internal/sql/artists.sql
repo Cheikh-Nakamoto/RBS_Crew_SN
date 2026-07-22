@@ -66,3 +66,14 @@ RETURNING *;
 
 -- name: DeleteArtist :exec
 DELETE FROM "Artist" WHERE "id" = $1;
+
+-- name: GetArtistByUserID :one
+SELECT * FROM "Artist" WHERE "userId" = $1;
+
+-- name: LinkArtistUser :one
+UPDATE "Artist" SET "userId" = $2, "updatedAt" = NOW() WHERE "id" = $1 RETURNING *;
+
+-- Suppression d'une œuvre portant son propre contrôle d'appartenance : le
+-- prédicat sur artistId rend impossible la suppression de l'œuvre d'un autre.
+-- name: DeleteArtistArtworkOwned :execrows
+DELETE FROM "ArtistArtwork" WHERE "id" = $1 AND "artistId" = $2;

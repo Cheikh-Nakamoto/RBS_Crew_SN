@@ -17,7 +17,7 @@ export default async function CheckoutCancelPage({
           Paiement annulé
         </h1>
         <p className="text-white/50 text-sm mb-10">
-          Votre commande {resolvedParams.orderId ? `#${resolvedParams.orderId.split('-')[0]}` : ''} n'a pas été payée. Votre panier a été conservé, vous pouvez réessayer le paiement à tout moment.
+          Votre commande {resolvedParams.orderId ? `#${resolvedParams.orderId.split('-')[0]}` : ''} n&apos;a pas été payée. Votre panier a été conservé, vous pouvez réessayer le paiement à tout moment.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link

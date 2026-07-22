@@ -1,8 +1,9 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
+import { API_BASE } from './api-base';
 
-const API_URL = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const API_URL = API_BASE;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -43,7 +44,44 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
+      // Première connexion Google : `user` est bien présent mais ne porte aucun
+      // accessToken (ce champ ne vient que du provider Credentials). Sans cet
+      // échange, la session serait valide côté next-auth tout en étant refusée
+      // par l'API Go sur chaque appel authentifié. Ce cas doit donc être traité
+      // AVANT la branche générique `if (user)`.
+      if (account?.provider === 'google' && account.id_token) {
+        try {
+          const res = await fetch(`${API_URL}/auth/oauth/google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken: account.id_token }),
+          });
+          if (!res.ok) {
+            token.error = 'GoogleAuthError';
+            return token;
+          }
+          const data = (await res.json()) as { accessToken: string; refreshToken: string };
+
+          const meRes = await fetch(`${API_URL}/auth/me`, {
+            headers: { Authorization: `Bearer ${data.accessToken}` },
+          });
+          const me = meRes.ok
+            ? ((await meRes.json()) as { id: string; role: string })
+            : null;
+
+          token.accessToken = data.accessToken;
+          token.refreshToken = data.refreshToken;
+          token.role = me?.role ?? 'CUSTOMER';
+          token.userId = me?.id;
+          token.accessTokenExpiry = Date.now() + 14 * 60 * 1000;
+          token.error = undefined;
+        } catch {
+          token.error = 'GoogleAuthError';
+        }
+        return token;
+      }
+
       if (user) {
         const u = user as typeof user & { accessToken: string; refreshToken: string; role: string; id: string };
         token.accessToken = u.accessToken;
@@ -87,7 +125,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.id = token.userId as string;
       // Expose token error to the client so it can redirect to /login
       if (token.error) {
-        session.error = token.error as 'RefreshTokenError';
+        session.error = token.error as 'RefreshTokenError' | 'GoogleAuthError';
       }
       return session;
     },

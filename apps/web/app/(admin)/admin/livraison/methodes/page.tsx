@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react';
 import { toast } from 'sonner';
+import { API_BASE } from '@/lib/api-base';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,7 +52,7 @@ interface ShippingRate {
   currency: string;
 }
 
-const API_URL = process.env.AUTH_URL ?? 'http://localhost:4000';
+const API_URL = API_BASE;
 
 export default function ShippingMethodsPage() {
   const { data: session } = useSession();

@@ -96,7 +96,7 @@ export default async function FestivalEditionPage({ params }: { params: Promise<
         <div className="relative z-20 w-full max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pb-12 sm:pb-16 md:pb-24">
           <Link href="/festival" className="inline-flex items-center gap-2 text-white/70 hover:text-[oklch(0.72_0.19_48)] transition-colors mb-6 text-sm font-medium tracking-wide tag-graffiti px-4 py-2 border border-white/10 rounded-full bg-black/30 backdrop-blur-sm">
             <ArrowLeft className="w-4 h-4" />
-            Retour à l'Historique
+            Retour à l&apos;Historique
           </Link>
 
           <div className="flex items-center gap-3 mb-4">
@@ -151,7 +151,7 @@ export default async function FestivalEditionPage({ params }: { params: Promise<
           {/* Metadata Sidebar */}
           <div className="lg:col-span-4 space-y-8">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-              <h3 className="font-display text-xl text-white mb-4 border-b border-white/10 pb-4">À propos de l'édition</h3>
+              <h3 className="font-display text-xl text-white mb-4 border-b border-white/10 pb-4">À propos de l&apos;édition</h3>
               <ul className="space-y-4">
                 <li className="flex justify-between items-center text-sm">
                   <span className="text-white/50">Année</span>
@@ -277,7 +277,7 @@ export default async function FestivalEditionPage({ params }: { params: Promise<
           <div className="mt-16 sm:mt-24">
             <div className="flex items-end justify-between border-b border-white/10 pb-4 mb-8">
               <div>
-                <h2 className="text-3xl sm:text-4xl font-display text-white mb-2">Galerie de l'Édition</h2>
+                <h2 className="text-3xl sm:text-4xl font-display text-white mb-2">Galerie de l&apos;Édition</h2>
                 <p className="text-white/50 text-sm">Découvrez les œuvres, murs et moments du festival.</p>
               </div>
               <span className="hidden sm:inline-flex px-3 py-1 bg-white/5 border border-white/10 rounded-full font-mono text-xs text-white/50">

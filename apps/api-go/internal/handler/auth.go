@@ -208,6 +208,55 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	types.WriteJSON(w, http.StatusOK, map[string]string{"message": "Password successfully reset. You can now log in."})
 }
 
+// GoogleOAuth reçoit l'id_token émis par Google (transmis par next-auth depuis
+// le serveur Next.js) et renvoie les JWT applicatifs.
+func (h *AuthHandler) GoogleOAuth(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		IDToken string `json:"idToken" validate:"required"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		types.WriteError(w, types.BadRequest("Invalid payload"))
+		return
+	}
+	if err := validate.Struct(body); err != nil {
+		types.WriteError(w, types.Unauthorized("Invalid Google token"))
+		return
+	}
+	tokens, appErr := h.svc.GoogleOAuth(r.Context(), body.IDToken)
+	if appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, tokens)
+}
+
+// AcceptInvitation active un compte artiste : l'artiste choisit son mot de
+// passe via le lien reçu par e-mail, puis est connecté directement.
+func (h *AuthHandler) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Token    string `json:"token" validate:"required"`
+		Password string `json:"password" validate:"required,password_strength"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		types.WriteError(w, types.BadRequest("Invalid payload"))
+		return
+	}
+	if err := validate.Struct(body); err != nil {
+		types.WriteError(w, validationError())
+		return
+	}
+	tokens, email, appErr := h.svc.AcceptInvitation(r.Context(), body.Token, body.Password)
+	if appErr != nil {
+		types.WriteError(w, appErr)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, map[string]string{
+		"accessToken":  tokens.AccessToken,
+		"refreshToken": tokens.RefreshToken,
+		"email":        email,
+	})
+}
+
 func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Token string `json:"token" validate:"required"`

@@ -8,16 +8,13 @@ import { DataTableToolbar } from '@/components/admin/data-table/data-table-toolb
 import { DeleteConfirmDialog } from '@/components/admin/delete-confirm-dialog';
 import { deleteProjets } from '../actions';
 import { getProjetColumns } from '../columns';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-import type { PaginatedMeta } from '@/types/admin';
+import type { PaginatedMeta, AdminProject } from '@/types/admin';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface ProjetsTableProps {
-  data: any[];
+  data: AdminProject[];
   pagination: PaginatedMeta;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function ProjetsTable({ data, pagination }: ProjetsTableProps) {
   const router = useRouter();
   const pathname = usePathname();

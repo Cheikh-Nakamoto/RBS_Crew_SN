@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
 /** Routes qui nécessitent une authentification */
-const PROTECTED_ROUTES = ['/profile', '/shop/checkout'];
+const PROTECTED_ROUTES = ['/profile', '/shop/checkout', '/espace-artiste'];
 
 export default auth((req) => {
   const { nextUrl } = req;
@@ -25,6 +25,20 @@ export default auth((req) => {
     }
   }
 
+  // ── Espace artiste ──────────────────────────────────────────────
+  if (nextUrl.pathname.startsWith('/espace-artiste')) {
+    if (!session || isTokenExpired) {
+      const reason = isTokenExpired ? '&reason=session_expired' : '';
+      return NextResponse.redirect(
+        new URL(`/login?callbackUrl=${callbackUrl}${reason}`, nextUrl)
+      );
+    }
+    const role = (session.user as { role?: string }).role;
+    if (role !== 'ARTIST' && role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/', nextUrl));
+    }
+  }
+
   // ── Routes Protégées (authentification simple) ───────────────────
   const isProtected = PROTECTED_ROUTES.some((r) =>
     nextUrl.pathname.startsWith(r)
@@ -42,5 +56,10 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ['/admin/:path*', '/profile/:path*', '/shop/checkout/:path*'],
+  matcher: [
+    '/admin/:path*',
+    '/profile/:path*',
+    '/shop/checkout/:path*',
+    '/espace-artiste/:path*',
+  ],
 };

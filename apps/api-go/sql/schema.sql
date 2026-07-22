@@ -1,776 +1,709 @@
--- FROZEN BASELINE - do not edit.
--- All schema changes must go through goose migrations under ./migrations/.
--- This file is kept for reference only (matches migrations/00001_baseline.sql).
+-- ============================================================================
+-- RBS Crew SN — SCHÉMA DE RÉFÉRENCE UNIQUE
+--
+-- Ce fichier est l'unique source de vérité du schéma. Il est exécuté :
+--   * par Postgres à la création de la base (docker-entrypoint-initdb.d/02-schema.sql)
+--   * par sqlc pour générer internal/db/queries/
+--
+-- RÈGLE : uniquement des CREATE TYPE / CREATE TABLE / CREATE INDEX.
+-- Jamais d'ALTER TABLE — une évolution de schéma se fait en éditant les
+-- définitions ci-dessous, puis en recréant la base (`make db-reset`).
+--
+-- ⚠️  AVERTISSEMENT — MODÈLE « BASE JETABLE »
+-- Il n'existe plus de migrations incrémentales. Toute évolution du schéma
+-- DÉTRUIT l'intégralité des données : commandes, paiements, comptes clients et
+-- remboursements compris. Ce modèle n'est tenable que tant que la base ne
+-- contient que des données de démo réimportables depuis migration-scripts/.
+--
+-- SIGNAL DE BASCULE OBLIGATOIRE — réintroduire des migrations incrémentales
+-- AVANT la prochaine évolution de schéma dès que l'une de ces conditions est
+-- vraie :
+--   * un premier paiement réel a été encaissé (ligne "Payment" en status 'PAID')
+--   * un compte utilisateur réel non réimportable existe
+--   * le service est ouvert au public / une mise en production est annoncée
+--
+-- La bascule devra s'accompagner d'une vérification en CI (diff de pg_dump
+-- entre les deux voies) : la divergence constatée en juillet 2026 entre les
+-- migrations goose et ce fichier (FK Order_shippingMethodId_fkey, index
+-- Order_trackingNumber_idx et valeur d'enum NABOO manquants) a prouvé que la
+-- seule discipline ne suffit pas.
+-- ============================================================================
 
--- CreateEnum
-CREATE TYPE "Locale" AS ENUM ('fr', 'en', 'de', 'es', 'it');
-
--- CreateEnum
-CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED', 'REFUNDED', 'FAILED');
-
--- CreateEnum
-CREATE TYPE "PaymentStatus" AS ENUM ('UNPAID', 'PAID', 'PARTIALLY_REFUNDED', 'REFUNDED');
-
--- CreateEnum
-CREATE TYPE "PaymentMethod" AS ENUM ('STRIPE', 'PAYPAL', 'WAVE', 'ORANGE_MONEY');
-
--- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('CUSTOMER', 'ADMIN', 'EDITOR');
-
--- CreateEnum
-CREATE TYPE "ProductStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'ARCHIVED');
-
--- CreateTable
-CREATE TABLE "Category" (
-    "id" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "parentId" TEXT,
-    "wpId" INTEGER,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
+-- ── Types ───────────────────────────────────────────────────────────────────
+CREATE TYPE "Locale" AS ENUM (
+    'fr',
+    'en',
+    'de',
+    'es',
+    'it'
+);
+CREATE TYPE "OrderStatus" AS ENUM (
+    'PENDING',
+    'PROCESSING',
+    'COMPLETED',
+    'CANCELLED',
+    'REFUNDED',
+    'FAILED'
+);
+CREATE TYPE "PaymentMethod" AS ENUM (
+    'STRIPE',
+    'PAYPAL',
+    'WAVE',
+    'ORANGE_MONEY',
+    'NABOO'
+);
+CREATE TYPE "PaymentStatus" AS ENUM (
+    'UNPAID',
+    'PAID',
+    'PARTIALLY_REFUNDED',
+    'REFUNDED'
+);
+CREATE TYPE "ProductStatus" AS ENUM (
+    'DRAFT',
+    'PUBLISHED',
+    'ARCHIVED'
+);
+CREATE TYPE "RefundStatus" AS ENUM (
+    'PENDING',
+    'SUCCEEDED',
+    'FAILED',
+    'CANCELLED'
+);
+CREATE TYPE "UserRole" AS ENUM (
+    'CUSTOMER',
+    'ADMIN',
+    'EDITOR',
+    'ARTIST'
 );
 
--- CreateTable
-CREATE TABLE "CategoryTranslation" (
-    "id" TEXT NOT NULL,
-    "categoryId" TEXT NOT NULL,
-    "locale" "Locale" NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
+-- ── Tables (ordre topologique — FK déclarées en ligne) ───────────────────────
 
-    CONSTRAINT "CategoryTranslation_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Tag" (
-    "id" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "wpId" INTEGER,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Tag_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "TagTranslation" (
-    "id" TEXT NOT NULL,
-    "tagId" TEXT NOT NULL,
-    "locale" "Locale" NOT NULL,
-    "name" TEXT NOT NULL,
-
-    CONSTRAINT "TagTranslation_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Product" (
-    "id" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "sku" TEXT,
-    "price" DECIMAL(10,2) NOT NULL,
-    "compareAtPrice" DECIMAL(10,2),
-    "stock" INTEGER NOT NULL DEFAULT 0,
-    "manageStock" BOOLEAN NOT NULL DEFAULT true,
-    "status" "ProductStatus" NOT NULL DEFAULT 'DRAFT',
-    "featuredImageUrl" TEXT,
-    "wcId" INTEGER,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Product_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "ProductTranslation" (
-    "id" TEXT NOT NULL,
-    "productId" TEXT NOT NULL,
-    "locale" "Locale" NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "shortDescription" TEXT,
-    "slug" TEXT NOT NULL,
-    "metaTitle" TEXT,
-    "metaDescription" TEXT,
-
-    CONSTRAINT "ProductTranslation_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "ProductImage" (
-    "id" TEXT NOT NULL,
-    "productId" TEXT NOT NULL,
-    "imageUrl" TEXT NOT NULL,
-    "position" INTEGER NOT NULL DEFAULT 0,
-
-    CONSTRAINT "ProductImage_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "ProductCategory" (
-    "productId" TEXT NOT NULL,
-    "categoryId" TEXT NOT NULL,
-
-    CONSTRAINT "ProductCategory_pkey" PRIMARY KEY ("productId","categoryId")
-);
-
--- CreateTable
-CREATE TABLE "ProductTag" (
-    "productId" TEXT NOT NULL,
-    "tagId" TEXT NOT NULL,
-
-    CONSTRAINT "ProductTag_pkey" PRIMARY KEY ("productId","tagId")
-);
-
--- CreateTable
-CREATE TABLE "ProductAttribute" (
-    "id" TEXT NOT NULL,
-    "productId" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "value" TEXT NOT NULL,
-
-    CONSTRAINT "ProductAttribute_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "ProductVariant" (
-    "id" TEXT NOT NULL,
-    "productId" TEXT NOT NULL,
-    "sku" TEXT,
-    "price" DECIMAL(10,2) NOT NULL,
-    "stock" INTEGER NOT NULL DEFAULT 0,
-    "options" JSONB NOT NULL,
-    "wcId" INTEGER,
-
-    CONSTRAINT "ProductVariant_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "User" (
-    "id" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "passwordHash" TEXT NOT NULL,
-    "firstName" TEXT,
-    "lastName" TEXT,
-    "phone" TEXT,
-    "role" "UserRole" NOT NULL DEFAULT 'CUSTOMER',
-    "emailVerified" BOOLEAN NOT NULL DEFAULT false,
-    "preferredLocale" "Locale" NOT NULL DEFAULT 'fr',
-    "wcId" INTEGER,
-    "resetToken" TEXT,
-    "resetTokenExpiry" TIMESTAMP(3),
-    "emailVerificationToken" TEXT,
-    "emailVerificationTokenExpiry" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Address" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "label" TEXT,
-    "firstName" TEXT NOT NULL,
-    "lastName" TEXT NOT NULL,
-    "company" TEXT,
-    "line1" TEXT NOT NULL,
-    "line2" TEXT,
-    "city" TEXT NOT NULL,
-    "postalCode" TEXT NOT NULL,
-    "country" TEXT NOT NULL DEFAULT 'SN',
-    "isDefault" BOOLEAN NOT NULL DEFAULT false,
-
-    CONSTRAINT "Address_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "UserSession" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "tokenHash" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "UserSession_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Order" (
-    "id" TEXT NOT NULL,
-    "orderNumber" TEXT NOT NULL,
-    "userId" TEXT,
-    "guestEmail" TEXT,
-    "status" "OrderStatus" NOT NULL DEFAULT 'PENDING',
-    "paymentStatus" "PaymentStatus" NOT NULL DEFAULT 'UNPAID',
-    "paymentMethod" "PaymentMethod",
-    "stripePaymentIntentId" TEXT,
-    "currency" TEXT NOT NULL DEFAULT 'XOF',
-    "subtotal" DECIMAL(10,2) NOT NULL,
-    "taxAmount" DECIMAL(10,2) NOT NULL DEFAULT 0,
-    "shippingAmount" DECIMAL(10,2) NOT NULL DEFAULT 0,
-    "discountAmount" DECIMAL(10,2) NOT NULL DEFAULT 0,
-    "total" DECIMAL(10,2) NOT NULL,
-    "shippingAddressId" TEXT,
-    "billingAddressId" TEXT,
-    "notes" TEXT,
-    "wcId" INTEGER,
-    "locale" "Locale" NOT NULL DEFAULT 'fr',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Order_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "OrderItem" (
-    "id" TEXT NOT NULL,
-    "orderId" TEXT NOT NULL,
-    "productId" TEXT NOT NULL,
-    "variantId" TEXT,
-    "quantity" INTEGER NOT NULL,
-    "unitPrice" DECIMAL(10,2) NOT NULL,
-    "totalPrice" DECIMAL(10,2) NOT NULL,
-    "productName" TEXT NOT NULL,
-    "productSku" TEXT,
-
-    CONSTRAINT "OrderItem_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Payment" (
-    "id" TEXT NOT NULL,
-    "orderId" TEXT NOT NULL,
-    "method" "PaymentMethod" NOT NULL,
-    "externalId" TEXT,
-    "amount" DECIMAL(10,2) NOT NULL,
-    "currency" TEXT NOT NULL DEFAULT 'XOF',
-    "status" "PaymentStatus" NOT NULL DEFAULT 'UNPAID',
-    "metadata" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Page" (
-    "id" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "template" TEXT,
-    "status" "ProductStatus" NOT NULL DEFAULT 'DRAFT',
-    "wpId" INTEGER,
-    "parentId" TEXT,
-    "menuOrder" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Page_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "PageTranslation" (
-    "id" TEXT NOT NULL,
-    "pageId" TEXT NOT NULL,
-    "locale" "Locale" NOT NULL,
-    "title" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "content" TEXT NOT NULL,
-    "excerpt" TEXT,
-    "metaTitle" TEXT,
-    "metaDescription" TEXT,
-
-    CONSTRAINT "PageTranslation_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Service" (
-    "id" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "icon" TEXT,
-    "status" "ProductStatus" NOT NULL DEFAULT 'PUBLISHED',
-    "menuOrder" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Service_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "ServiceTranslation" (
-    "id" TEXT NOT NULL,
-    "serviceId" TEXT NOT NULL,
-    "locale" "Locale" NOT NULL,
-    "title" TEXT NOT NULL,
-    "description" TEXT NOT NULL,
-    "metaTitle" TEXT,
-    "metaDescription" TEXT,
-
-    CONSTRAINT "ServiceTranslation_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "ActivityLog" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "userEmail" TEXT NOT NULL,
-    "method" TEXT NOT NULL,
-    "path" TEXT NOT NULL,
-    "entityType" TEXT NOT NULL DEFAULT '',
-    "entityId" TEXT,
-    "statusCode" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    "userEmail" text NOT NULL,
+    method text NOT NULL,
+    path text NOT NULL,
+    "entityType" text DEFAULT ''::text NOT NULL,
+    "entityId" text,
+    "statusCode" integer NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
-    CONSTRAINT "ActivityLog_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ActivityLog_pkey" PRIMARY KEY (id)
 );
 
--- CreateTable
-CREATE TABLE "Project" (
-    "id" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "featuredImageUrl" TEXT,
-    "gallery" JSONB DEFAULT '[]'::jsonb,
-    "completedAt" TIMESTAMP(3),
-    "clientName" TEXT,
-    "country" TEXT,
-    "status" "ProductStatus" NOT NULL DEFAULT 'PUBLISHED',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+CREATE TABLE "User" (
+    id text NOT NULL,
+    email text NOT NULL,
+    "passwordHash" text NOT NULL,
+    "firstName" text,
+    "lastName" text,
+    phone text,
+    role "UserRole" DEFAULT 'CUSTOMER'::"UserRole" NOT NULL,
+    "emailVerified" boolean DEFAULT false NOT NULL,
+    "preferredLocale" "Locale" DEFAULT 'fr'::"Locale" NOT NULL,
+    "wcId" integer,
+    "resetToken" text,
+    "resetTokenExpiry" timestamp(3) without time zone,
+    "emailVerificationToken" text,
+    "emailVerificationTokenExpiry" timestamp(3) without time zone,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
 
-    CONSTRAINT "Project_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "User_pkey" PRIMARY KEY (id)
 );
 
--- CreateTable
-CREATE TABLE "ProjectTranslation" (
-    "id" TEXT NOT NULL,
-    "projectId" TEXT NOT NULL,
-    "locale" "Locale" NOT NULL,
-    "title" TEXT NOT NULL,
-    "summary" TEXT,
-    "content" TEXT,
-    "metaTitle" TEXT,
-    "metaDescription" TEXT,
+CREATE TABLE "Address" (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    label text,
+    "firstName" text NOT NULL,
+    "lastName" text NOT NULL,
+    company text,
+    line1 text NOT NULL,
+    line2 text,
+    city text NOT NULL,
+    "postalCode" text NOT NULL,
+    country text DEFAULT 'SN'::text NOT NULL,
+    "isDefault" boolean DEFAULT false NOT NULL,
 
-    CONSTRAINT "ProjectTranslation_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Address_pkey" PRIMARY KEY (id),
+    CONSTRAINT "Address_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
--- CreateTable
 CREATE TABLE "Artist" (
-    "id" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "city" TEXT,
-    "country" TEXT,
-    "avatarUrl" TEXT,
-    "featuredImageUrl" TEXT,
-    "instagramUrl" TEXT,
-    "genre" TEXT,
-    "nationality" TEXT,
-    "facebookUrl" TEXT,
-    "twitterUrl" TEXT,
-    "youtubeUrl" TEXT,
-    "tiktokUrl" TEXT,
-    "websiteUrl" TEXT,
-    "spotifyUrl" TEXT,
-    "soundcloudUrl" TEXT,
-    "videoUrl" TEXT,
-    "status" "ProductStatus" NOT NULL DEFAULT 'PUBLISHED',
-    "wpId" INTEGER,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    id text NOT NULL,
+    slug text NOT NULL,
+    city text,
+    country text,
+    "avatarUrl" text,
+    "featuredImageUrl" text,
+    "instagramUrl" text,
+    genre text,
+    nationality text,
+    "facebookUrl" text,
+    "twitterUrl" text,
+    "youtubeUrl" text,
+    "tiktokUrl" text,
+    "websiteUrl" text,
+    "spotifyUrl" text,
+    "soundcloudUrl" text,
+    "videoUrl" text,
+    status "ProductStatus" DEFAULT 'PUBLISHED'::"ProductStatus" NOT NULL,
+    "wpId" integer,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+    -- Compte permettant à l'artiste de gérer sa propre fiche. NULL tant qu'aucun
+    -- compte n'a été rattaché ; ON DELETE SET NULL pour que la suppression d'un
+    -- compte n'efface jamais la fiche publique.
+    "userId" text,
 
-    CONSTRAINT "Artist_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Artist_pkey" PRIMARY KEY (id),
+    CONSTRAINT "Artist_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
--- CreateTable
 CREATE TABLE "ArtistArtwork" (
-    "id" TEXT NOT NULL,
-    "artistId" TEXT NOT NULL,
-    "imageUrl" TEXT NOT NULL,
-    "position" INTEGER NOT NULL DEFAULT 0,
+    id text NOT NULL,
+    "artistId" text NOT NULL,
+    "imageUrl" text NOT NULL,
+    "position" integer DEFAULT 0 NOT NULL,
 
-    CONSTRAINT "ArtistArtwork_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ArtistArtwork_pkey" PRIMARY KEY (id),
+    CONSTRAINT "ArtistArtwork_artistId_fkey" FOREIGN KEY ("artistId") REFERENCES "Artist"(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
--- CreateTable
 CREATE TABLE "ArtistTranslation" (
-    "id" TEXT NOT NULL,
-    "artistId" TEXT NOT NULL,
-    "locale" "Locale" NOT NULL,
-    "name" TEXT NOT NULL,
-    "bio" TEXT,
+    id text NOT NULL,
+    "artistId" text NOT NULL,
+    locale "Locale" NOT NULL,
+    name text NOT NULL,
+    bio text,
 
-    CONSTRAINT "ArtistTranslation_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ArtistTranslation_pkey" PRIMARY KEY (id),
+    CONSTRAINT "ArtistTranslation_artistId_fkey" FOREIGN KEY ("artistId") REFERENCES "Artist"(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
--- CreateTable
+CREATE TABLE "Category" (
+    id text NOT NULL,
+    slug text NOT NULL,
+    "parentId" text,
+    "wpId" integer,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+
+    CONSTRAINT "Category_pkey" PRIMARY KEY (id),
+    CONSTRAINT "Category_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Category"(id) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+CREATE TABLE "CategoryTranslation" (
+    id text NOT NULL,
+    "categoryId" text NOT NULL,
+    locale "Locale" NOT NULL,
+    name text NOT NULL,
+    description text,
+
+    CONSTRAINT "CategoryTranslation_pkey" PRIMARY KEY (id),
+    CONSTRAINT "CategoryTranslation_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
 CREATE TABLE "FestivalEdition" (
-    "id" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "editionNumber" INTEGER NOT NULL,
-    "year" INTEGER NOT NULL,
-    "city" TEXT,
-    "country" TEXT NOT NULL DEFAULT 'SN',
-    "status" "ProductStatus" NOT NULL DEFAULT 'PUBLISHED',
-    "wpId" INTEGER,
-    "mainImage" TEXT,
-    "heroImage" TEXT,
-    "gallery" JSONB,
-    "typography" JSONB,
-    "startDate" TIMESTAMP(3),
-    "endDate" TIMESTAMP(3),
-    "venue" TEXT,
-    "venueAddress" TEXT,
-    "ticketUrl" TEXT,
-    "videoUrl" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    id text NOT NULL,
+    slug text NOT NULL,
+    "editionNumber" integer NOT NULL,
+    year integer NOT NULL,
+    city text,
+    country text DEFAULT 'SN'::text NOT NULL,
+    status "ProductStatus" DEFAULT 'PUBLISHED'::"ProductStatus" NOT NULL,
+    "wpId" integer,
+    "mainImage" text,
+    "heroImage" text,
+    gallery jsonb,
+    typography jsonb,
+    "startDate" timestamp(3) without time zone,
+    "endDate" timestamp(3) without time zone,
+    venue text,
+    "venueAddress" text,
+    "ticketUrl" text,
+    "videoUrl" text,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
 
-    CONSTRAINT "FestivalEdition_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "FestivalEdition_pkey" PRIMARY KEY (id)
 );
 
--- CreateTable
-CREATE TABLE "FestivalTranslation" (
-    "id" TEXT NOT NULL,
-    "festivalEditionId" TEXT NOT NULL,
-    "locale" "Locale" NOT NULL,
-    "themeName" TEXT NOT NULL,
-    "summary" TEXT,
-    "content" TEXT,
-
-    CONSTRAINT "FestivalTranslation_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "FestivalArtist" (
-    "id" TEXT NOT NULL,
-    "festivalEditionId" TEXT NOT NULL,
-    "artistId" TEXT NOT NULL,
-    "performanceDate" TIMESTAMP(3),
-    "stageOrder" INTEGER NOT NULL DEFAULT 0,
-    "role" TEXT NOT NULL DEFAULT 'performer',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id text NOT NULL,
+    "festivalEditionId" text NOT NULL,
+    "artistId" text NOT NULL,
+    "performanceDate" timestamp(3) without time zone,
+    "stageOrder" integer DEFAULT 0 NOT NULL,
+    role text DEFAULT 'performer'::text NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
-    CONSTRAINT "FestivalArtist_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "FestivalArtist_pkey" PRIMARY KEY (id),
+    CONSTRAINT "FestivalArtist_artistId_fkey" FOREIGN KEY ("artistId") REFERENCES "Artist"(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT "FestivalArtist_festivalEditionId_fkey" FOREIGN KEY ("festivalEditionId") REFERENCES "FestivalEdition"(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
--- CreateTable
-CREATE TABLE "PressMention" (
-    "id" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "source" TEXT NOT NULL,
-    "sourceUrl" TEXT NOT NULL,
-    "logoUrl" TEXT,
-    "featuredImageUrl" TEXT,
-    "excerpt" TEXT,
-    "date" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "PressMention_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Quote" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "surname" TEXT,
-    "email" TEXT NOT NULL,
-    "phone" TEXT,
-    "company" TEXT,
-    "orderType" TEXT NOT NULL,
-    "quantity" INTEGER,
-    "deliveryDate" TIMESTAMP(3),
-    "message" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'NEW',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Quote_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex
-CREATE UNIQUE INDEX "Category_slug_key" ON "Category"("slug");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Category_wpId_key" ON "Category"("wpId");
-
--- CreateIndex
-CREATE INDEX "CategoryTranslation_locale_idx" ON "CategoryTranslation"("locale");
-
--- CreateIndex
-CREATE UNIQUE INDEX "CategoryTranslation_categoryId_locale_key" ON "CategoryTranslation"("categoryId", "locale");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Tag_slug_key" ON "Tag"("slug");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Tag_wpId_key" ON "Tag"("wpId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "TagTranslation_tagId_locale_key" ON "TagTranslation"("tagId", "locale");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Product_slug_key" ON "Product"("slug");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Product_sku_key" ON "Product"("sku");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Product_wcId_key" ON "Product"("wcId");
-
--- CreateIndex
-CREATE INDEX "ProductTranslation_locale_idx" ON "ProductTranslation"("locale");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ProductTranslation_productId_locale_key" ON "ProductTranslation"("productId", "locale");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ProductTranslation_locale_slug_key" ON "ProductTranslation"("locale", "slug");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ProductImage_productId_imageUrl_key" ON "ProductImage"("productId", "imageUrl");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ProductVariant_sku_key" ON "ProductVariant"("sku");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ProductVariant_wcId_key" ON "ProductVariant"("wcId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
-
--- CreateIndex
-CREATE UNIQUE INDEX "User_wcId_key" ON "User"("wcId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "User_resetToken_key" ON "User"("resetToken");
-
--- CreateIndex
-CREATE UNIQUE INDEX "User_emailVerificationToken_key" ON "User"("emailVerificationToken");
-
--- CreateIndex
-CREATE UNIQUE INDEX "UserSession_tokenHash_key" ON "UserSession"("tokenHash");
-
--- CreateIndex
-CREATE INDEX "UserSession_tokenHash_idx" ON "UserSession"("tokenHash");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Order_orderNumber_key" ON "Order"("orderNumber");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Order_stripePaymentIntentId_key" ON "Order"("stripePaymentIntentId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Order_wcId_key" ON "Order"("wcId");
-
--- CreateIndex
-CREATE INDEX "Payment_orderId_idx" ON "Payment"("orderId");
-
--- CreateIndex
-CREATE INDEX "Payment_externalId_idx" ON "Payment"("externalId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Page_slug_key" ON "Page"("slug");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Page_wpId_key" ON "Page"("wpId");
-
--- CreateIndex
-CREATE INDEX "PageTranslation_locale_idx" ON "PageTranslation"("locale");
-
--- CreateIndex
-CREATE UNIQUE INDEX "PageTranslation_pageId_locale_key" ON "PageTranslation"("pageId", "locale");
-
--- CreateIndex
-CREATE UNIQUE INDEX "PageTranslation_locale_slug_key" ON "PageTranslation"("locale", "slug");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Service_slug_key" ON "Service"("slug");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ServiceTranslation_serviceId_locale_key" ON "ServiceTranslation"("serviceId", "locale");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Project_slug_key" ON "Project"("slug");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ProjectTranslation_projectId_locale_key" ON "ProjectTranslation"("projectId", "locale");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Artist_slug_key" ON "Artist"("slug");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Artist_wpId_key" ON "Artist"("wpId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ArtistArtwork_artistId_imageUrl_key" ON "ArtistArtwork"("artistId", "imageUrl");
-
--- CreateIndex
-CREATE INDEX "ArtistTranslation_locale_idx" ON "ArtistTranslation"("locale");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ArtistTranslation_artistId_locale_key" ON "ArtistTranslation"("artistId", "locale");
-
--- CreateIndex
-CREATE UNIQUE INDEX "FestivalEdition_slug_key" ON "FestivalEdition"("slug");
-
--- CreateIndex
-CREATE UNIQUE INDEX "FestivalEdition_wpId_key" ON "FestivalEdition"("wpId");
-
--- CreateIndex
-CREATE INDEX "FestivalTranslation_locale_idx" ON "FestivalTranslation"("locale");
-
--- CreateIndex
-CREATE UNIQUE INDEX "FestivalTranslation_festivalEditionId_locale_key" ON "FestivalTranslation"("festivalEditionId", "locale");
-
--- CreateIndex
-CREATE UNIQUE INDEX "FestivalArtist_festivalEditionId_artistId_key" ON "FestivalArtist"("festivalEditionId", "artistId");
-
--- Foreign Keys
-
--- Category
-ALTER TABLE "Category" ADD CONSTRAINT "Category_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Category"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "CategoryTranslation" ADD CONSTRAINT "CategoryTranslation_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- Tag
-ALTER TABLE "TagTranslation" ADD CONSTRAINT "TagTranslation_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- Product
-ALTER TABLE "ProductTranslation" ADD CONSTRAINT "ProductTranslation_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProductImage" ADD CONSTRAINT "ProductImage_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProductCategory" ADD CONSTRAINT "ProductCategory_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProductCategory" ADD CONSTRAINT "ProductCategory_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProductTag" ADD CONSTRAINT "ProductTag_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProductTag" ADD CONSTRAINT "ProductTag_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProductAttribute" ADD CONSTRAINT "ProductAttribute_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ProductVariant" ADD CONSTRAINT "ProductVariant_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- User
-ALTER TABLE "Address" ADD CONSTRAINT "Address_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "UserSession" ADD CONSTRAINT "UserSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- Order
-ALTER TABLE "Order" ADD CONSTRAINT "Order_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "Order" ADD CONSTRAINT "Order_shippingAddressId_fkey" FOREIGN KEY ("shippingAddressId") REFERENCES "Address"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "Order" ADD CONSTRAINT "Order_billingAddressId_fkey" FOREIGN KEY ("billingAddressId") REFERENCES "Address"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "Payment" ADD CONSTRAINT "Payment_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE;
-
--- Page
-ALTER TABLE "Page" ADD CONSTRAINT "Page_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Page"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "PageTranslation" ADD CONSTRAINT "PageTranslation_pageId_fkey" FOREIGN KEY ("pageId") REFERENCES "Page"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- Service
-ALTER TABLE "ServiceTranslation" ADD CONSTRAINT "ServiceTranslation_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- Project
-ALTER TABLE "ProjectTranslation" ADD CONSTRAINT "ProjectTranslation_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- Artist
-ALTER TABLE "ArtistArtwork" ADD CONSTRAINT "ArtistArtwork_artistId_fkey" FOREIGN KEY ("artistId") REFERENCES "Artist"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ArtistTranslation" ADD CONSTRAINT "ArtistTranslation_artistId_fkey" FOREIGN KEY ("artistId") REFERENCES "Artist"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- FestivalEdition
-ALTER TABLE "FestivalTranslation" ADD CONSTRAINT "FestivalTranslation_festivalEditionId_fkey" FOREIGN KEY ("festivalEditionId") REFERENCES "FestivalEdition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- FestivalArtist
-ALTER TABLE "FestivalArtist" ADD CONSTRAINT "FestivalArtist_festivalEditionId_fkey" FOREIGN KEY ("festivalEditionId") REFERENCES "FestivalEdition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "FestivalArtist" ADD CONSTRAINT "FestivalArtist_artistId_fkey" FOREIGN KEY ("artistId") REFERENCES "Artist"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- ── Migration 00003: Shipping ──────────────────────────────────────────────
-
-CREATE TABLE "ShippingZone" (
-    "id"        TEXT NOT NULL,
-    "code"      TEXT NOT NULL,
-    "isDefault" BOOLEAN NOT NULL DEFAULT false,
-    "priority"  INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "ShippingZone_pkey" PRIMARY KEY ("id")
-);
-
-CREATE TABLE "ShippingZoneTranslation" (
-    "id"     TEXT NOT NULL,
-    "zoneId" TEXT NOT NULL,
-    "locale" "Locale" NOT NULL,
-    "name"   TEXT NOT NULL,
-    CONSTRAINT "ShippingZoneTranslation_pkey" PRIMARY KEY ("id")
-);
-
-CREATE TABLE "ShippingZoneRule" (
-    "id"                TEXT NOT NULL,
-    "zoneId"            TEXT NOT NULL,
-    "country"           TEXT NOT NULL,
-    "region"            TEXT,
-    "postalCodePattern" TEXT,
-    CONSTRAINT "ShippingZoneRule_pkey" PRIMARY KEY ("id")
+CREATE TABLE "FestivalTranslation" (
+    id text NOT NULL,
+    "festivalEditionId" text NOT NULL,
+    locale "Locale" NOT NULL,
+    "themeName" text NOT NULL,
+    summary text,
+    content text,
+
+    CONSTRAINT "FestivalTranslation_pkey" PRIMARY KEY (id),
+    CONSTRAINT "FestivalTranslation_festivalEditionId_fkey" FOREIGN KEY ("festivalEditionId") REFERENCES "FestivalEdition"(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE "ShippingMethod" (
-    "id"               TEXT NOT NULL,
-    "code"             TEXT NOT NULL,
-    "isPickup"         BOOLEAN NOT NULL DEFAULT false,
-    "enabled"          BOOLEAN NOT NULL DEFAULT true,
-    "estimatedDaysMin" INTEGER,
-    "estimatedDaysMax" INTEGER,
-    "createdAt"        TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt"        TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "ShippingMethod_pkey" PRIMARY KEY ("id")
+    id text NOT NULL,
+    code text NOT NULL,
+    "isPickup" boolean DEFAULT false NOT NULL,
+    enabled boolean DEFAULT true NOT NULL,
+    "estimatedDaysMin" integer,
+    "estimatedDaysMax" integer,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+
+    CONSTRAINT "ShippingMethod_pkey" PRIMARY KEY (id)
+);
+
+CREATE TABLE "Order" (
+    id text NOT NULL,
+    "orderNumber" text NOT NULL,
+    "userId" text,
+    "guestEmail" text,
+    status "OrderStatus" DEFAULT 'PENDING'::"OrderStatus" NOT NULL,
+    "paymentStatus" "PaymentStatus" DEFAULT 'UNPAID'::"PaymentStatus" NOT NULL,
+    "paymentMethod" "PaymentMethod",
+    "stripePaymentIntentId" text,
+    currency text DEFAULT 'XOF'::text NOT NULL,
+    subtotal numeric(10,2) NOT NULL,
+    "taxAmount" numeric(10,2) DEFAULT 0 NOT NULL,
+    "shippingAmount" numeric(10,2) DEFAULT 0 NOT NULL,
+    "discountAmount" numeric(10,2) DEFAULT 0 NOT NULL,
+    total numeric(10,2) NOT NULL,
+    "shippingAddressId" text,
+    "billingAddressId" text,
+    notes text,
+    "wcId" integer,
+    locale "Locale" DEFAULT 'fr'::"Locale" NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+    "shippingMethodId" text,
+    "shippingCarrier" text,
+    "trackingNumber" text,
+    "shippedAt" timestamp(3) without time zone,
+    "deliveredAt" timestamp(3) without time zone,
+    "customerFirstName" text,
+    "customerLastName" text,
+    "customerPhone" text,
+
+    CONSTRAINT "Order_pkey" PRIMARY KEY (id),
+    CONSTRAINT "Order_billingAddressId_fkey" FOREIGN KEY ("billingAddressId") REFERENCES "Address"(id) ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT "Order_shippingAddressId_fkey" FOREIGN KEY ("shippingAddressId") REFERENCES "Address"(id) ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT "Order_shippingMethodId_fkey" FOREIGN KEY ("shippingMethodId") REFERENCES "ShippingMethod"(id) ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT "Order_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+CREATE TABLE "Product" (
+    id text NOT NULL,
+    slug text NOT NULL,
+    sku text,
+    price numeric(10,2) NOT NULL,
+    "compareAtPrice" numeric(10,2),
+    stock integer DEFAULT 0 NOT NULL,
+    "manageStock" boolean DEFAULT true NOT NULL,
+    status "ProductStatus" DEFAULT 'DRAFT'::"ProductStatus" NOT NULL,
+    "featuredImageUrl" text,
+    "wcId" integer,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+
+    CONSTRAINT "Product_pkey" PRIMARY KEY (id)
+);
+
+CREATE TABLE "OrderItem" (
+    id text NOT NULL,
+    "orderId" text NOT NULL,
+    "productId" text NOT NULL,
+    "variantId" text,
+    quantity integer NOT NULL,
+    "unitPrice" numeric(10,2) NOT NULL,
+    "totalPrice" numeric(10,2) NOT NULL,
+    "productName" text NOT NULL,
+    "productSku" text,
+
+    CONSTRAINT "OrderItem_pkey" PRIMARY KEY (id),
+    CONSTRAINT "OrderItem_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT "OrderItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+CREATE TABLE "Page" (
+    id text NOT NULL,
+    slug text NOT NULL,
+    template text,
+    status "ProductStatus" DEFAULT 'DRAFT'::"ProductStatus" NOT NULL,
+    "wpId" integer,
+    "parentId" text,
+    "menuOrder" integer DEFAULT 0 NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+
+    CONSTRAINT "Page_pkey" PRIMARY KEY (id),
+    CONSTRAINT "Page_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Page"(id) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+CREATE TABLE "PageTranslation" (
+    id text NOT NULL,
+    "pageId" text NOT NULL,
+    locale "Locale" NOT NULL,
+    title text NOT NULL,
+    slug text NOT NULL,
+    content text NOT NULL,
+    excerpt text,
+    "metaTitle" text,
+    "metaDescription" text,
+
+    CONSTRAINT "PageTranslation_pkey" PRIMARY KEY (id),
+    CONSTRAINT "PageTranslation_pageId_fkey" FOREIGN KEY ("pageId") REFERENCES "Page"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "Payment" (
+    id text NOT NULL,
+    "orderId" text NOT NULL,
+    method "PaymentMethod" NOT NULL,
+    "externalId" text,
+    amount numeric(10,2) NOT NULL,
+    currency text DEFAULT 'XOF'::text NOT NULL,
+    status "PaymentStatus" DEFAULT 'UNPAID'::"PaymentStatus" NOT NULL,
+    metadata jsonb,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+
+    CONSTRAINT "Payment_pkey" PRIMARY KEY (id),
+    CONSTRAINT "Payment_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"(id) ON DELETE CASCADE
+);
+
+CREATE TABLE "PressMention" (
+    id text NOT NULL,
+    title text NOT NULL,
+    source text NOT NULL,
+    "sourceUrl" text NOT NULL,
+    "logoUrl" text,
+    "featuredImageUrl" text,
+    excerpt text,
+    date timestamp(3) without time zone,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+
+    CONSTRAINT "PressMention_pkey" PRIMARY KEY (id)
+);
+
+CREATE TABLE "ProductAttribute" (
+    id text NOT NULL,
+    "productId" text NOT NULL,
+    name text NOT NULL,
+    value text NOT NULL,
+
+    CONSTRAINT "ProductAttribute_pkey" PRIMARY KEY (id),
+    CONSTRAINT "ProductAttribute_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "ProductCategory" (
+    "productId" text NOT NULL,
+    "categoryId" text NOT NULL,
+
+    CONSTRAINT "ProductCategory_pkey" PRIMARY KEY ("productId", "categoryId"),
+    CONSTRAINT "ProductCategory_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT "ProductCategory_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "ProductImage" (
+    id text NOT NULL,
+    "productId" text NOT NULL,
+    "imageUrl" text NOT NULL,
+    "position" integer DEFAULT 0 NOT NULL,
+
+    CONSTRAINT "ProductImage_pkey" PRIMARY KEY (id),
+    CONSTRAINT "ProductImage_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "Tag" (
+    id text NOT NULL,
+    slug text NOT NULL,
+    "wpId" integer,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+
+    CONSTRAINT "Tag_pkey" PRIMARY KEY (id)
+);
+
+CREATE TABLE "ProductTag" (
+    "productId" text NOT NULL,
+    "tagId" text NOT NULL,
+
+    CONSTRAINT "ProductTag_pkey" PRIMARY KEY ("productId", "tagId"),
+    CONSTRAINT "ProductTag_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT "ProductTag_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "Tag"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "ProductTranslation" (
+    id text NOT NULL,
+    "productId" text NOT NULL,
+    locale "Locale" NOT NULL,
+    name text NOT NULL,
+    description text,
+    "shortDescription" text,
+    slug text NOT NULL,
+    "metaTitle" text,
+    "metaDescription" text,
+
+    CONSTRAINT "ProductTranslation_pkey" PRIMARY KEY (id),
+    CONSTRAINT "ProductTranslation_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "ProductVariant" (
+    id text NOT NULL,
+    "productId" text NOT NULL,
+    sku text,
+    price numeric(10,2) NOT NULL,
+    stock integer DEFAULT 0 NOT NULL,
+    options jsonb NOT NULL,
+    "wcId" integer,
+
+    CONSTRAINT "ProductVariant_pkey" PRIMARY KEY (id),
+    CONSTRAINT "ProductVariant_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "Project" (
+    id text NOT NULL,
+    slug text NOT NULL,
+    "featuredImageUrl" text,
+    gallery jsonb DEFAULT '[]'::jsonb,
+    "completedAt" timestamp(3) without time zone,
+    "clientName" text,
+    country text,
+    status "ProductStatus" DEFAULT 'PUBLISHED'::"ProductStatus" NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+
+    CONSTRAINT "Project_pkey" PRIMARY KEY (id)
+);
+
+CREATE TABLE "ProjectTranslation" (
+    id text NOT NULL,
+    "projectId" text NOT NULL,
+    locale "Locale" NOT NULL,
+    title text NOT NULL,
+    summary text,
+    content text,
+    "metaTitle" text,
+    "metaDescription" text,
+
+    CONSTRAINT "ProjectTranslation_pkey" PRIMARY KEY (id),
+    CONSTRAINT "ProjectTranslation_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "Quote" (
+    id text NOT NULL,
+    name text NOT NULL,
+    surname text,
+    email text NOT NULL,
+    phone text,
+    company text,
+    "orderType" text NOT NULL,
+    quantity integer,
+    "deliveryDate" timestamp(3) without time zone,
+    message text NOT NULL,
+    status text DEFAULT 'NEW'::text NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+
+    CONSTRAINT "Quote_pkey" PRIMARY KEY (id)
+);
+
+CREATE TABLE "RefundRequest" (
+    id text NOT NULL,
+    "orderId" text NOT NULL,
+    "paymentId" text NOT NULL,
+    amount numeric(10,2) NOT NULL,
+    currency text NOT NULL,
+    reason text NOT NULL,
+    status "RefundStatus" DEFAULT 'PENDING'::"RefundStatus" NOT NULL,
+    "providerRefundId" text,
+    "idempotencyKey" text NOT NULL,
+    "requestedBy" text NOT NULL,
+    "requestedAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "completedAt" timestamp(3) without time zone,
+    "errorMessage" text,
+    "manualReference" text,
+    "justificationUrl" text,
+
+    CONSTRAINT "RefundRequest_pkey" PRIMARY KEY (id),
+    CONSTRAINT "RefundRequest_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT "RefundRequest_paymentId_fkey" FOREIGN KEY ("paymentId") REFERENCES "Payment"(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT "RefundRequest_requestedBy_fkey" FOREIGN KEY ("requestedBy") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+CREATE TABLE "Service" (
+    id text NOT NULL,
+    slug text NOT NULL,
+    icon text,
+    status "ProductStatus" DEFAULT 'PUBLISHED'::"ProductStatus" NOT NULL,
+    "menuOrder" integer DEFAULT 0 NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+
+    CONSTRAINT "Service_pkey" PRIMARY KEY (id)
+);
+
+CREATE TABLE "ServiceTranslation" (
+    id text NOT NULL,
+    "serviceId" text NOT NULL,
+    locale "Locale" NOT NULL,
+    title text NOT NULL,
+    description text NOT NULL,
+    "metaTitle" text,
+    "metaDescription" text,
+
+    CONSTRAINT "ServiceTranslation_pkey" PRIMARY KEY (id),
+    CONSTRAINT "ServiceTranslation_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE "ShippingMethodTranslation" (
-    "id"          TEXT NOT NULL,
-    "methodId"    TEXT NOT NULL,
-    "locale"      "Locale" NOT NULL,
-    "name"        TEXT NOT NULL,
-    "description" TEXT,
-    CONSTRAINT "ShippingMethodTranslation_pkey" PRIMARY KEY ("id")
+    id text NOT NULL,
+    "methodId" text NOT NULL,
+    locale "Locale" NOT NULL,
+    name text NOT NULL,
+    description text,
+
+    CONSTRAINT "ShippingMethodTranslation_pkey" PRIMARY KEY (id),
+    CONSTRAINT "ShippingMethodTranslation_methodId_fkey" FOREIGN KEY ("methodId") REFERENCES "ShippingMethod"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "ShippingZone" (
+    id text NOT NULL,
+    code text NOT NULL,
+    "isDefault" boolean DEFAULT false NOT NULL,
+    priority integer DEFAULT 0 NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+
+    CONSTRAINT "ShippingZone_pkey" PRIMARY KEY (id)
 );
 
 CREATE TABLE "ShippingRate" (
-    "id"        TEXT NOT NULL,
-    "zoneId"    TEXT NOT NULL,
-    "methodId"  TEXT NOT NULL,
-    "flatFee"   DECIMAL(10,2) NOT NULL,
-    "freeAbove" DECIMAL(10,2),
-    "currency"  TEXT NOT NULL DEFAULT 'XOF',
-    CONSTRAINT "ShippingRate_pkey" PRIMARY KEY ("id")
+    id text NOT NULL,
+    "zoneId" text NOT NULL,
+    "methodId" text NOT NULL,
+    "flatFee" numeric(10,2) NOT NULL,
+    "freeAbove" numeric(10,2),
+    currency text DEFAULT 'XOF'::text NOT NULL,
+
+    CONSTRAINT "ShippingRate_pkey" PRIMARY KEY (id),
+    CONSTRAINT "ShippingRate_methodId_fkey" FOREIGN KEY ("methodId") REFERENCES "ShippingMethod"(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT "ShippingRate_zoneId_fkey" FOREIGN KEY ("zoneId") REFERENCES "ShippingZone"(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
--- ── Migration 00004: Refunds ───────────────────────────────────────────────
+CREATE TABLE "ShippingZoneRule" (
+    id text NOT NULL,
+    "zoneId" text NOT NULL,
+    country text NOT NULL,
+    region text,
+    "postalCodePattern" text,
 
-CREATE TYPE "RefundStatus" AS ENUM ('PENDING','SUCCEEDED','FAILED','CANCELLED');
-
-CREATE TABLE "RefundRequest" (
-    "id"               TEXT NOT NULL,
-    "orderId"          TEXT NOT NULL,
-    "paymentId"        TEXT NOT NULL,
-    "amount"           DECIMAL(10,2) NOT NULL,
-    "currency"         TEXT NOT NULL,
-    "reason"           TEXT NOT NULL,
-    "status"           "RefundStatus" NOT NULL DEFAULT 'PENDING',
-    "providerRefundId" TEXT,
-    "idempotencyKey"   TEXT NOT NULL,
-    "requestedBy"      TEXT NOT NULL,
-    "requestedAt"      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "completedAt"      TIMESTAMP(3),
-    "errorMessage"     TEXT,
-    "manualReference"  TEXT,
-    "justificationUrl" TEXT,
-    CONSTRAINT "RefundRequest_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ShippingZoneRule_pkey" PRIMARY KEY (id),
+    CONSTRAINT "ShippingZoneRule_zoneId_fkey" FOREIGN KEY ("zoneId") REFERENCES "ShippingZone"(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
--- ── Migration 00005: Order shipping fields ─────────────────────────────────
+CREATE TABLE "ShippingZoneTranslation" (
+    id text NOT NULL,
+    "zoneId" text NOT NULL,
+    locale "Locale" NOT NULL,
+    name text NOT NULL,
 
-ALTER TABLE "Order" ADD COLUMN "shippingMethodId" TEXT;
-ALTER TABLE "Order" ADD COLUMN "shippingCarrier"  TEXT;
-ALTER TABLE "Order" ADD COLUMN "trackingNumber"   TEXT;
-ALTER TABLE "Order" ADD COLUMN "shippedAt"        TIMESTAMP(3);
-ALTER TABLE "Order" ADD COLUMN "deliveredAt"      TIMESTAMP(3);
+    CONSTRAINT "ShippingZoneTranslation_pkey" PRIMARY KEY (id),
+    CONSTRAINT "ShippingZoneTranslation_zoneId_fkey" FOREIGN KEY ("zoneId") REFERENCES "ShippingZone"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
 
--- ── Migration 00007: Customer fields for Order ─────────────────────────────
+CREATE TABLE "TagTranslation" (
+    id text NOT NULL,
+    "tagId" text NOT NULL,
+    locale "Locale" NOT NULL,
+    name text NOT NULL,
 
-ALTER TABLE "Order" ADD COLUMN "customerFirstName" TEXT;
-ALTER TABLE "Order" ADD COLUMN "customerLastName" TEXT;
-ALTER TABLE "Order" ADD COLUMN "customerPhone" TEXT;
+    CONSTRAINT "TagTranslation_pkey" PRIMARY KEY (id),
+    CONSTRAINT "TagTranslation_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "Tag"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "UserSession" (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    "tokenHash" text NOT NULL,
+    "expiresAt" timestamp(3) without time zone NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+
+    CONSTRAINT "UserSession_pkey" PRIMARY KEY (id),
+    CONSTRAINT "UserSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+-- ── Index ───────────────────────────────────────────────────────────────────
+CREATE INDEX "ArtistTranslation_locale_idx" ON "ArtistTranslation" USING btree (locale);
+CREATE INDEX "CategoryTranslation_locale_idx" ON "CategoryTranslation" USING btree (locale);
+CREATE INDEX "FestivalTranslation_locale_idx" ON "FestivalTranslation" USING btree (locale);
+CREATE INDEX "Order_trackingNumber_idx" ON "Order" USING btree ("trackingNumber") WHERE ("trackingNumber" IS NOT NULL);
+CREATE INDEX "PageTranslation_locale_idx" ON "PageTranslation" USING btree (locale);
+CREATE INDEX "Payment_externalId_idx" ON "Payment" USING btree ("externalId");
+CREATE INDEX "Payment_orderId_idx" ON "Payment" USING btree ("orderId");
+CREATE INDEX "ProductTranslation_locale_idx" ON "ProductTranslation" USING btree (locale);
+CREATE INDEX "RefundRequest_orderId_idx" ON "RefundRequest" USING btree ("orderId");
+CREATE INDEX "RefundRequest_paymentId_idx" ON "RefundRequest" USING btree ("paymentId");
+CREATE INDEX "ShippingZoneRule_country_idx" ON "ShippingZoneRule" USING btree (country);
+CREATE INDEX "UserSession_tokenHash_idx" ON "UserSession" USING btree ("tokenHash");
+CREATE UNIQUE INDEX "ArtistArtwork_artistId_imageUrl_key" ON "ArtistArtwork" USING btree ("artistId", "imageUrl");
+CREATE UNIQUE INDEX "ArtistTranslation_artistId_locale_key" ON "ArtistTranslation" USING btree ("artistId", locale);
+CREATE UNIQUE INDEX "Artist_slug_key" ON "Artist" USING btree (slug);
+CREATE UNIQUE INDEX "Artist_userId_key" ON "Artist"("userId");
+CREATE UNIQUE INDEX "Artist_wpId_key" ON "Artist" USING btree ("wpId");
+CREATE UNIQUE INDEX "CategoryTranslation_categoryId_locale_key" ON "CategoryTranslation" USING btree ("categoryId", locale);
+CREATE UNIQUE INDEX "Category_slug_key" ON "Category" USING btree (slug);
+CREATE UNIQUE INDEX "Category_wpId_key" ON "Category" USING btree ("wpId");
+CREATE UNIQUE INDEX "FestivalArtist_festivalEditionId_artistId_key" ON "FestivalArtist" USING btree ("festivalEditionId", "artistId");
+CREATE UNIQUE INDEX "FestivalEdition_slug_key" ON "FestivalEdition" USING btree (slug);
+CREATE UNIQUE INDEX "FestivalEdition_wpId_key" ON "FestivalEdition" USING btree ("wpId");
+CREATE UNIQUE INDEX "FestivalTranslation_festivalEditionId_locale_key" ON "FestivalTranslation" USING btree ("festivalEditionId", locale);
+CREATE UNIQUE INDEX "Order_orderNumber_key" ON "Order" USING btree ("orderNumber");
+CREATE UNIQUE INDEX "Order_stripePaymentIntentId_key" ON "Order" USING btree ("stripePaymentIntentId");
+CREATE UNIQUE INDEX "Order_wcId_key" ON "Order" USING btree ("wcId");
+CREATE UNIQUE INDEX "PageTranslation_locale_slug_key" ON "PageTranslation" USING btree (locale, slug);
+CREATE UNIQUE INDEX "PageTranslation_pageId_locale_key" ON "PageTranslation" USING btree ("pageId", locale);
+CREATE UNIQUE INDEX "Page_slug_key" ON "Page" USING btree (slug);
+CREATE UNIQUE INDEX "Page_wpId_key" ON "Page" USING btree ("wpId");
+CREATE UNIQUE INDEX "ProductImage_productId_imageUrl_key" ON "ProductImage" USING btree ("productId", "imageUrl");
+CREATE UNIQUE INDEX "ProductTranslation_locale_slug_key" ON "ProductTranslation" USING btree (locale, slug);
+CREATE UNIQUE INDEX "ProductTranslation_productId_locale_key" ON "ProductTranslation" USING btree ("productId", locale);
+CREATE UNIQUE INDEX "ProductVariant_sku_key" ON "ProductVariant" USING btree (sku);
+CREATE UNIQUE INDEX "ProductVariant_wcId_key" ON "ProductVariant" USING btree ("wcId");
+CREATE UNIQUE INDEX "Product_sku_key" ON "Product" USING btree (sku);
+CREATE UNIQUE INDEX "Product_slug_key" ON "Product" USING btree (slug);
+CREATE UNIQUE INDEX "Product_wcId_key" ON "Product" USING btree ("wcId");
+CREATE UNIQUE INDEX "ProjectTranslation_projectId_locale_key" ON "ProjectTranslation" USING btree ("projectId", locale);
+CREATE UNIQUE INDEX "Project_slug_key" ON "Project" USING btree (slug);
+CREATE UNIQUE INDEX "RefundRequest_idempotencyKey_key" ON "RefundRequest" USING btree ("idempotencyKey");
+CREATE UNIQUE INDEX "ServiceTranslation_serviceId_locale_key" ON "ServiceTranslation" USING btree ("serviceId", locale);
+CREATE UNIQUE INDEX "Service_slug_key" ON "Service" USING btree (slug);
+CREATE UNIQUE INDEX "ShippingMethodTranslation_methodId_locale_key" ON "ShippingMethodTranslation" USING btree ("methodId", locale);
+CREATE UNIQUE INDEX "ShippingMethod_code_key" ON "ShippingMethod" USING btree (code);
+CREATE UNIQUE INDEX "ShippingRate_zoneId_methodId_key" ON "ShippingRate" USING btree ("zoneId", "methodId");
+CREATE UNIQUE INDEX "ShippingZoneTranslation_zoneId_locale_key" ON "ShippingZoneTranslation" USING btree ("zoneId", locale);
+CREATE UNIQUE INDEX "ShippingZone_code_key" ON "ShippingZone" USING btree (code);
+CREATE UNIQUE INDEX "ShippingZone_isDefault_key" ON "ShippingZone" USING btree ("isDefault") WHERE ("isDefault" = true);
+CREATE UNIQUE INDEX "TagTranslation_tagId_locale_key" ON "TagTranslation" USING btree ("tagId", locale);
+CREATE UNIQUE INDEX "Tag_slug_key" ON "Tag" USING btree (slug);
+CREATE UNIQUE INDEX "Tag_wpId_key" ON "Tag" USING btree ("wpId");
+CREATE UNIQUE INDEX "UserSession_tokenHash_key" ON "UserSession" USING btree ("tokenHash");
+CREATE UNIQUE INDEX "User_emailVerificationToken_key" ON "User" USING btree ("emailVerificationToken");
+CREATE UNIQUE INDEX "User_email_key" ON "User" USING btree (email);
+CREATE UNIQUE INDEX "User_resetToken_key" ON "User" USING btree ("resetToken");
+CREATE UNIQUE INDEX "User_wcId_key" ON "User" USING btree ("wcId");

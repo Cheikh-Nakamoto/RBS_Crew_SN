@@ -4,6 +4,7 @@ import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UserPlus, Eye, EyeOff, AlertCircle, Check } from 'lucide-react';
+import { apiUrl } from '@/lib/api-base';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -23,13 +24,12 @@ export default function RegisterPage() {
     const lastName = fd.get('lastName') as string;
     const phone = fd.get('phone') as string;
 
-    const API_URL = process.env.INTERNAL_API_URL ?? 'http://localhost:4000';
-
     try {
       // 1. Register via Go API
-      const res = await fetch(`${API_URL}/auth/register`, {
+      const res = await fetch(apiUrl('/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           email,
           password,
@@ -38,7 +38,6 @@ export default function RegisterPage() {
           phone: phone || undefined,
         }),
       });
-      console.log(" =====> REGISTER RESULT =====> \n\n", res, "\n\n Api Url", API_URL);
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -63,9 +62,9 @@ export default function RegisterPage() {
           router.refresh();
         }, 800);
       }
-    } catch (err: any) {
+    } catch (err) {
       setStatus('error');
-      setErrorMsg(err.message || 'Une erreur est survenue');
+      setErrorMsg(err instanceof Error ? err.message : 'Une erreur est survenue');
     }
   }
 

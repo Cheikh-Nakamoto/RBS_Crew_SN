@@ -19,13 +19,14 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/api/idtoken"
 )
 
 const (
-	bcryptCost     = 12
-	accessExpiry   = 15 * time.Minute
-	refreshExpiry  = 7 * 24 * time.Hour
-	resetExpiry    = 1 * time.Hour
+	bcryptCost    = 12
+	accessExpiry  = 15 * time.Minute
+	refreshExpiry = 7 * 24 * time.Hour
+	resetExpiry   = 1 * time.Hour
 )
 
 type AuthService struct {
@@ -33,14 +34,16 @@ type AuthService struct {
 	mailService      *mail.MailService
 	jwtSecret        string
 	jwtRefreshSecret string
+	googleClientID   string
 }
 
-func NewAuthService(repo *repository.AuthRepository, mailService *mail.MailService, jwtSecret, jwtRefreshSecret string) *AuthService {
+func NewAuthService(repo *repository.AuthRepository, mailService *mail.MailService, jwtSecret, jwtRefreshSecret, googleClientID string) *AuthService {
 	return &AuthService{
 		repo:             repo,
 		mailService:      mailService,
 		jwtSecret:        jwtSecret,
 		jwtRefreshSecret: jwtRefreshSecret,
+		googleClientID:   googleClientID,
 	}
 }
 
@@ -239,6 +242,110 @@ func (s *AuthService) ResetPassword(ctx context.Context, token, newPassword stri
 	return nil
 }
 
+// GoogleOAuth échange un id_token Google contre un JWT applicatif.
+//
+// Sans cet échange, une session next-auth ouverte via Google ne porte aucun
+// accessToken : tous les appels authentifiés (panier, commandes, profil)
+// échouent en 401. La vérification s'appuie sur idtoken.Validate, qui contrôle
+// la signature RS256 via le JWKS de Google ainsi que l'émetteur, l'expiration
+// et l'audience (notre client ID).
+func (s *AuthService) GoogleOAuth(ctx context.Context, idToken string) (*model.TokenPair, *types.AppError) {
+	if s.googleClientID == "" {
+		return nil, types.InternalError("Google sign-in is not configured")
+	}
+
+	payload, err := idtoken.Validate(ctx, idToken, s.googleClientID)
+	if err != nil {
+		slog.Debug("auth: google id_token validation failed", "error", err)
+		return nil, types.Unauthorized("Invalid Google token")
+	}
+
+	email, _ := payload.Claims["email"].(string)
+	emailVerified, _ := payload.Claims["email_verified"].(bool)
+	if email == "" || !emailVerified {
+		// Sans adresse vérifiée par Google, accepter la connexion permettrait de
+		// prendre le contrôle d'un compte existant en déclarant son adresse.
+		return nil, types.Unauthorized("Google account email is not verified")
+	}
+
+	user, err := s.repo.GetUserByEmail(ctx, email)
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			slog.Error("auth: GetUserByEmail failed", "error", err)
+			return nil, types.InternalError("Database error")
+		}
+
+		// Premier passage : on provisionne le compte. Le mot de passe aléatoire
+		// n'est jamais communiqué (passwordHash est NOT NULL) ; l'utilisateur se
+		// connectera toujours via Google, ou passera par « mot de passe oublié ».
+		randomPwd := uuid.New().String() + uuid.New().String()
+		hash, hErr := bcrypt.GenerateFromPassword([]byte(randomPwd), bcryptCost)
+		if hErr != nil {
+			return nil, types.InternalError("Failed to provision account")
+		}
+
+		params := db.CreateUserParams{
+			ID:           uuid.New().String(),
+			Email:        email,
+			PasswordHash: string(hash),
+		}
+		if v, ok := payload.Claims["given_name"].(string); ok && v != "" {
+			params.FirstName = &v
+		}
+		if v, ok := payload.Claims["family_name"].(string); ok && v != "" {
+			params.LastName = &v
+		}
+
+		created, cErr := s.repo.CreateUser(ctx, params)
+		if cErr != nil {
+			slog.Error("auth: create google user failed", "error", cErr)
+			return nil, types.InternalError("Failed to create user")
+		}
+		// Google a déjà vérifié l'adresse.
+		if vErr := s.repo.SetEmailVerified(ctx, created.ID); vErr != nil {
+			slog.Warn("auth: failed to mark google email as verified", "error", vErr)
+		}
+		user = created
+	}
+
+	return s.issueTokens(ctx, user.ID, user.Email, string(user.Role))
+}
+
+// AcceptInvitation finalise l'activation d'un compte artiste : l'invitation
+// réutilise le jeton de réinitialisation de mot de passe, donc les quatre étapes
+// (lecture du jeton, mise à jour du mot de passe, validation de l'e-mail,
+// émission des tokens) s'appuient sur l'existant.
+//
+// L'e-mail est marqué vérifié : cliquer sur le lien reçu prouve que l'artiste
+// contrôle bien l'adresse.
+// Renvoie aussi l'e-mail du compte : le front en a besoin pour ouvrir la
+// session next-auth juste après l'activation.
+func (s *AuthService) AcceptInvitation(ctx context.Context, token, password string) (*model.TokenPair, string, *types.AppError) {
+	user, err := s.repo.GetUserByResetToken(ctx, &token)
+	if err != nil {
+		return nil, "", types.BadRequest("Lien d'invitation invalide ou expiré")
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
+	if err != nil {
+		return nil, "", types.InternalError("Failed to hash password")
+	}
+	if err := s.repo.ClearResetToken(ctx, user.ID, string(hash)); err != nil {
+		return nil, "", types.InternalError("Failed to update password")
+	}
+	if !user.EmailVerified {
+		if err := s.repo.SetEmailVerified(ctx, user.ID); err != nil {
+			slog.Warn("auth: failed to mark invited email as verified", "error", err, "userId", user.ID)
+		}
+	}
+
+	tokens, appErr := s.issueTokens(ctx, user.ID, user.Email, string(user.Role))
+	if appErr != nil {
+		return nil, "", appErr
+	}
+	return tokens, user.Email, nil
+}
+
 func (s *AuthService) VerifyEmail(ctx context.Context, token string) *types.AppError {
 	user, err := s.repo.GetUserByEmailVerificationToken(ctx, &token)
 	if err != nil {
@@ -258,6 +365,10 @@ func (s *AuthService) VerifyEmail(ctx context.Context, token string) *types.AppE
 func (s *AuthService) issueTokens(ctx context.Context, userID, email, role string) (*model.TokenPair, *types.AppError) {
 	now := time.Now()
 
+	// Chaque émission porte un jti unique : sans lui, deux tokens signés dans la
+	// même seconde pour le même utilisateur seraient des chaînes identiques, ce
+	// qui rendrait la rotation du refresh token purement cosmétique.
+
 	accessClaims := types.JWTClaims{
 		Email: email,
 		Role:  role,
@@ -265,6 +376,7 @@ func (s *AuthService) issueTokens(ctx context.Context, userID, email, role strin
 			Issuer:    types.JWTIssuer,
 			Audience:  jwt.ClaimStrings{types.JWTAudience},
 			Subject:   userID,
+			ID:        uuid.New().String(),
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(accessExpiry)),
 		},
@@ -281,6 +393,7 @@ func (s *AuthService) issueTokens(ctx context.Context, userID, email, role strin
 			Issuer:    types.JWTIssuer,
 			Audience:  jwt.ClaimStrings{types.JWTAudience},
 			Subject:   userID,
+			ID:        uuid.New().String(),
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(refreshExpiry)),
 		},

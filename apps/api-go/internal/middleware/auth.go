@@ -11,29 +11,41 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// parseBearer valide le JWT porté par l'en-tête Authorization. Partagé par
+// RequireAuth (qui rejette en cas d'échec) et CartSession (qui l'ignore), pour
+// que la validation du token n'existe qu'à un seul endroit.
+func parseBearer(r *http.Request, jwtSecret string) (*types.JWTClaims, error) {
+	header := r.Header.Get("Authorization")
+	if !strings.HasPrefix(header, "Bearer ") {
+		return nil, fmt.Errorf("missing or malformed Authorization header")
+	}
+	tokenStr := strings.TrimPrefix(header, "Bearer ")
+
+	claims := &types.JWTClaims{}
+	token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return []byte(jwtSecret), nil
+	},
+		jwt.WithIssuer(types.JWTIssuer),
+		jwt.WithAudience(types.JWTAudience),
+		jwt.WithExpirationRequired(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	if !token.Valid {
+		return nil, fmt.Errorf("token is not valid")
+	}
+	return claims, nil
+}
+
 func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			header := r.Header.Get("Authorization")
-			if !strings.HasPrefix(header, "Bearer ") {
-				slog.Debug("auth: missing or malformed Authorization header")
-				types.WriteError(w, types.Unauthorized("Missing or invalid token"))
-				return
-			}
-			tokenStr := strings.TrimPrefix(header, "Bearer ")
-
-			claims := &types.JWTClaims{}
-			token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
-				if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-				}
-				return []byte(jwtSecret), nil
-			},
-				jwt.WithIssuer(types.JWTIssuer),
-				jwt.WithAudience(types.JWTAudience),
-				jwt.WithExpirationRequired(),
-			)
-			if err != nil || !token.Valid {
+			claims, err := parseBearer(r, jwtSecret)
+			if err != nil {
 				slog.Debug("auth: token validation failed", "error", err)
 				types.WriteError(w, types.Unauthorized("Invalid or expired token"))
 				return

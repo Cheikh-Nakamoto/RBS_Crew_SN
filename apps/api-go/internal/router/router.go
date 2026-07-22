@@ -1,6 +1,8 @@
 package router
 
 import (
+	"time"
+
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/config"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/handler"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/middleware"
@@ -11,35 +13,37 @@ import (
 )
 
 type Handlers struct {
-	Health        *handler.HealthHandler
-	Auth          *handler.AuthHandler
-	Categories    *handler.CategoriesHandler
-	Products      *handler.ProductsHandler
-	Users         *handler.UsersHandler
-	Artists       *handler.ArtistsHandler
-	Projects      *handler.ProjectsHandler
-	Festival      *handler.FestivalHandler
-	Press         *handler.PressHandler
-	Pages         *handler.PagesHandler
-	Services      *handler.ServicesHandler
-	Orders        *handler.OrdersHandler
-	Quotes        *handler.QuotesHandler
-	Payments      *handler.PaymentsHandler
+	Health            *handler.HealthHandler
+	Auth              *handler.AuthHandler
+	Categories        *handler.CategoriesHandler
+	Products          *handler.ProductsHandler
+	Users             *handler.UsersHandler
+	Artists           *handler.ArtistsHandler
+	Projects          *handler.ProjectsHandler
+	Festival          *handler.FestivalHandler
+	Press             *handler.PressHandler
+	Pages             *handler.PagesHandler
+	Services          *handler.ServicesHandler
+	Orders            *handler.OrdersHandler
+	Quotes            *handler.QuotesHandler
+	Payments          *handler.PaymentsHandler
 	Tags              *handler.TagsHandler
 	AdminCategories   *handler.AdminCategoriesHandler
 	AdminTags         *handler.AdminTagsHandler
 	AdminProducts     *handler.AdminProductsHandler
 	AdminArtists      *handler.AdminArtistsHandler
-	AdminProjects *handler.AdminProjectsHandler
-	AdminPages    *handler.AdminPagesHandler
-	AdminServices *handler.AdminServicesHandler
-	AdminFestival *handler.AdminFestivalHandler
+	AdminProjects     *handler.AdminProjectsHandler
+	AdminPages        *handler.AdminPagesHandler
+	AdminServices     *handler.AdminServicesHandler
+	AdminFestival     *handler.AdminFestivalHandler
 	AdminPress        *handler.AdminPressHandler
 	ActivityLogs      *handler.ActivityLogsHandler
-	Media         *handler.MediaHandler
-	Cart          *handler.CartHandler
-	Refunds       *handler.RefundsHandler
-	Shipping      *handler.ShippingHandler
+	Media             *handler.MediaHandler
+	Cart              *handler.CartHandler
+	Refunds           *handler.RefundsHandler
+	Shipping          *handler.ShippingHandler
+	ArtistMe          *handler.ArtistMeHandler
+	AdminArtistInvite *handler.AdminArtistInviteHandler
 }
 
 func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.ActivityLogRepository) chi.Router {
@@ -68,6 +72,8 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 			r.Post("/auth/login", h.Auth.Login)
 			r.Post("/auth/forgot-password", h.Auth.ForgotPassword)
 			r.Post("/auth/reset-password", h.Auth.ResetPassword)
+			r.Post("/auth/accept-invitation", h.Auth.AcceptInvitation)
+		r.Post("/auth/oauth/google", h.Auth.GoogleOAuth)
 		})
 
 		r.Post("/auth/refresh", h.Auth.Refresh)
@@ -156,13 +162,45 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 		// Payments
 		r.Post("/payments/create-checkout", h.Payments.CreateCheckout)
 
-		// Cart — server-side per-user cart stored in Redis
+	})
+
+	// ── Espace artiste ───────────────────────────────────────────────────────
+	// Aucun endpoint n'accepte d'identifiant d'artiste : la fiche est résolue
+	// depuis le JWT (Artist.userId), ce qui interdit par construction de toucher
+	// à la fiche d'un autre. Le statut de publication, le slug et les éditions
+	// du festival restent réservés à l'administration.
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.RequireAuth(cfg.JWTSecret))
+		r.Use(middleware.RequireRoles("ARTIST"))
+
+		r.Get("/artist/me", h.ArtistMe.Get)
+		r.Patch("/artist/me", h.ArtistMe.Update)
+		r.Post("/artist/me/artworks", h.ArtistMe.AddArtwork)
+		r.Put("/artist/me/artworks", h.ArtistMe.ReplaceArtworks)
+		r.Delete("/artist/me/artworks/{artworkId}", h.ArtistMe.DeleteArtwork)
+
+		// Même handler d'upload que l'admin — il est agnostique de l'identité.
+		// Rate limit dédié : les groupes authentifiés n'en ont aucun par défaut.
+		r.With(
+			middleware.MaxBodySizeLarge,
+			middleware.RateLimit(rate.Every(6*time.Second), 10),
+		).Post("/artist/me/media", h.Media.Upload)
+	})
+
+	// ── Cart ─────────────────────────────────────────────────────────────────
+	// Panier entièrement côté serveur (Redis), y compris pour les visiteurs non
+	// connectés : CartSession accepte soit un JWT, soit un cookie invité signé,
+	// et ne rejette jamais la requête. Groupe distinct du groupe public, donc
+	// avec son propre rate limit — sinon un anonyme pourrait marteler Redis.
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.RateLimit(rate.Limit(2), 30))
+		r.Use(middleware.CartSession(cfg.JWTSecret, cfg.Environment != "development"))
+
 		r.Get("/cart", h.Cart.Get)
 		r.Post("/cart/items", h.Cart.AddItem)
 		r.Patch("/cart/items/{productId}", h.Cart.UpdateQuantity)
 		r.Delete("/cart/items/{productId}", h.Cart.RemoveItem)
 		r.Delete("/cart", h.Cart.Clear)
-		r.Post("/cart/sync", h.Cart.Sync)
 	})
 
 	// ── Admin Routes ─────────────────────────────────────────────────────────
@@ -216,6 +254,9 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 		r.Post("/admin/artists", h.AdminArtists.Create)
 		r.Put("/admin/artists/{id}", h.AdminArtists.Update)
 		r.Delete("/admin/artists/{id}", h.AdminArtists.Delete)
+		// Créer un compte est une action privilégiée : ADMIN uniquement.
+		r.With(middleware.RequireRoles("ADMIN")).
+			Post("/admin/artists/{id}/invite", h.AdminArtistInvite.Invite)
 
 		// Projects admin
 		r.Get("/admin/projects", h.AdminProjects.List)

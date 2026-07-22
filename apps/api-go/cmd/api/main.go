@@ -8,12 +8,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
-
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
 
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/config"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db"
@@ -25,7 +21,6 @@ import (
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/repository"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/router"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/service"
-	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/migrations"
 )
 
 func main() {
@@ -60,15 +55,6 @@ func run() error {
 	defer pool.Close()
 	slog.Info("Connected to PostgreSQL")
 
-	// Optional auto-migrate (default off) — set AUTO_MIGRATE=true to run
-	// pending goose migrations against DATABASE_URL before the server starts.
-	if strings.EqualFold(os.Getenv("AUTO_MIGRATE"), "true") {
-		if err := runMigrations(cfg.DatabaseURL); err != nil {
-			return fmt.Errorf("auto-migrate: %w", err)
-		}
-		slog.Info("Migrations applied")
-	}
-
 	// Redis
 	redisClient, err := redis.NewClient(ctx, cfg.RedisURL)
 	if err != nil {
@@ -97,11 +83,12 @@ func run() error {
 
 	// ── Services ─────────────────────────────────────────────────────────────
 	mailSvc := mail.NewMailService(cfg)
-	authSvc := service.NewAuthService(authRepo, mailSvc, cfg.JWTSecret, cfg.JWTRefreshSecret)
+	authSvc := service.NewAuthService(authRepo, mailSvc, cfg.JWTSecret, cfg.JWTRefreshSecret, cfg.GoogleClientID)
 	categoriesSvc := service.NewCategoriesService(categoriesRepo)
 	tagsSvc := service.NewTagsService(tagsRepo)
 	productsSvc := service.NewProductsService(productsRepo, redisClient)
 	artistsSvc := service.NewArtistsService(artistsRepo, redisClient)
+	artistAccountsSvc := service.NewArtistAccountsService(artistsRepo, authRepo, mailSvc, artistsSvc)
 	projectsSvc := service.NewProjectsService(projectsRepo)
 	festivalSvc := service.NewFestivalService(festivalRepo)
 	pressSvc := service.NewPressService(pressRepo)
@@ -128,9 +115,13 @@ func run() error {
 		paymentProviders = append(paymentProviders, payment.NewWaveProvider(cfg.WaveAPIKey, cfg.WaveSecretKey))
 		slog.Info("Payment provider enabled: Wave")
 	}
-	if cfg.OrangeMoneyClientID != "" {
+	// Orange Money reste désactivé tant que ENABLE_ORANGE_MONEY n'est pas
+	// explicitement à "true" : son VerifyWebhook (payment/orange_money.go) ne
+	// vérifie aucune signature, donc n'importe qui pourrait forger un webhook et
+	// faire passer une commande en payée. Ne pas réactiver sans ce correctif.
+	if cfg.EnableOrangeMoney && cfg.OrangeMoneyClientID != "" {
 		paymentProviders = append(paymentProviders, payment.NewOrangeMoneyProvider(cfg.OrangeMoneyClientID, cfg.OrangeMoneyClientSecret, cfg.OrangeMoneyMerchantKey))
-		slog.Info("Payment provider enabled: Orange Money")
+		slog.Warn("Payment provider enabled: Orange Money — webhook signature is NOT verified")
 	}
 	if cfg.NabooAPIKey != "" {
 		naboo := payment.NewNabooProvider(cfg.NabooAPIKey, cfg.NabooWebhookSecret)
@@ -146,35 +137,37 @@ func run() error {
 
 	// ── Handlers ────────────────────────────────────────────────────────────
 	handlers := &router.Handlers{
-		Health:        handler.NewHealthHandler(pool),
-		Auth:          handler.NewAuthHandler(authSvc),
-		Categories:    handler.NewCategoriesHandler(categoriesSvc),
-		Products:      handler.NewProductsHandler(productsSvc),
-		Artists:       handler.NewArtistsHandler(artistsSvc),
-		Projects:      handler.NewProjectsHandler(projectsSvc),
-		Festival:      handler.NewFestivalHandler(festivalSvc),
-		Press:         handler.NewPressHandler(pressSvc),
-		Pages:         handler.NewPagesHandler(pagesSvc),
-		Services:      handler.NewServicesHandler(servicesSvc),
-		Orders:        handler.NewOrdersHandler(ordersSvc),
-		Quotes:        handler.NewQuotesHandler(quotesSvc),
-		Users:         handler.NewUsersHandler(usersSvc),
-		Payments:      handler.NewPaymentsHandler(paymentsSvc),
-		Tags:            handler.NewTagsHandler(tagsSvc),
-		AdminCategories: handler.NewAdminCategoriesHandler(categoriesSvc),
-		AdminTags:       handler.NewAdminTagsHandler(tagsSvc),
-		AdminProducts:   handler.NewAdminProductsHandler(productsSvc),
-		AdminArtists:    handler.NewAdminArtistsHandler(artistsSvc),
-		AdminProjects: handler.NewAdminProjectsHandler(projectsSvc),
-		AdminPages:    handler.NewAdminPagesHandler(pagesSvc),
-		AdminServices: handler.NewAdminServicesHandler(servicesSvc),
-		AdminFestival: handler.NewAdminFestivalHandler(festivalSvc),
-		AdminPress:    handler.NewAdminPressHandler(pressSvc),
-		Media:         handler.NewMediaHandler(cfg.R2AccountID, cfg.R2AccessKey, cfg.R2SecretKey, cfg.R2Bucket, cfg.R2PublicURL),
-		Cart:          handler.NewCartHandler(cartSvc),
-		ActivityLogs:  handler.NewActivityLogsHandler(activityLogRepo),
-		Refunds:       handler.NewRefundsHandler(refundsSvc),
-		Shipping:      handler.NewShippingHandler(shippingSvc),
+		Health:            handler.NewHealthHandler(pool),
+		Auth:              handler.NewAuthHandler(authSvc),
+		Categories:        handler.NewCategoriesHandler(categoriesSvc),
+		Products:          handler.NewProductsHandler(productsSvc),
+		Artists:           handler.NewArtistsHandler(artistsSvc),
+		Projects:          handler.NewProjectsHandler(projectsSvc),
+		Festival:          handler.NewFestivalHandler(festivalSvc),
+		Press:             handler.NewPressHandler(pressSvc),
+		Pages:             handler.NewPagesHandler(pagesSvc),
+		Services:          handler.NewServicesHandler(servicesSvc),
+		Orders:            handler.NewOrdersHandler(ordersSvc),
+		Quotes:            handler.NewQuotesHandler(quotesSvc),
+		Users:             handler.NewUsersHandler(usersSvc),
+		Payments:          handler.NewPaymentsHandler(paymentsSvc),
+		Tags:              handler.NewTagsHandler(tagsSvc),
+		AdminCategories:   handler.NewAdminCategoriesHandler(categoriesSvc),
+		AdminTags:         handler.NewAdminTagsHandler(tagsSvc),
+		AdminProducts:     handler.NewAdminProductsHandler(productsSvc),
+		AdminArtists:      handler.NewAdminArtistsHandler(artistsSvc),
+		ArtistMe:          handler.NewArtistMeHandler(artistAccountsSvc),
+		AdminArtistInvite: handler.NewAdminArtistInviteHandler(artistAccountsSvc),
+		AdminProjects:     handler.NewAdminProjectsHandler(projectsSvc),
+		AdminPages:        handler.NewAdminPagesHandler(pagesSvc),
+		AdminServices:     handler.NewAdminServicesHandler(servicesSvc),
+		AdminFestival:     handler.NewAdminFestivalHandler(festivalSvc),
+		AdminPress:        handler.NewAdminPressHandler(pressSvc),
+		Media:             handler.NewMediaHandler(cfg.R2AccountID, cfg.R2AccessKey, cfg.R2SecretKey, cfg.R2Bucket, cfg.R2PublicURL),
+		Cart:              handler.NewCartHandler(cartSvc, cfg.Environment != "development"),
+		ActivityLogs:      handler.NewActivityLogsHandler(activityLogRepo),
+		Refunds:           handler.NewRefundsHandler(refundsSvc),
+		Shipping:          handler.NewShippingHandler(shippingSvc),
 	}
 
 	// ── HTTP Server ──────────────────────────────────────────────────────────
@@ -211,26 +204,5 @@ func run() error {
 		return fmt.Errorf("shutdown error: %w", err)
 	}
 	slog.Info("Server stopped gracefully")
-	return nil
-}
-
-// runMigrations applies pending goose migrations from the embedded FS.
-// It opens a dedicated *sql.DB via the pgx stdlib driver because goose expects
-// a database/sql handle rather than a pgxpool.
-func runMigrations(databaseURL string) error {
-	goose.SetBaseFS(migrations.FS)
-	if err := goose.SetDialect("postgres"); err != nil {
-		return fmt.Errorf("set dialect: %w", err)
-	}
-
-	sqlDB, err := goose.OpenDBWithDriver("pgx", databaseURL)
-	if err != nil {
-		return fmt.Errorf("open db: %w", err)
-	}
-	defer func() { _ = sqlDB.Close() }()
-
-	if err := goose.Up(sqlDB, "."); err != nil {
-		return fmt.Errorf("goose up: %w", err)
-	}
 	return nil
 }

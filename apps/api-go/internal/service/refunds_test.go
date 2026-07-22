@@ -23,8 +23,8 @@ func TestRefundCycle(t *testing.T) {
 	// ── Seed: user ────────────────────────────────────────────────────────────
 	adminID := uuid.New().String()
 	mustExec(t, pool,
-		`INSERT INTO "User" ("id","email","passwordHash","role","locale","status","createdAt","updatedAt")
-		 VALUES ($1,'admin@rbs.sn','$2a$10$dummy','ADMIN','fr','ACTIVE',NOW(),NOW())`,
+		`INSERT INTO "User" ("id","email","passwordHash","role","preferredLocale","createdAt","updatedAt")
+		 VALUES ($1,'admin@rbs.sn','$2a$10$dummy','ADMIN','fr',NOW(),NOW())`,
 		adminID,
 	)
 
@@ -36,9 +36,9 @@ func TestRefundCycle(t *testing.T) {
 	)
 	productID := uuid.New().String()
 	mustExec(t, pool,
-		`INSERT INTO "Product" ("id","slug","price","stock","status","categoryId","createdAt","updatedAt")
-		 VALUES ($1,'test-product',10000,100,'PUBLISHED',$2,NOW(),NOW())`,
-		productID, categoryID,
+		`INSERT INTO "Product" ("id","slug","price","stock","status","createdAt","updatedAt")
+		 VALUES ($1,'test-product',10000,100,'PUBLISHED',NOW(),NOW())`,
+		productID,
 	)
 
 	// ── Seed: order (total = 10000 XOF) ──────────────────────────────────────
@@ -77,9 +77,10 @@ func TestRefundCycle(t *testing.T) {
 	if partial.OrderID != orderID {
 		t.Errorf("expected orderId %s, got %s", orderID, partial.OrderID)
 	}
-	// Wave/no-provider → manual required
+	// Aucun provider de remboursement n'est enregistré dans ce test : le
+	// remboursement doit donc être marqué « à traiter manuellement ».
 	if !partial.IsManualRequired {
-		// Stripe stub not provided, so it's manual — OK
+		t.Errorf("expected IsManualRequired=true when no refund provider is registered")
 	}
 
 	// ── Step 2: complementary refund (7000 XOF) ──────────────────────────────
@@ -135,8 +136,8 @@ func TestRefundIdempotencyKey(t *testing.T) {
 	// minimal seed
 	adminID := uuid.New().String()
 	mustExec(t, pool,
-		`INSERT INTO "User" ("id","email","passwordHash","role","locale","status","createdAt","updatedAt")
-		 VALUES ($1,'admin2@rbs.sn','hash','ADMIN','fr','ACTIVE',NOW(),NOW())`, adminID)
+		`INSERT INTO "User" ("id","email","passwordHash","role","preferredLocale","createdAt","updatedAt")
+		 VALUES ($1,'admin2@rbs.sn','hash','ADMIN','fr',NOW(),NOW())`, adminID)
 
 	categoryID := uuid.New().String()
 	mustExec(t, pool,
@@ -144,8 +145,8 @@ func TestRefundIdempotencyKey(t *testing.T) {
 
 	productID := uuid.New().String()
 	mustExec(t, pool,
-		`INSERT INTO "Product" ("id","slug","price","stock","status","categoryId","createdAt","updatedAt")
-		 VALUES ($1,'p2',5000,50,'PUBLISHED',$2,NOW(),NOW())`, productID, categoryID)
+		`INSERT INTO "Product" ("id","slug","price","stock","status","createdAt","updatedAt")
+		 VALUES ($1,'p2',5000,50,'PUBLISHED',NOW(),NOW())`, productID)
 
 	orderID := uuid.New().String()
 	mustExec(t, pool,
@@ -200,8 +201,8 @@ func TestManualRefundCompletion(t *testing.T) {
 
 	adminID := uuid.New().String()
 	mustExec(t, pool,
-		`INSERT INTO "User" ("id","email","passwordHash","role","locale","status","createdAt","updatedAt")
-		 VALUES ($1,'admin3@rbs.sn','hash','ADMIN','fr','ACTIVE',NOW(),NOW())`, adminID)
+		`INSERT INTO "User" ("id","email","passwordHash","role","preferredLocale","createdAt","updatedAt")
+		 VALUES ($1,'admin3@rbs.sn','hash','ADMIN','fr',NOW(),NOW())`, adminID)
 
 	categoryID := uuid.New().String()
 	mustExec(t, pool,
@@ -209,8 +210,8 @@ func TestManualRefundCompletion(t *testing.T) {
 
 	productID := uuid.New().String()
 	mustExec(t, pool,
-		`INSERT INTO "Product" ("id","slug","price","stock","status","categoryId","createdAt","updatedAt")
-		 VALUES ($1,'p3',2000,20,'PUBLISHED',$2,NOW(),NOW())`, productID, categoryID)
+		`INSERT INTO "Product" ("id","slug","price","stock","status","createdAt","updatedAt")
+		 VALUES ($1,'p3',2000,20,'PUBLISHED',NOW(),NOW())`, productID)
 
 	orderID := uuid.New().String()
 	mustExec(t, pool,
@@ -259,15 +260,15 @@ func TestRefundBelowZeroRejected(t *testing.T) {
 
 	adminID := uuid.New().String()
 	mustExec(t, pool,
-		`INSERT INTO "User" ("id","email","passwordHash","role","locale","status","createdAt","updatedAt")
-		 VALUES ($1,'admin4@rbs.sn','hash','ADMIN','fr','ACTIVE',NOW(),NOW())`, adminID)
+		`INSERT INTO "User" ("id","email","passwordHash","role","preferredLocale","createdAt","updatedAt")
+		 VALUES ($1,'admin4@rbs.sn','hash','ADMIN','fr',NOW(),NOW())`, adminID)
 
 	categoryID := uuid.New().String()
 	mustExec(t, pool, `INSERT INTO "Category" ("id","slug","createdAt","updatedAt") VALUES ($1,'c4',NOW(),NOW())`, categoryID)
 	productID := uuid.New().String()
 	mustExec(t, pool,
-		`INSERT INTO "Product" ("id","slug","price","stock","status","categoryId","createdAt","updatedAt")
-		 VALUES ($1,'p4',500,5,'PUBLISHED',$2,NOW(),NOW())`, productID, categoryID)
+		`INSERT INTO "Product" ("id","slug","price","stock","status","createdAt","updatedAt")
+		 VALUES ($1,'p4',500,5,'PUBLISHED',NOW(),NOW())`, productID)
 	orderID := uuid.New().String()
 	mustExec(t, pool,
 		`INSERT INTO "Order" ("id","orderNumber","userId","status","paymentStatus","currency",

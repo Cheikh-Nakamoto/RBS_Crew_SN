@@ -17,6 +17,8 @@ import {
   Music,
   ChevronRight,
   Activity,
+  MapPin,
+  Truck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { NavGroup } from '@/types/admin';
@@ -41,6 +43,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/admin/commandes', label: 'Commandes', icon: ShoppingCart },
       { href: '/admin/devis', label: 'Devis', icon: FileText },
+      { href: '/admin/livraison/zones', label: 'Zones de livraison', icon: MapPin, adminOnly: true },
+      { href: '/admin/livraison/methodes', label: 'Modes de livraison', icon: Truck, adminOnly: true },
     ],
   },
   {

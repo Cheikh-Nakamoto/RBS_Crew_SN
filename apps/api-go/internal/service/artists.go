@@ -150,7 +150,17 @@ func (s *ArtistsService) AdminList(ctx context.Context, page, limit int) (*types
 			total = int(row.TotalCount)
 		}
 		aObj := row.Artist
-		results = append(results, s.toAdminArtistResponse(ctx, &aObj))
+		res := s.toAdminArtistResponse(ctx, &aObj)
+		res.AccountEmail = row.AccountEmail
+		switch {
+		case row.AccountEmail == nil:
+			res.AccountStatus = "none"
+		case row.AccountVerified != nil && *row.AccountVerified:
+			res.AccountStatus = "active"
+		default:
+			res.AccountStatus = "invited"
+		}
+		results = append(results, res)
 	}
 	return types.Paginate(results, total, page, limit), nil
 }

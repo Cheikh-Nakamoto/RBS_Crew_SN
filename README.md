@@ -17,10 +17,10 @@ RBS_Crew_SN/
 ├── apps/
 │   ├── api-go/          # Backend Go avec Chi router
 │   └── web/             # Frontend Next.js 16
-├── data/                # Données et migrations
-├── infra/               # Infrastructure Docker
+├── data/                # Jeux de données exportés de WordPress
+├── infra/               # Infrastructure Docker (init Postgres, config nginx)
 ├── packages/            # Packages partagés
-└── migration-scripts/   # Scripts de migration
+└── migration-scripts/   # Scripts de migration WordPress → PostgreSQL
 ```
 
 ## Fonctionnalités
@@ -37,51 +37,73 @@ RBS_Crew_SN/
 
 ## Configuration
 
-1. Copier le fichier `.env.example` en `.env` et configurer les variables d'environnement.
+1. Copier le fichier `.env.example` en `.env` et renseigner les variables.
+   Sans elles, certaines fonctionnalités sont silencieusement désactivées :
+   - `NABOO_API_KEY` / `NABOO_WEBHOOK_SECRET` — sans quoi le paiement répond 400 ;
+   - `SMTP_*` — sans quoi aucun e-mail ne part (vérification d'adresse,
+     mot de passe oublié, invitation artiste, remboursement) ;
+   - `JWT_SECRET` / `JWT_REFRESH_SECRET` — obligatoires, l'API refuse de démarrer sans.
 
-2. Installer les dépendances:
+2. Installer les dépendances :
 ```bash
-npm install
+make install
 ```
 
-3. Démarrer les services avec Docker:
+3. Démarrer l'infrastructure :
 ```bash
-docker-compose up -d
+docker compose up -d postgres redis
 ```
+
+La base est créée **automatiquement** au premier démarrage à partir de
+`apps/api-go/sql/schema.sql`, son unique source de vérité. Il n'y a pas de
+migrations : voir [apps/api-go/README.md](apps/api-go/README.md) avant toute
+évolution du schéma — la recréation détruit toutes les données.
 
 ## Développement
 
-Pour démarrer l'application en mode développement:
+Toutes les commandes courantes passent par le Makefile (`make help` les liste) :
 
 ```bash
-# Démarrer le backend Go
-cd apps/api-go
-go run main.go
+make dev        # postgres + redis, puis API Go et Next.js en parallèle
+make dev-api    # API Go seule  (apps/api-go, ./cmd/api)
+make dev-web    # Next.js seul
 
-# Démarrer le frontend Next.js
-cd apps/web
-npm run dev
+make health     # état de l'API et du front
+make logs-api   # logs du conteneur api-go
+```
+
+Après toute modification de `internal/sql/*.sql` **ou** de `sql/schema.sql` :
+
+```bash
+make db-sqlc    # régénère internal/db/queries/
+make db-reset   # ⚠️ recrée la base — DÉTRUIT toutes les données
 ```
 
 ## Production
 
-Pour construire et démarrer l'application en mode production:
-
 ```bash
-# Construire les images Docker
-docker-compose build
-
-# Démarrer les services
-docker-compose up -d
+make up         # docker compose up -d --build
+make down
 ```
+
+Le déploiement réel se fait via Jenkins, qui récupère les images publiées sur
+GHCR par `.github/workflows/ci.yml`. Les variables `NEXT_PUBLIC_*` sont figées
+**au build de l'image** : les modifier au runtime est sans effet.
+
+Nginx (`infra/nginx/`) n'est pas orchestré par docker-compose ; il proxifie les
+webhooks de paiement directement vers l'API et le reste vers Next.js.
 
 ## Tests
 
-Les tests sont disponibles dans le répertoire `test/` et peuvent être exécutés avec:
-
 ```bash
-go test ./...
+make test       # Go (-race -cover) + web
+make lint       # golangci-lint + eslint
 ```
+
+Les tests Go vivent à côté du code (`internal/**/*_test.go`). Ceux de
+`internal/service` démarrent un PostgreSQL éphémère via testcontainers et y
+appliquent `sql/schema.sql` — Docker doit donc être disponible, sinon ils sont
+ignorés (`-short` les saute explicitement).
 
 ## Documentation
 
@@ -89,6 +111,3 @@ go test ./...
 - [Documentation du refactoring](apps/web/docs/refactoring-phase-9-10-11.md)
 - [Documentation des paiements](apps/api-go/docs/PAYMENTS.md)
 
-## Licence
-
-Ce projet est sous licence AGPL-3.0.

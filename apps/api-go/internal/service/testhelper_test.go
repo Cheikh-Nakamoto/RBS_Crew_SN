@@ -2,8 +2,9 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -12,16 +13,13 @@ import (
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/config"
 	dbpkg "github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/db"
 	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/internal/mail"
-	"github.com/Cheikh-Nakamoto/RBS_Crew_SN/apps/api-go/migrations"
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // Shared postgres container across tests in this package.
-// The first test that needs a DB starts a container and applies migrations.
+// The first test that needs a DB starts a container and applies the schema.
 // Subsequent tests reuse the pool but truncate the tables they mutate (see truncate helpers).
 var (
 	sharedPGOnce sync.Once
@@ -29,7 +27,7 @@ var (
 	sharedPGErr  error
 )
 
-// getTestPool starts (once) a Postgres 16 testcontainer, runs goose migrations,
+// getTestPool starts (once) a Postgres 16 testcontainer, applies sql/schema.sql,
 // and returns a *pgxpool.Pool. Tests should call t.Skip if err indicates docker/setup
 // isn't available so `-short` can still pass on non-docker CI.
 func getTestPool(t *testing.T) *pgxpool.Pool {
@@ -59,7 +57,7 @@ func getTestPool(t *testing.T) *pgxpool.Pool {
 		// wait until log is ready — extra safety
 		if err := wait.ForLog("database system is ready to accept connections").
 			WithOccurrence(2).
-			WithStartupTimeout(60 * time.Second).
+			WithStartupTimeout(60*time.Second).
 			WaitUntilReady(ctx, container); err != nil {
 			sharedPGErr = fmt.Errorf("wait ready: %w", err)
 			return
@@ -71,28 +69,28 @@ func getTestPool(t *testing.T) *pgxpool.Pool {
 			return
 		}
 
-		// apply migrations via goose using database/sql pgx driver
-		sqlDB, err := sql.Open("pgx", connStr)
-		if err != nil {
-			sharedPGErr = fmt.Errorf("open sql: %w", err)
-			return
-		}
-		goose.SetBaseFS(migrations.FS)
-		if err := goose.SetDialect("postgres"); err != nil {
-			sharedPGErr = fmt.Errorf("goose dialect: %w", err)
-			_ = sqlDB.Close()
-			return
-		}
-		if err := goose.UpContext(ctx, sqlDB, "."); err != nil {
-			sharedPGErr = fmt.Errorf("goose up: %w", err)
-			_ = sqlDB.Close()
-			return
-		}
-		_ = sqlDB.Close()
-
 		pool, err := dbpkg.NewPool(ctx, connStr)
 		if err != nil {
 			sharedPGErr = fmt.Errorf("new pool: %w", err)
+			return
+		}
+
+		// Le schéma est appliqué depuis sql/schema.sql, l'unique source de
+		// vérité (il n'y a plus de migrations incrémentales). Chemin relatif
+		// au package : //go:embed ne peut pas remonter au-dessus de celui-ci.
+		schemaSQL, err := os.ReadFile(filepath.Join("..", "..", "sql", "schema.sql"))
+		if err != nil {
+			sharedPGErr = fmt.Errorf("read schema: %w", err)
+			return
+		}
+		if _, err := pool.Exec(ctx, `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS unaccent;`); err != nil {
+			sharedPGErr = fmt.Errorf("create extensions: %w", err)
+			return
+		}
+		if _, err := pool.Exec(ctx, string(schemaSQL)); err != nil {
+			sharedPGErr = fmt.Errorf("apply schema: %w", err)
 			return
 		}
 		sharedPGPool = pool

@@ -33,8 +33,3 @@ type UpsertCartItemDTO struct {
 type UpdateQuantityDTO struct {
 	Quantity int `json:"quantity" validate:"min=0"`
 }
-
-// SyncCartDTO is the payload for POST /cart/sync (merge guest cart on login).
-type SyncCartDTO struct {
-	Items []CartItem `json:"items"`
-}

@@ -110,6 +110,7 @@ const (
 	PaymentMethodPAYPAL      PaymentMethod = "PAYPAL"
 	PaymentMethodWAVE        PaymentMethod = "WAVE"
 	PaymentMethodORANGEMONEY PaymentMethod = "ORANGE_MONEY"
+	PaymentMethodNABOO       PaymentMethod = "NABOO"
 )
 
 func (e *PaymentMethod) Scan(src interface{}) error {
@@ -284,6 +285,7 @@ const (
 	UserRoleCUSTOMER UserRole = "CUSTOMER"
 	UserRoleADMIN    UserRole = "ADMIN"
 	UserRoleEDITOR   UserRole = "EDITOR"
+	UserRoleARTIST   UserRole = "ARTIST"
 )
 
 func (e *UserRole) Scan(src interface{}) error {
@@ -370,6 +372,7 @@ type Artist struct {
 	WpId             *int32           `json:"wpId"`
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
+	UserId           *string          `json:"userId"`
 }
 
 type ArtistArtwork struct {

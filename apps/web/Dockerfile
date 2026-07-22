@@ -3,6 +3,10 @@ WORKDIR /app
 
 ARG NEXT_PUBLIC_API_URL=/backend
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# URL publique du site : sert à construire les URLs de retour envoyées à NabooPay.
+# Variable NEXT_PUBLIC_*, donc figée au build — la surcharger au runtime n'a aucun effet.
+ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV API_REWRITE_TARGET=http://api-go:4000
 
 # Copy workspace root files
@@ -30,6 +34,10 @@ ENV NODE_ENV=production
 
 ARG NEXT_PUBLIC_API_URL=/backend
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# URL publique du site : sert à construire les URLs de retour envoyées à NabooPay.
+# Variable NEXT_PUBLIC_*, donc figée au build — la surcharger au runtime n'a aucun effet.
+ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV API_REWRITE_TARGET=http://api-go:4000
 
 # Copy standalone output + static assets

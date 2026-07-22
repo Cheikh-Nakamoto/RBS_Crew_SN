@@ -4,7 +4,7 @@ import { useCart } from '@/lib/cart-store';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { formatXOF } from '@/lib/format';
 import { ArrowLeft, Minus, Plus, Trash2, ShoppingBag, AlertTriangle, RefreshCw } from 'lucide-react';
 import { CheckoutForm } from './checkout-form';
@@ -29,6 +29,11 @@ function CheckoutContent() {
   const { status } = useSession();
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  // Frais réels renvoyés par POST /shipping/quote, remontés depuis le formulaire.
+  // Le backend les recalcule de toute façon à la création de la commande.
+  const [shippingFee, setShippingFee] = useState(0);
+  const [, setShippingMethodId] = useState<string | null>(null);
 
   const isCancelled = searchParams.has('cancelled');
 
@@ -57,7 +62,6 @@ function CheckoutContent() {
     );
   }
 
-  const SHIPPING_FEE = 0; // Free for now
 
   return (
     <div className="min-h-screen bg-[#111111] pt-24 pb-16 px-4 sm:px-6">
@@ -83,7 +87,7 @@ function CheckoutContent() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-yellow-100">Paiement annulé</p>
               <p className="text-xs text-yellow-200/60 mt-1">
-                Votre paiement n'a pas été finalisé. Vous pouvez réessayer.
+                Votre paiement n&apos;a pas été finalisé. Vous pouvez réessayer.
               </p>
             </div>
             <button
@@ -159,7 +163,11 @@ function CheckoutContent() {
             <CheckoutForm 
               items={items} 
               total={total} 
-              shippingFee={SHIPPING_FEE} 
+              shippingFee={shippingFee}
+              onShippingChange={(id, fee) => {
+                setShippingMethodId(id);
+                setShippingFee(fee);
+              }} 
               sessionExists={status === 'authenticated'} 
             />
           </div>
@@ -178,19 +186,15 @@ function CheckoutContent() {
                 <div className="flex justify-between text-white/60">
                   <span>Livraison</span>
                   <span className="font-semibold text-white">
-                    {SHIPPING_FEE > 0 ? formatXOF(SHIPPING_FEE) : 'Gratuite'}
+                    {shippingFee > 0 ? formatXOF(shippingFee) : 'Gratuite'}
                   </span>
                 </div>
                 <div className="border-t border-white/10 pt-3 flex justify-between">
                   <span className="font-bold text-white uppercase tracking-wider text-base">Total</span>
-                  <span className="font-bold text-white text-xl">{formatXOF(total + SHIPPING_FEE)}</span>
+                  <span className="font-bold text-white text-xl">{formatXOF(total + shippingFee)}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-center gap-4 mt-6">
-                <Image src="/images/wave-logo.png" alt="Wave" width={40} height={40} className="rounded" />
-                <Image src="/images/om-logo.png" alt="Orange Money" width={40} height={40} className="rounded" />
-              </div>
-              <p className="text-[10px] text-white/20 text-center leading-relaxed">
+              <p className="text-[10px] text-white/20 text-center leading-relaxed mt-6">
                 Paiement sécurisé par NabooPay.
               </p>
             </div>

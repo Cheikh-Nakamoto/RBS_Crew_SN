@@ -8,16 +8,13 @@ import { DataTableToolbar } from '@/components/admin/data-table/data-table-toolb
 import { DeleteConfirmDialog } from '@/components/admin/delete-confirm-dialog';
 import { deleteServices } from '../actions';
 import { getServiceColumns } from '../columns';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-import type { PaginatedMeta } from '@/types/admin';
+import type { PaginatedMeta, AdminService } from '@/types/admin';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface ServicesTableProps {
-  data: any[];
+  data: AdminService[];
   pagination: PaginatedMeta;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function ServicesTable({ data, pagination }: ServicesTableProps) {
   const router = useRouter();
   const pathname = usePathname();

@@ -74,7 +74,8 @@ apps/
       router/         #   chi router setup — three route groups: public, authenticated, admin
       service/        #   business logic layer between handlers and repositories
       sql/            #   raw SQL files consumed by sqlc
-    sql/schema.sql    #   PostgreSQL DDL (Prisma-inspired schema, executed manually)
+    sql/schema.sql    #   SOURCE DE VÉRITÉ UNIQUE du schéma — CREATE TABLE only, jamais d'ALTER.
+                      #   Exécuté par Postgres à la création de la base (initdb) ET lu par sqlc.
     sqlc.yaml         #   sqlc config
   web/                # Next.js 16 App Router
     app/
@@ -160,7 +161,7 @@ Copy `.env.example` → `.env`. Critical variables:
 
 ## Testing
 
-- **Current state**: there are no Go `*_test.go` files yet and `apps/web` has no `test` script, so `make test`'s web step (`npm run test --if-present`) is a no-op.
+- **Current state**: the Go side has integration tests (`internal/service`, `internal/handler`, `internal/middleware`) run by `make test`. `apps/web` has no `test` script, so `make test`'s web step (`npm run test --if-present`) is a no-op.
 - **Go**: `make test` runs `go test -race -cover ./...` from `apps/api-go`. To run a single test once tests exist: `cd apps/api-go && go test -race -run TestName ./internal/service/...`
 - **Lint** (`make lint`) is the main automated gate today: `golangci-lint run ./...` (Go) + `eslint` (web). Run it before committing.
 
@@ -168,7 +169,8 @@ Copy `.env.example` → `.env`. Critical variables:
 
 - The Go API is named `nestjs-api` in Docker but it's Go, not NestJS — this is a leftover from a previous stack
 - `apps/web/AGENTS.md` warns about Next.js 16 breaking changes — read `node_modules/next/dist/docs/` before writing Next.js code
-- Go codegen (`sqlc generate`) must be run after any changes to `internal/sql/*.sql` files
+- Go codegen (`sqlc generate`, via `make db-sqlc`) must be run after any change to `internal/sql/*.sql` **or** to `sql/schema.sql`
+- **Schema changes**: edit `apps/api-go/sql/schema.sql` (no `ALTER TABLE`, no migration files), then `make db-sqlc` and `make db-reset`. `db-reset` destroys all data — see the warning at the top of `schema.sql`.
 - Activity logging middleware records all admin actions to the `ActivityLog` table
 - Redis is used for caching (products, artists) and cart state
 

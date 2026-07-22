@@ -16,7 +16,6 @@ import {
   updateCartItem,
   removeCartItem,
   clearCartApi,
-  syncCart,
 } from './cart-api';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -43,125 +42,71 @@ interface CartContextValue {
   setIsOpen: (open: boolean) => void;
 }
 
-const STORAGE_KEY = 'rbs-cart';
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function loadCart(): CartItem[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as CartItem[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveCart(items: CartItem[]) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  } catch {
-    // quota exceeded — silently fail
-  }
-}
-
 // ── Context ──────────────────────────────────────────────────────────────────
 
 const CartContext = createContext<CartContextValue | null>(null);
 
+/**
+ * Le panier est stocké exclusivement côté serveur (Redis), aussi bien pour un
+ * utilisateur connecté que pour un visiteur — ce dernier étant identifié par le
+ * cookie `rbs_gid`. Aucune persistance navigateur : en cas d'erreur réseau on
+ * garde un état optimiste en mémoire, qui disparaît au rechargement.
+ */
 export function CartProvider({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
   const [items, setItems] = useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const prevUserIdRef = useRef<string | null>(null);
+  const prevUserIdRef = useRef<string | null | undefined>(undefined);
+  // La réponse d'un chargement anonyme peut arriver après celle d'un chargement
+  // authentifié : seule la réponse du dernier chargement lancé est appliquée.
+  const loadSeqRef = useRef(0);
 
   const accessToken = (session as { accessToken?: string } | null)?.accessToken;
 
-  // ── Load/sync cart when auth state changes ───────────────────────────────
+  const applyIfCurrent = useCallback((seq: number, next: CartItem[]) => {
+    if (seq === loadSeqRef.current) setItems(next);
+  }, []);
+
+  // ── Chargement initial + rechargement au changement d'utilisateur ─────────
   useEffect(() => {
-    if (status === 'loading') return;
+    // On ne bloque pas sur `status === 'loading'` : le panier invité doit
+    // s'afficher immédiatement. Quand le token arrive, l'effet se rejoue et le
+    // serveur fusionne le panier invité dans celui du compte.
+    const currentUserId = accessToken
+      ? ((session?.user as { id?: string } | undefined)?.id ?? null)
+      : null;
+    if (status !== 'loading' && prevUserIdRef.current === currentUserId) return;
+    if (status !== 'loading') prevUserIdRef.current = currentUserId;
 
-    if (accessToken) {
-      const currentUserId = (session?.user as { id?: string } | undefined)?.id ?? null;
+    const seq = ++loadSeqRef.current;
+    fetchCart(accessToken)
+      .then((data) => applyIfCurrent(seq, data.items))
+      .catch(() => applyIfCurrent(seq, []));
+  }, [status, accessToken, session?.user, applyIfCurrent]);
 
-      // Only reload when the user actually changes (avoid infinite loops)
-      if (prevUserIdRef.current === currentUserId) return;
-      prevUserIdRef.current = currentUserId;
-
-      const guestItems = loadCart();
-
-      if (guestItems.length > 0) {
-        // Merge guest cart into server cart then clear localStorage
-        syncCart(accessToken, guestItems)
-          .then((data) => {
-            setItems(data.items);
-            localStorage.removeItem(STORAGE_KEY);
-          })
-          .catch(() => {
-            // Fallback: keep guest items in memory
-            setItems(guestItems);
-          });
-      } else {
-        fetchCart(accessToken)
-          .then((data) => setItems(data.items))
-          .catch(() => setItems([]));
-      }
-    } else {
-      // Unauthenticated: reset tracking ref and load from localStorage
-      if (prevUserIdRef.current !== null) {
-        prevUserIdRef.current = null;
-      }
-      setItems(loadCart());
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, accessToken]);
-
-  // ── Persist to localStorage for guest users ──────────────────────────────
-  useEffect(() => {
-    if (!accessToken && status !== 'loading') {
-      saveCart(items);
-    }
-  }, [items, accessToken, status]);
-
-  // ── Cart operations ──────────────────────────────────────────────────────
+  // ── Opérations panier ────────────────────────────────────────────────────
 
   const addItem = useCallback(
     (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => {
       const qty = item.quantity ?? 1;
 
-      if (accessToken) {
-        addCartItem(accessToken, { ...item, quantity: qty })
-          .then((data) => setItems(data.items))
-          .catch(() => {
-            // Optimistic local update on network error
-            setItems((prev) => {
-              const idx = prev.findIndex((i) => i.productId === item.productId);
-              if (idx >= 0) {
-                const updated = [...prev];
-                updated[idx] = {
-                  ...updated[idx],
-                  quantity: Math.min(updated[idx].quantity + qty, item.maxStock),
-                };
-                return updated;
-              }
-              return [...prev, { ...item, quantity: qty }];
-            });
+      addCartItem(accessToken, { ...item, quantity: qty })
+        .then((data) => setItems(data.items))
+        .catch(() => {
+          // Mise à jour optimiste locale en cas d'erreur réseau
+          setItems((prev) => {
+            const idx = prev.findIndex((i) => i.productId === item.productId);
+            if (idx >= 0) {
+              const updated = [...prev];
+              updated[idx] = {
+                ...updated[idx],
+                quantity: Math.min(updated[idx].quantity + qty, item.maxStock),
+              };
+              return updated;
+            }
+            return [...prev, { ...item, quantity: qty }];
           });
-      } else {
-        setItems((prev) => {
-          const idx = prev.findIndex((i) => i.productId === item.productId);
-          if (idx >= 0) {
-            const updated = [...prev];
-            updated[idx] = {
-              ...updated[idx],
-              quantity: Math.min(updated[idx].quantity + qty, item.maxStock),
-            };
-            return updated;
-          }
-          return [...prev, { ...item, quantity: qty }];
         });
-      }
 
       setIsOpen(true);
     },
@@ -170,58 +115,36 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const removeItem = useCallback(
     (productId: string) => {
-      if (accessToken) {
-        removeCartItem(accessToken, productId)
-          .then((data) => setItems(data.items))
-          .catch(() => setItems((prev) => prev.filter((i) => i.productId !== productId)));
-      } else {
-        setItems((prev) => prev.filter((i) => i.productId !== productId));
-      }
+      removeCartItem(accessToken, productId)
+        .then((data) => setItems(data.items))
+        .catch(() => setItems((prev) => prev.filter((i) => i.productId !== productId)));
     },
     [accessToken],
   );
 
   const updateQuantity = useCallback(
     (productId: string, quantity: number) => {
-      if (accessToken) {
-        updateCartItem(accessToken, productId, quantity)
-          .then((data) => setItems(data.items))
-          .catch(() => {
-            setItems((prev) =>
-              quantity <= 0
-                ? prev.filter((i) => i.productId !== productId)
-                : prev.map((i) =>
-                    i.productId === productId
-                      ? { ...i, quantity: Math.min(quantity, i.maxStock) }
-                      : i,
-                  ),
-            );
-          });
-      } else {
-        if (quantity <= 0) {
-          setItems((prev) => prev.filter((i) => i.productId !== productId));
-          return;
-        }
-        setItems((prev) =>
-          prev.map((i) =>
-            i.productId === productId
-              ? { ...i, quantity: Math.min(quantity, i.maxStock) }
-              : i,
-          ),
-        );
-      }
+      updateCartItem(accessToken, productId, quantity)
+        .then((data) => setItems(data.items))
+        .catch(() => {
+          setItems((prev) =>
+            quantity <= 0
+              ? prev.filter((i) => i.productId !== productId)
+              : prev.map((i) =>
+                  i.productId === productId
+                    ? { ...i, quantity: Math.min(quantity, i.maxStock) }
+                    : i,
+                ),
+          );
+        });
     },
     [accessToken],
   );
 
   const clearCart = useCallback(() => {
-    if (accessToken) {
-      clearCartApi(accessToken)
-        .then(() => setItems([]))
-        .catch(() => setItems([]));
-    } else {
-      setItems([]);
-    }
+    clearCartApi(accessToken)
+      .then(() => setItems([]))
+      .catch(() => setItems([]));
   }, [accessToken]);
 
   const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);

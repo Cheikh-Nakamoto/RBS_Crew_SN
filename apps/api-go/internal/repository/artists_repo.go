@@ -22,18 +22,22 @@ func (r *ArtistsRepository) List(ctx context.Context, limit, offset int32) ([]db
 
 type AdminListArtistRow struct {
 	db.Artist
-	TotalCount int64
+	AccountEmail    *string
+	AccountVerified *bool
+	TotalCount      int64
 }
 
 func (r *ArtistsRepository) AdminList(ctx context.Context, limit, offset int32) ([]AdminListArtistRow, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, slug, city, country, status, "wpId", "createdAt", "updatedAt",
-		        "avatarUrl", "featuredImageUrl", "instagramUrl",
-		        "genre", "nationality", "facebookUrl", "twitterUrl", "youtubeUrl",
-		        "tiktokUrl", "websiteUrl", "spotifyUrl", "soundcloudUrl", "videoUrl",
+		`SELECT a.id, a.slug, a.city, a.country, a.status, a."wpId", a."createdAt", a."updatedAt",
+		        a."avatarUrl", a."featuredImageUrl", a."instagramUrl",
+		        a."genre", a."nationality", a."facebookUrl", a."twitterUrl", a."youtubeUrl",
+		        a."tiktokUrl", a."websiteUrl", a."spotifyUrl", a."soundcloudUrl", a."videoUrl",
+		        a."userId", u."email", u."emailVerified",
 		        COUNT(*) OVER() AS total_count
-		 FROM "Artist"
-		 ORDER BY "createdAt" DESC
+		 FROM "Artist" a
+		 LEFT JOIN "User" u ON u."id" = a."userId"
+		 ORDER BY a."createdAt" DESC
 		 LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		return nil, err
@@ -49,6 +53,7 @@ func (r *ArtistsRepository) AdminList(ctx context.Context, limit, offset int32) 
 			&row.Genre, &row.Nationality,
 			&row.FacebookUrl, &row.TwitterUrl, &row.YoutubeUrl,
 			&row.TiktokUrl, &row.WebsiteUrl, &row.SpotifyUrl, &row.SoundcloudUrl, &row.VideoUrl,
+			&row.UserId, &row.AccountEmail, &row.AccountVerified,
 			&row.TotalCount,
 		); err != nil {
 			return nil, err
@@ -113,4 +118,30 @@ func (r *ArtistsRepository) AddArtwork(ctx context.Context, params db.AddArtistA
 
 func (r *ArtistsRepository) ClearArtworks(ctx context.Context, artistID string) error {
 	return r.q.ClearArtistArtworks(ctx, artistID)
+}
+
+// GetByUserID résout la fiche artiste rattachée à un compte. C'est le seul point
+// d'entrée du self-service : aucun identifiant d'artiste n'est jamais accepté
+// depuis la requête, ce qui rend l'accès à la fiche d'autrui structurellement
+// impossible.
+func (r *ArtistsRepository) GetByUserID(ctx context.Context, userID string) (*db.Artist, error) {
+	a, err := r.q.GetArtistByUserID(ctx, &userID)
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+func (r *ArtistsRepository) LinkUser(ctx context.Context, artistID, userID string) (*db.Artist, error) {
+	a, err := r.q.LinkArtistUser(ctx, db.LinkArtistUserParams{ID: artistID, UserId: &userID})
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+// DeleteArtworkOwned renvoie le nombre de lignes supprimées : 0 signifie que
+// l'œuvre n'existe pas ou n'appartient pas à cet artiste.
+func (r *ArtistsRepository) DeleteArtworkOwned(ctx context.Context, artworkID, artistID string) (int64, error) {
+	return r.q.DeleteArtistArtworkOwned(ctx, db.DeleteArtistArtworkOwnedParams{ID: artworkID, ArtistId: artistID})
 }

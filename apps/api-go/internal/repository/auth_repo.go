@@ -104,3 +104,21 @@ func (r *AuthRepository) GetUserByEmailVerificationToken(ctx context.Context, to
 func (r *AuthRepository) SetEmailVerified(ctx context.Context, id string) error {
 	return r.q.SetEmailVerified(ctx, id)
 }
+
+// CreateUserWithRole provisionne un compte avec un rôle explicite (CreateUser
+// fige CUSTOMER). Utilisé pour les comptes artiste créés par un administrateur.
+func (r *AuthRepository) CreateUserWithRole(ctx context.Context, params db.CreateUserWithRoleParams) (*db.User, error) {
+	u, err := r.q.CreateUserWithRole(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+func (r *AuthRepository) UpdateRole(ctx context.Context, id string, role db.UserRole) (*db.User, error) {
+	u, err := r.q.UpdateUserRole(ctx, db.UpdateUserRoleParams{ID: id, Column2: role})
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}

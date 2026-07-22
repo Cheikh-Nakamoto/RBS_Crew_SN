@@ -36,4 +36,7 @@ lint:
 clean:
 	@echo "==> Cleaning up..."
 	@rm -rf $(DIST_DIR)
-	@rm -rf docs
+	# Ne supprimer QUE les fichiers générés par swag : docs/ contient aussi de la
+	# documentation écrite à la main et suivie par git (PAYMENTS.md,
+	# BACKOFFICE_ROADMAP.md), qu'un `rm -rf docs` détruisait.
+	@rm -f docs/docs.go docs/swagger.json docs/swagger.yaml

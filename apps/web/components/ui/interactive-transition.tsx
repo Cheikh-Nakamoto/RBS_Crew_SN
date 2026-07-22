@@ -6,11 +6,12 @@ import { motion, useMotionValue, useSpring } from 'framer-motion';
 export function InteractiveTransition() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
-  const [isTouchDevice, setIsTouchDevice] = useState(false);
-
-  useEffect(() => {
-    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
-  }, []);
+  // Détection tactile : valeur dérivée de l'environnement, pas d'un état React.
+  // L'initialiseur paresseux n'est évalué qu'au montage côté client, ce qui
+  // évite un premier rendu suivi d'un setState en cascade.
+  const [isTouchDevice] = useState(
+    () => typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0),
+  );
 
   // Motion values for tracking cursor offset relative to center of the element
   const x = useMotionValue(0);

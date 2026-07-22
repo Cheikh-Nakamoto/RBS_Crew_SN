@@ -13,11 +13,14 @@ const POLL_TIMEOUT_MS = 30000;
 export function OrderStatusPoller({ orderId }: { orderId: string }) {
   const [status, setStatus] = useState<OrderStatus>('PENDING');
   const [timedOut, setTimedOut] = useState(false);
-  const startedAt = useRef(Date.now());
+  // Date.now() ne peut pas être appelé dans le corps du composant (impureté) :
+  // l'horodatage de départ est posé au premier tick de l'effet.
+  const startedAt = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
+    startedAt.current = Date.now();
 
     async function poll() {
       try {
@@ -63,7 +66,7 @@ export function OrderStatusPoller({ orderId }: { orderId: string }) {
             Paiement échoué
           </h1>
           <p className="text-white/50 text-sm mb-10">
-            Malheureusement, votre paiement n'a pas pu être traité. Veuillez réessayer.
+            Malheureusement, votre paiement n&apos;a pas pu être traité. Veuillez réessayer.
           </p>
           <Link
             href={`/shop/checkout?cancelled=1`}
@@ -87,7 +90,7 @@ export function OrderStatusPoller({ orderId }: { orderId: string }) {
             En attente de confirmation
           </h1>
           <p className="text-white/50 text-sm mb-10">
-            Votre paiement est toujours en cours de traitement. Vous recevrez un email dès qu'il sera confirmé.
+            Votre paiement est toujours en cours de traitement. Vous recevrez un email dès qu&apos;il sera confirmé.
           </p>
           <Link
             href="/profile"

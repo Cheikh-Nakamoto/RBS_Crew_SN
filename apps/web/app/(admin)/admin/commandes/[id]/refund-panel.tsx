@@ -29,6 +29,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCcw } from 'lucide-react';
+import { API_BASE } from '@/lib/api-base';
 
 interface Props {
   orderId: string;
@@ -38,10 +39,7 @@ interface Props {
   accessToken: string;
 }
 
-const API_URL =
-  typeof window === 'undefined'
-    ? (process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000')
-    : (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000');
+const API_URL = API_BASE;
 
 export function RefundPanel({ orderId, orderTotal, currency, userRole, accessToken }: Props) {
   const router = useRouter();

@@ -22,10 +22,14 @@ export function SuccessContent({ orderId }: { orderId?: string | null }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Chargement de la commande depuis l'API : les setState d'erreur immédiats
+  // sont des cas de sortie, pas une synchronisation d'état dérivée.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (status === 'loading') return;
 
     if (!orderId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError('Aucune commande trouvée.');
       setLoading(false);
       return;
@@ -33,6 +37,7 @@ export function SuccessContent({ orderId }: { orderId?: string | null }) {
 
     const accessToken = (session as { accessToken?: string } | null)?.accessToken;
     if (!accessToken) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError('Vous devez être connecté pour voir votre commande.');
       setLoading(false);
       return;

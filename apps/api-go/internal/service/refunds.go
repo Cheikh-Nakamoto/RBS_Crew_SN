@@ -98,12 +98,15 @@ func (s *RefundsService) RequestRefund(
 		return nil, types.BadRequest("Refund amount exceeds order total minus existing refunds")
 	}
 
-	// 5. Redis lock (extra safety, 30s window)
-	redisKey := "refund_lock:" + idempotencyKey
-	set, _ := s.redis.SetNX(ctx, redisKey, "1", 30*time.Second)
-	if !set {
-		// Race — the DB idempotency check will catch this on retry
-		return nil, types.Conflict("Refund already being processed")
+	// 5. Redis lock (extra safety, 30s window). Best-effort: when Redis is not
+	// configured, the DB idempotency key remains the authoritative guard.
+	if s.redis != nil {
+		redisKey := "refund_lock:" + idempotencyKey
+		set, _ := s.redis.SetNX(ctx, redisKey, "1", 30*time.Second)
+		if !set {
+			// Race — the DB idempotency check will catch this on retry
+			return nil, types.Conflict("Refund already being processed")
+		}
 	}
 
 	// 6. Begin transaction
@@ -132,14 +135,24 @@ func (s *RefundsService) RequestRefund(
 	// 8. Call payment provider
 	refunder := s.findRefunder(pay.Method)
 	if refunder == nil {
-		// Provider not configured — treat as manual
+		// Aucun provider de remboursement programmatique (Wave, NabooPay…) :
+		// le remboursement devra être exécuté à la main puis clôturé via
+		// MarkManualCompleted. Le marqueur DOIT être persisté, sinon cette
+		// clôture est refusée ensuite ("does not require manual completion").
+		errMsg := "manual_refund_required"
+		manualRow, updErr := s.refundsRepo.WithTx(tx).UpdateRefundStatus(ctx, db.UpdateRefundStatusParams{
+			ID:           refRow.ID,
+			Status:       db.RefundStatus("PENDING"),
+			ErrorMessage: &errMsg,
+		})
+		if updErr != nil {
+			return nil, types.InternalError("Failed to flag refund as manual")
+		}
 		if commitErr := tx.Commit(ctx); commitErr != nil {
 			return nil, types.InternalError("Failed to commit")
 		}
-		resp := toRefundResponse(&refRow)
+		resp := toRefundResponse(&manualRow)
 		resp.IsManualRequired = true
-		errMsg := "manual_refund_required"
-		resp.ErrorMessage = &errMsg
 		return resp, nil
 	}
 

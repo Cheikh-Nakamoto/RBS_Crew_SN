@@ -104,6 +104,56 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const createUserWithRole = `-- name: CreateUserWithRole :one
+INSERT INTO "User" ("id", "email", "passwordHash", "firstName", "lastName", "phone", "role", "preferredLocale", "createdAt", "updatedAt", "emailVerified")
+VALUES ($1, $2, $3, $4, $5, $6, $7::"UserRole", 'fr'::"Locale", NOW(), NOW(), false)
+RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt"
+`
+
+type CreateUserWithRoleParams struct {
+	ID           string   `json:"id"`
+	Email        string   `json:"email"`
+	PasswordHash string   `json:"passwordHash"`
+	FirstName    *string  `json:"firstName"`
+	LastName     *string  `json:"lastName"`
+	Phone        *string  `json:"phone"`
+	Column7      UserRole `json:"column_7"`
+}
+
+// CreateUser fige le rôle CUSTOMER ; cette variante sert au provisionnement des
+// comptes artiste par un administrateur.
+func (q *Queries) CreateUserWithRole(ctx context.Context, arg CreateUserWithRoleParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUserWithRole,
+		arg.ID,
+		arg.Email,
+		arg.PasswordHash,
+		arg.FirstName,
+		arg.LastName,
+		arg.Phone,
+		arg.Column7,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.FirstName,
+		&i.LastName,
+		&i.Phone,
+		&i.Role,
+		&i.EmailVerified,
+		&i.PreferredLocale,
+		&i.WcId,
+		&i.ResetToken,
+		&i.ResetTokenExpiry,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationTokenExpiry,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const deleteUserSessions = `-- name: DeleteUserSessions :exec
 DELETE FROM "UserSession" WHERE "userId" = $1
 `
@@ -223,13 +273,14 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, e
 }
 
 const getUserByResetToken = `-- name: GetUserByResetToken :one
-SELECT "id", "email", "resetToken", "resetTokenExpiry", "emailVerified"
+SELECT "id", "email", "role", "resetToken", "resetTokenExpiry", "emailVerified"
 FROM "User" WHERE "resetToken" = $1 AND "resetTokenExpiry" > NOW()
 `
 
 type GetUserByResetTokenRow struct {
 	ID               string           `json:"id"`
 	Email            string           `json:"email"`
+	Role             UserRole         `json:"role"`
 	ResetToken       *string          `json:"resetToken"`
 	ResetTokenExpiry pgtype.Timestamp `json:"resetTokenExpiry"`
 	EmailVerified    bool             `json:"emailVerified"`
@@ -241,6 +292,7 @@ func (q *Queries) GetUserByResetToken(ctx context.Context, resettoken *string) (
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
+		&i.Role,
 		&i.ResetToken,
 		&i.ResetTokenExpiry,
 		&i.EmailVerified,
@@ -293,4 +345,37 @@ type SetPasswordResetTokenParams struct {
 func (q *Queries) SetPasswordResetToken(ctx context.Context, arg SetPasswordResetTokenParams) error {
 	_, err := q.db.Exec(ctx, setPasswordResetToken, arg.Email, arg.ResetToken, arg.ResetTokenExpiry)
 	return err
+}
+
+const updateUserRole = `-- name: UpdateUserRole :one
+UPDATE "User" SET "role" = $2::"UserRole", "updatedAt" = NOW() WHERE "id" = $1 RETURNING id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt"
+`
+
+type UpdateUserRoleParams struct {
+	ID      string   `json:"id"`
+	Column2 UserRole `json:"column_2"`
+}
+
+func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserRole, arg.ID, arg.Column2)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.FirstName,
+		&i.LastName,
+		&i.Phone,
+		&i.Role,
+		&i.EmailVerified,
+		&i.PreferredLocale,
+		&i.WcId,
+		&i.ResetToken,
+		&i.ResetTokenExpiry,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationTokenExpiry,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

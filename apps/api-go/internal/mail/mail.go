@@ -30,7 +30,7 @@ func NewMailService(cfg *config.Config) *MailService {
 }
 
 func (s *MailService) SendPasswordReset(to, token string) error {
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s", "https://rbscrew.sn", token)
+	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.AppURL, token)
 
 	subject := "Réinitialisation de votre mot de passe - RBS Crew"
 	body := fmt.Sprintf(`
@@ -136,4 +136,30 @@ func (s *MailService) SendRefundEmail(_ context.Context, to, locale string, data
 	}
 
 	return s.sendHTML(to, subject, buf.String())
+}
+
+// SendArtistInvitation invite un artiste à activer le compte rattaché à sa
+// fiche. Réutilise le jeton de réinitialisation de mot de passe : l'artiste
+// définit son mot de passe via ce lien.
+func (s *MailService) SendArtistInvitation(to, token, artistName string) error {
+	inviteURL := fmt.Sprintf("%s/invitation?token=%s", s.cfg.AppURL, token)
+
+	subject := "Votre espace artiste RBS Crew"
+	body := fmt.Sprintf(`
+		<p>Bonjour%s,</p>
+		<p>Un espace artiste a été créé pour vous sur le site RBS Crew. Il vous permet de
+		   mettre à jour votre biographie, vos photos, vos réseaux sociaux et votre portfolio.</p>
+		<p>Pour l'activer, définissez votre mot de passe :</p>
+		<p><a href="%s">%s</a></p>
+		<p>Ce lien est valable 7 jours. Si vous pensez qu'il s'agit d'une erreur, ignorez cet e-mail.</p>
+	`, artistSalutation(artistName), inviteURL, inviteURL)
+
+	return s.sendHTML(to, subject, body)
+}
+
+func artistSalutation(name string) string {
+	if name == "" {
+		return ""
+	}
+	return " " + name
 }

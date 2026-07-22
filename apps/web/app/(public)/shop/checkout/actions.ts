@@ -4,13 +4,21 @@ import { redirect } from 'next/navigation';
 import { checkoutSchema, type CheckoutFormValues } from '@/lib/checkout-schema';
 import { auth } from '@/lib/auth';
 import type { CartItem } from '@/lib/cart-store';
+import { API_BASE } from '@/lib/api-base';
 
-const API_URL = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const API_URL = API_BASE;
 
-export async function createNabooCheckout(values: CheckoutFormValues, items: CartItem[]) {
+export async function createNabooCheckout(
+  values: CheckoutFormValues,
+  items: CartItem[],
+  shippingMethodId: string | null,
+) {
   const parsed = checkoutSchema.safeParse(values);
   if (!parsed.success) {
     return { error: 'Formulaire invalide, vérifiez les champs.' };
+  }
+  if (!shippingMethodId) {
+    return { error: 'Sélectionnez un mode de livraison.' };
   }
 
   const session = await auth();
@@ -37,8 +45,11 @@ export async function createNabooCheckout(values: CheckoutFormValues, items: Car
         customerFirstName: parsed.data.customerFirstName,
         customerLastName: parsed.data.customerLastName,
         customerPhone: parsed.data.customerPhone,
-        // Envoi des infos de livraison (si géré par le backend)
         shippingAddress: parsed.data.shippingAddress,
+        // Le backend recalcule les frais depuis ces deux champs — le montant
+        // affiché au client n'est jamais celui qui est facturé.
+        shippingMethodId,
+        shippingCountry: parsed.data.shippingAddress.country,
       }),
     });
 

@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { formatXOF, formatDate } from '@/lib/format';
 import { useAuthedFetch } from '@/lib/use-authed-fetch';
@@ -83,34 +83,22 @@ export default function ProfilePage() {
     }
   }, [status, router]);
 
-  // Initialize profile form from session
-  useEffect(() => {
-    if (session?.user) {
-      const nameParts = (session.user.name || '').split(' ');
-      setProfileForm({
-        firstName: nameParts[0] || '',
-        lastName: nameParts.slice(1).join(' ') || '',
-        email: session.user.email || '',
-      });
-    }
-  }, [session]);
+  // Le formulaire est pré-rempli depuis la session. Ajustement d'état pendant
+  // le rendu (pattern documenté par React) : c'est une valeur dérivée, pas une
+  // synchronisation avec un système externe.
+  const sessionEmail = session?.user?.email ?? '';
+  const [lastSessionEmail, setLastSessionEmail] = useState<string | null>(null);
+  if (session?.user && lastSessionEmail !== sessionEmail) {
+    setLastSessionEmail(sessionEmail);
+    const nameParts = (session.user.name || '').split(' ');
+    setProfileForm({
+      firstName: nameParts[0] || '',
+      lastName: nameParts.slice(1).join(' ') || '',
+      email: sessionEmail,
+    });
+  }
 
-  // Fetch orders
-  useEffect(() => {
-    if (session && activeTab === 'orders') {
-      fetchOrders();
-    }
-  }, [session, activeTab]);
-
-  // Fetch addresses
-  useEffect(() => {
-    if (session && activeTab === 'addresses') {
-      fetchAddresses();
-    }
-  }, [session, activeTab]);
-
-  async function fetchOrders() {
-    setLoading(true);
+  const fetchOrders = useCallback(async () => {
     try {
       const res = await authedFetch('/orders/my');
       if (res.ok) {
@@ -121,10 +109,9 @@ export default function ProfilePage() {
       // silently fail
     }
     setLoading(false);
-  }
+  }, [authedFetch]);
 
-  async function fetchAddresses() {
-    setLoading(true);
+  const fetchAddresses = useCallback(async () => {
     try {
       const res = await authedFetch('/users/me/addresses');
       if (res.ok) {
@@ -135,7 +122,33 @@ export default function ProfilePage() {
       // silently fail
     }
     setLoading(false);
+  }, [authedFetch]);
+
+  const [lastTab, setLastTab] = useState(activeTab);
+  if (lastTab !== activeTab) {
+    setLastTab(activeTab);
+    setLoading(true);
   }
+
+  // Fetch orders
+  useEffect(() => {
+    if (session && activeTab === 'orders') {
+      // Récupération de données : les setState ont lieu après le await, mais
+      // la règle ne peut pas le prouver à travers l'appel de fonction.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchOrders();
+    }
+  }, [session, activeTab, fetchOrders]);
+
+  // Fetch addresses
+  useEffect(() => {
+    if (session && activeTab === 'addresses') {
+      // Récupération de données : les setState ont lieu après le await, mais
+      // la règle ne peut pas le prouver à travers l'appel de fonction.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchAddresses();
+    }
+  }, [session, activeTab, fetchAddresses]);
 
   async function handleSaveProfile() {
     try {
@@ -208,10 +221,10 @@ export default function ProfilePage() {
                 <Mail className="w-3.5 h-3.5" />
                 {user.email}
               </span>
-              {(user as any).role && (
+              {(user as { role?: string }).role && (
                 <span className="flex items-center gap-1.5 text-xs text-red-400/80">
                   <Shield className="w-3.5 h-3.5" />
-                  {(user as any).role}
+                  {(user as { role?: string }).role}
                 </span>
               )}
             </div>
