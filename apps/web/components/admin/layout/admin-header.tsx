@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -123,7 +124,11 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
           align="end"
           className="w-48 border-white/10 bg-black/90 backdrop-blur-xl text-white"
         >
-          <DropdownMenuLabel className="text-white/50 text-xs">Mon compte</DropdownMenuLabel>
+          {/* Base UI exige qu'un GroupLabel vive dans un Group — sans lui, le
+              menu jette « MenuGroupContext is missing » (erreur #31) en prod. */}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="text-white/50 text-xs">Mon compte</DropdownMenuLabel>
+          </DropdownMenuGroup>
           <DropdownMenuSeparator className="bg-white/10" />
           <DropdownMenuItem render={<a href="/profile" />} className="flex items-center gap-2 cursor-pointer text-white/80 hover:text-white focus:text-white">
             <User className="h-4 w-4" />
