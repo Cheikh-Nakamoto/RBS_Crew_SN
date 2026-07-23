@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Archivo_Black, Inter } from 'next/font/google';
 import './globals.css';
 import localFont from 'next/font/local'; // <-- 1. Importer next/font/local
@@ -36,6 +36,11 @@ export const metadata: Metadata = {
     locale: 'fr_SN',
     siteName: 'RBS Crew SN',
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

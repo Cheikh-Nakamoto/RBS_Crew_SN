@@ -70,7 +70,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-16 relative overflow-hidden">
+    <div className="min-h-[calc(100dvh-4rem)] flex items-center justify-center px-4 py-10 sm:py-16 relative overflow-hidden">
       {/* Background blobs */}
       <div
         className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full opacity-15"
@@ -108,7 +108,7 @@ function LoginForm() {
         </div>
 
         {/* Card */}
-        <div className="glass rounded-2xl border border-white/10 p-8 space-y-6">
+        <div className="glass rounded-2xl border border-white/10 p-6 sm:p-8 space-y-6">
           <h1 className="font-display text-2xl text-white">Bienvenue</h1>
 
           {notice && (

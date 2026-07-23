@@ -14,6 +14,7 @@ export function getProductColumns(
     {
       id: 'image',
       header: '',
+      meta: { priority: 2 },
       cell: ({ row }) => {
         const url = row.original.featuredImageUrl;
         return url ? (
@@ -46,6 +47,7 @@ export function getProductColumns(
     {
       accessorKey: 'price',
       header: 'Prix',
+      meta: { priority: 2 },
       cell: ({ row }) => (
         <span className="text-white/80 font-mono text-sm">
           {row.original.price.toLocaleString('fr-SN')} FCFA
@@ -55,6 +57,7 @@ export function getProductColumns(
     {
       accessorKey: 'stock',
       header: 'Stock',
+      meta: { priority: 3 },
       cell: ({ row }) => {
         const stock = row.original.stock;
         return (

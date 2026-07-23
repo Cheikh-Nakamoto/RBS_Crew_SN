@@ -62,11 +62,11 @@ export function ActivityLogTable({ logs, meta, currentPage }: Props) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-white/10 text-xs uppercase tracking-widest text-white/30">
-              <th className="px-5 py-3 text-left font-medium">Horodatage</th>
+              <th className="hidden md:table-cell px-5 py-3 text-left font-medium">Horodatage</th>
               <th className="px-5 py-3 text-left font-medium">Utilisateur</th>
               <th className="px-5 py-3 text-left font-medium">Méthode</th>
-              <th className="px-5 py-3 text-left font-medium">Chemin</th>
-              <th className="px-5 py-3 text-left font-medium">Type</th>
+              <th className="hidden md:table-cell px-5 py-3 text-left font-medium">Chemin</th>
+              <th className="hidden md:table-cell px-5 py-3 text-left font-medium">Type</th>
               <th className="px-5 py-3 text-left font-medium">Statut</th>
             </tr>
           </thead>
@@ -81,7 +81,7 @@ export function ActivityLogTable({ logs, meta, currentPage }: Props) {
               logs.map((log) => (
                 <tr key={log.id} className="hover:bg-white/5 transition-colors group">
                   {/* Timestamp */}
-                  <td className="px-5 py-3 whitespace-nowrap">
+                  <td className="hidden md:table-cell px-5 py-3 whitespace-nowrap">
                     <p className="font-mono text-xs text-white/60">
                       {new Date(log.createdAt).toLocaleDateString('fr-FR', {
                         day: '2-digit', month: '2-digit', year: '2-digit',
@@ -108,11 +108,11 @@ export function ActivityLogTable({ logs, meta, currentPage }: Props) {
                     </Badge>
                   </td>
                   {/* Path */}
-                  <td className="px-5 py-3 font-mono text-xs text-white/50 max-w-[260px]">
+                  <td className="hidden md:table-cell px-5 py-3 font-mono text-xs text-white/50 max-w-[260px]">
                     <span className="truncate block">{formatPath(log.path)}</span>
                   </td>
                   {/* Entity Type */}
-                  <td className="px-5 py-3">
+                  <td className="hidden md:table-cell px-5 py-3">
                     <span className="text-xs text-white/50 capitalize">{log.entityType || '—'}</span>
                     {log.entityId && (
                       <p className="text-[10px] font-mono text-white/25 truncate max-w-[80px]">

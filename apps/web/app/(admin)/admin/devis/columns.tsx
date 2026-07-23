@@ -21,6 +21,7 @@ export function getQuoteColumns(onDelete: (id: string) => void): ColumnDef<Admin
     {
       accessorKey: 'message',
       header: 'Message',
+      meta: { priority: 2 },
       cell: ({ row }) => (
         <p className="text-sm text-white/60 truncate max-w-xs">{row.original.message}</p>
       ),
@@ -36,6 +37,7 @@ export function getQuoteColumns(onDelete: (id: string) => void): ColumnDef<Admin
     {
       accessorKey: 'createdAt',
       header: 'Date',
+      meta: { priority: 3 },
       cell: ({ row }) => (
         <span className="text-xs text-white/40">
           {new Date(row.original.createdAt).toLocaleDateString('fr-FR')}

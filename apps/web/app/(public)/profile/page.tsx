@@ -692,7 +692,7 @@ function ProfileContent() {
                         placeholder="Complément d'adresse"
                         className="w-full px-4 py-3 rounded-xl bg-white/6 border border-white/10 text-white text-sm placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-red-600/50"
                       />
-                      <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3">
                         <input
                           value={addressForm.postalCode}
                           onChange={(e) => setAddressForm((a) => ({ ...a, postalCode: e.target.value }))}

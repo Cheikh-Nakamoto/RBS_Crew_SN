@@ -14,11 +14,13 @@ export function getPresseColumns(onDelete: (id: string) => void): ColumnDef<Admi
     {
       accessorKey: 'title',
       header: 'Titre',
+      meta: { priority: 2 },
       cell: ({ row }) => <span className="text-sm text-white/70 truncate max-w-sm block">{row.original.title}</span>,
     },
     {
       accessorKey: 'publishedAt',
       header: 'Publié le',
+      meta: { priority: 3 },
       cell: ({ row }) => (
         <span className="text-xs text-white/40">
           {row.original.publishedAt ? new Date(row.original.publishedAt).toLocaleDateString('fr-FR') : '—'}

@@ -19,6 +19,7 @@ export function getProjetColumns(onDelete: (id: string) => void): ColumnDef<any>
     {
       id: 'country',
       header: 'Localisation',
+      meta: { priority: 2 },
       cell: ({ row }) =>
         row.original.country ? (
           <span className="flex items-center gap-1.5 text-sm text-white/60">

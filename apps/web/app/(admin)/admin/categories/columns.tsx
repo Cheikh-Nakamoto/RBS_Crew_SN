@@ -20,6 +20,7 @@ export function getCategoryColumns(onDelete: (id: string) => void): ColumnDef<Ad
     {
       accessorKey: 'parentId',
       header: 'Catégorie parente',
+      meta: { priority: 2 },
       cell: ({ row }) => (
         <span className="text-sm text-white/40">{row.original.parentId ? 'Oui' : '—'}</span>
       ),
@@ -27,6 +28,7 @@ export function getCategoryColumns(onDelete: (id: string) => void): ColumnDef<Ad
     {
       accessorKey: 'createdAt',
       header: 'Créée le',
+      meta: { priority: 3 },
       cell: ({ row }) => (
         <span className="text-xs text-white/40">
           {new Date(row.original.createdAt).toLocaleDateString('fr-FR')}

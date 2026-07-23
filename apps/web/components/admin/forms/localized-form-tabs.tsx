@@ -21,12 +21,12 @@ interface LocalizedFormTabsProps {
 export function LocalizedFormTabs({ renderFields }: LocalizedFormTabsProps) {
   return (
     <Tabs defaultValue="fr">
-      <TabsList className="bg-white/5 border border-white/10 p-1 h-auto gap-1">
+      <TabsList className="flex w-full flex-nowrap justify-start overflow-x-auto bg-white/5 border border-white/10 p-1 h-auto gap-1">
         {LOCALES.map(({ code, label, flag }) => (
           <TabsTrigger
             key={code}
             value={code}
-            className="flex items-center gap-1.5 text-xs font-medium data-[state=active]:bg-[var(--rbs-red)] data-[state=active]:text-white text-white/50 hover:text-white/80 transition-colors px-3 py-1.5 rounded-md"
+            className="flex shrink-0 items-center gap-1.5 text-xs font-medium data-[state=active]:bg-[var(--rbs-red)] data-[state=active]:text-white text-white/50 hover:text-white/80 transition-colors px-3 py-1.5 rounded-md"
           >
             <span>{flag}</span>
             <span>{label}</span>

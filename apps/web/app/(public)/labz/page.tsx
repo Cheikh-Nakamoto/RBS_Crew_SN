@@ -108,7 +108,7 @@ export default function LabzPage() {
         className="glass rounded-2xl border border-white/10 p-6 sm:p-8 space-y-6"
       >
         {/* Name */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="name" className={labelClass}>Prénom *</label>
             <input id="name" name="name" required placeholder="Aminata" className={inputClass} />
@@ -133,7 +133,7 @@ export default function LabzPage() {
         </div>
 
         {/* Phone + Company */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="phone" className={labelClass}>Téléphone</label>
             <input id="phone" name="phone" type="tel" placeholder="+221 77 000 00 00" className={inputClass} />

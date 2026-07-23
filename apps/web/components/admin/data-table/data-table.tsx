@@ -1,10 +1,13 @@
 'use client';
 
+import { useMemo } from 'react';
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
+  type RowData,
+  type VisibilityState,
 } from '@tanstack/react-table';
 import {
   Table,
@@ -15,8 +18,20 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import { DataTablePagination } from './data-table-pagination';
 import type { PaginatedMeta } from '@/types/admin';
+
+declare module '@tanstack/react-table' {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData extends RowData, TValue> {
+    /**
+     * Priorité d'affichage responsive :
+     * 1 (ou absent) = toujours visible, 2 = masquée sous `md`, 3 = masquée sous `lg`.
+     */
+    priority?: 1 | 2 | 3;
+  }
+}
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -26,6 +41,13 @@ interface DataTableProps<TData, TValue> {
   isLoading?: boolean;
 }
 
+/** Identifiant TanStack d'une colonne (explicite ou dérivé de l'accessorKey). */
+function columnId<TData, TValue>(col: ColumnDef<TData, TValue>): string | undefined {
+  if (col.id) return col.id;
+  if ('accessorKey' in col && col.accessorKey != null) return String(col.accessorKey);
+  return undefined;
+}
+
 export function DataTable<TData, TValue>({
   columns,
   data,
@@ -33,12 +55,30 @@ export function DataTable<TData, TValue>({
   onPageChange,
   isLoading,
 }: DataTableProps<TData, TValue>) {
+  const isBelowMd = useMediaQuery('(max-width: 767px)');
+  const isBelowLg = useMediaQuery('(max-width: 1023px)');
+
+  // Masque les colonnes secondaires selon leur priorité : sur mobile la table
+  // reste lisible, le reste passe par le scroll horizontal de `ui/table`.
+  const columnVisibility = useMemo<VisibilityState>(() => {
+    const visibility: VisibilityState = {};
+    for (const col of columns) {
+      const id = columnId(col);
+      if (!id) continue;
+      const priority = col.meta?.priority;
+      if (priority === 3 && isBelowLg) visibility[id] = false;
+      else if (priority === 2 && isBelowMd) visibility[id] = false;
+    }
+    return visibility;
+  }, [columns, isBelowMd, isBelowLg]);
+
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     pageCount: pagination?.totalPages ?? -1,
+    state: { columnVisibility },
   });
 
   if (isLoading) {
@@ -88,7 +128,7 @@ export function DataTable<TData, TValue>({
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={table.getVisibleFlatColumns().length}
                   className="h-24 text-center text-white/40"
                 >
                   Aucun résultat.

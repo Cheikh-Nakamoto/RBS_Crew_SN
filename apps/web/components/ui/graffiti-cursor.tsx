@@ -19,6 +19,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, useMotionValue, useSpring } from 'framer-motion';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 /* ── Palette RBS (normalisée 0-1 pour WebGL) ──────────── */
 const RBS_PALETTE: [number, number, number][] = [
@@ -51,7 +52,11 @@ const SP_TILT   = { stiffness: 200, damping: 25, mass: 0.4 };
 
 /* ════════════════════════════════════════════════════════ */
 export function GraffitiCursor() {
-  const [isEnabled, setIsEnabled]   = useState(false);
+  const isCoarse             = useMediaQuery('(pointer: coarse)');
+  const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const [mounted, setMounted] = useState(false);
+  const isEnabled = mounted && !isCoarse && !prefersReducedMotion;
+
   const [isHovering, setIsHovering] = useState(false);
   const [scrollY, setScrollY]       = useState(0);
 
@@ -67,11 +72,9 @@ export function GraffitiCursor() {
   const tiltMV = useMotionValue(0);
   const sTilt  = useSpring(tiltMV, SP_TILT);
 
-  /* ── Guards (côté client uniquement) ─────────────────── */
+  /* ── Montage client (évite le rendu SSR du curseur) ──── */
   useEffect(() => {
-    const noTouch  = !globalThis.matchMedia('(pointer: coarse)').matches;
-    const noMotion = !globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    setIsEnabled(noTouch && noMotion);
+    setMounted(true);
   }, []);
 
   /* ── cursor: none (inclut cursor:pointer des éléments cliquables) ── */

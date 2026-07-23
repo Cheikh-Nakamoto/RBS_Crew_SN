@@ -7,6 +7,7 @@ import { ArrowRight } from 'lucide-react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrollReveal } from '@/components/ui/scroll-reveal';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -33,10 +34,10 @@ export function AkademyaCTA({
   const sectionRef = useRef<HTMLElement>(null);
   const imgRefs = useRef<(HTMLDivElement | null)[]>([]);
   const id = useId();
+  const isMobile = useIsMobile();
 
   /* ── Parallax on collage images ─────────────── */
   useEffect(() => {
-    const isMobile = window.matchMedia('(max-width: 767px)').matches;
     if (isMobile) return; // Disable parallax on mobile
 
     const section = sectionRef.current;
@@ -68,7 +69,7 @@ export function AkademyaCTA({
     }, section);
 
     return () => ctx.revert();
-  }, [id]);
+  }, [id, isMobile]);
 
   return (
     <section

@@ -126,7 +126,7 @@ export function ImageGallery({ images = defaultImages }: { images?: ImageData[] 
   }, [opened, gsapReady, next])
 
   return (
-    <div className="flex items-center justify-center font-sans w-full min-h-[600px] h-full py-12 relative group">
+    <div className="flex items-center justify-center font-sans w-full min-h-[420px] sm:min-h-[500px] md:min-h-[600px] h-full py-8 sm:py-12 relative group">
       <div className="relative h-[80vmin] w-[80vmin] max-h-[600px] max-w-[600px] overflow-hidden rounded-[20px] shadow-[0_2.8px_2.2px_rgba(0,0,0,0.02),0_6.7px_5.3px_rgba(0,0,0,0.028),0_12.5px_10px_rgba(0,0,0,0.035),0_22.3px_17.9px_rgba(0,0,0,0.042),0_41.8px_33.4px_rgba(0,0,0,0.05),0_100px_80px_rgba(0,0,0,0.07)]">
         {gsapReady &&
           images.map((image, i) => (

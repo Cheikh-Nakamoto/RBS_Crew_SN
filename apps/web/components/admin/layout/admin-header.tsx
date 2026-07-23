@@ -61,8 +61,8 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
   const roleMeta = ROLE_META_HEADER[role] ?? ROLE_META_HEADER['CUSTOMER'];
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-white/10 bg-black/20 px-6 backdrop-blur-xl">
-      <div className="flex items-center gap-3">
+    <header className="flex h-16 items-center justify-between gap-2 border-b border-white/10 bg-black/20 px-4 sm:px-6 backdrop-blur-xl">
+      <div className="flex min-w-0 items-center gap-3">
         {/* Mobile menu toggle */}
         {onMenuToggle && (
           <Button
@@ -74,11 +74,18 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
             <Menu className="h-5 w-5" />
           </Button>
         )}
-        {/* Breadcrumbs */}
-        <nav aria-label="Fil d'Ariane">
+        {/* Breadcrumbs — les segments intermédiaires sont masqués sous `sm`
+            pour ne garder que la page courante et éviter le débordement. */}
+        <nav aria-label="Fil d'Ariane" className="min-w-0">
           <ol className="flex items-center gap-1.5">
             {breadcrumbs.map((crumb) => (
-              <li key={crumb.href} className="flex items-center gap-1.5">
+              <li
+                key={crumb.href}
+                className={cn(
+                  'items-center gap-1.5',
+                  crumb.isLast ? 'flex min-w-0' : 'hidden sm:flex'
+                )}
+              >
                 {!crumb.isLast ? (
                   <>
                     <a
@@ -90,7 +97,7 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
                     <ChevronRight className="h-3.5 w-3.5 text-white/20" />
                   </>
                 ) : (
-                  <span className="text-sm font-medium text-white">{crumb.label}</span>
+                  <span className="truncate text-sm font-medium text-white">{crumb.label}</span>
                 )}
               </li>
             ))}

@@ -46,11 +46,11 @@ services:
     build:
       context: .
       dockerfile: apps/api-go/Dockerfile
+    # Lié à 127.0.0.1 : joignable par le Nginx de l'hôte (qui termine le TLS
+    # pour le front Vercel) mais jamais exposé directement sur le réseau.
     ports:
-      -4000:4000
+      - "127.0.0.1:4000:4000"
     restart: unless-stopped
-    # Pas de ports exposés sur l'hôte — accessible uniquement via le réseau Docker interne
-    # et via les rewrites Next.js (nextjs-web → api-go:4000)
     depends_on:
       postgres:
         condition: service_healthy

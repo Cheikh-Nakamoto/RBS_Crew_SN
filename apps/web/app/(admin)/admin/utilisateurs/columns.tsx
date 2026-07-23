@@ -27,6 +27,7 @@ export function getUserColumns(onDelete: (id: string) => void): ColumnDef<AdminU
     {
       accessorKey: 'createdAt',
       header: 'Inscrit le',
+      meta: { priority: 3 },
       cell: ({ row }) => (
         <span className="text-xs text-white/40">
           {new Date(row.original.createdAt).toLocaleDateString('fr-FR')}

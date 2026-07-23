@@ -65,7 +65,7 @@ export default async function AdminDashboardPage() {
       {/* ── Chart + Recent ─────────────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Chart */}
-        <div className="xl:col-span-1 rounded-xl border border-white/10 bg-white/3 p-5">
+        <div className="min-w-0 xl:col-span-1 rounded-xl border border-white/10 bg-white/3 p-5">
           <DashboardChart
             data={orderStatusChart}
             title="Vue d'ensemble"

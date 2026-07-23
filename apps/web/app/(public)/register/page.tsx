@@ -93,7 +93,7 @@ export default function RegisterPage() {
   const passwordValid = passwordRules.every((r) => r.ok);
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-16 relative overflow-hidden">
+    <div className="min-h-[calc(100dvh-4rem)] flex items-center justify-center px-4 py-10 sm:py-16 relative overflow-hidden">
       {/* Background blobs */}
       <div
         className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full opacity-15"
@@ -129,7 +129,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Card */}
-        <div className="glass rounded-2xl border border-white/10 p-8 space-y-6">
+        <div className="glass rounded-2xl border border-white/10 p-6 sm:p-8 space-y-6">
           <h1 className="font-display text-2xl text-white">Inscription</h1>
 
           {status === 'error' && (
@@ -151,7 +151,7 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Name fields */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label htmlFor="firstName" className="text-sm font-medium text-white/60">
                   Prénom
