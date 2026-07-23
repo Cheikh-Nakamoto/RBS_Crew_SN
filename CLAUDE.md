@@ -171,6 +171,7 @@ Copy `.env.example` → `.env`. Critical variables:
 - `apps/web/AGENTS.md` warns about Next.js 16 breaking changes — read `node_modules/next/dist/docs/` before writing Next.js code
 - Go codegen (`sqlc generate`, via `make db-sqlc`) must be run after any change to `internal/sql/*.sql` **or** to `sql/schema.sql`
 - **Schema changes**: edit `apps/api-go/sql/schema.sql` (no `ALTER TABLE`, no migration files), then `make db-sqlc` and `make db-reset`. `db-reset` destroys all data — see the warning at the top of `schema.sql`.
+- **Schema changes on a live database** (prod, or local data you want to keep): also add an idempotent copy of the new `CREATE` (with `IF NOT EXISTS`) to `apps/api-go/sql/patches/`, then run `make db-patch` (honours `DATABASE_URL`, falls back to the compose container). Patches are replayed in full on every run, so they must stay idempotent. `schema.sql` remains the single source of truth — a patch is the same DDL made replayable for databases that predate it.
 - Activity logging middleware records all admin actions to the `ActivityLog` table
 - Redis is used for caching (products, artists) and cart state
 

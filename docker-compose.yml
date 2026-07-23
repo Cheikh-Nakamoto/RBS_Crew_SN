@@ -46,6 +46,8 @@ services:
     build:
       context: .
       dockerfile: apps/api-go/Dockerfile
+    ports:
+      -4000:4000
     restart: unless-stopped
     # Pas de ports exposés sur l'hôte — accessible uniquement via le réseau Docker interne
     # et via les rewrites Next.js (nextjs-web → api-go:4000)
@@ -108,8 +110,8 @@ services:
     depends_on:
       - api-go
     environment:
-      INTERNAL_API_URL: http://api-go:4000
-      API_REWRITE_TARGET: http://api-go:4000
+      INTERNAL_API_URL: ${INTERNAL_API_URL:-http://api-go:4000}
+      API_REWRITE_TARGET: ${INTERNAL_API_URL:-http://api-go:4000}
       NODE_ENV: ${NODE_ENV:-production}
       # AUTH_URL détermine si le cookie de session porte le flag Secure et le
       # préfixe __Host- : en http:// il en est dépourvu, y compris derrière un
