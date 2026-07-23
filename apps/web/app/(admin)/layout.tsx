@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import { SessionProvider } from 'next-auth/react';
 import { auth } from '@/lib/auth';
 import { AdminLayout } from '@/components/admin/layout/admin-layout';
 import { Toaster } from '@/components/ui/sonner';
@@ -20,9 +19,9 @@ export default async function AdminRootLayout({
   if (role !== 'ADMIN' && role !== 'EDITOR') redirect('/');
 
   return (
-    <SessionProvider session={session}>
+    <>
       <AdminLayout session={session}>{children}</AdminLayout>
       <Toaster position="bottom-right" theme="dark" richColors />
-    </SessionProvider>
+    </>
   );
 }
