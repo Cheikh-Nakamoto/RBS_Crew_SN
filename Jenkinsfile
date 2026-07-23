@@ -25,7 +25,7 @@ pipeline {
     parameters {
         choice(
             name: 'SERVICE',
-            choices: ['api-go', 'nextjs-web'],
+            choices: ['api-go'],
             description: 'Service applicatif à déployer'
         )
         string(
