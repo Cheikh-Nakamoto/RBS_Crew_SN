@@ -1,7 +1,7 @@
 .PHONY: install dev dev-api dev-web up down logs logs-api logs-web \
         build build-api build-web lint test clean health help \
         db-sqlc db-docs \
-        db-reset db-push seed-admin \
+        db-reset db-push db-patch seed-admin \
         migrate-extract migrate-upload migrate-import migrate-full
 
 # ── Node Env ─────────────────────────────────
@@ -117,6 +117,35 @@ db-push: ## Initialiser une base VIDE depuis sql/schema.sql (base déjà créée
 		docker compose exec -T postgres psql -v ON_ERROR_STOP=1 \
 			-U "$${POSTGRES_USER:-rbs}" -d "$${POSTGRES_DB:-rbs_db}" \
 			< apps/api-go/sql/schema.sql; \
+	else \
+		echo "Le conteneur postgres n'est pas démarré (docker compose up -d postgres)."; \
+		echo "Pour viser une autre base : export DATABASE_URL=postgresql://..."; \
+		exit 1; \
+	fi
+
+# Applique les patchs additifs de sql/patches/ sur une base DÉJÀ initialisée —
+# le cas que db-push refuse (base non vide) et que db-reset détruirait (prod).
+# Chaque fichier doit être idempotent (IF NOT EXISTS) : la cible rejoue TOUT le
+# dossier à chaque appel, dans l'ordre alphabétique. schema.sql reste la source
+# de vérité — un patch est le même CREATE, rendu rejouable, pour les bases qui
+# existaient avant lui.
+db-patch: ## Appliquer les patchs idempotents (sql/patches/) sur une base existante
+	@if [ -z "$$(ls apps/api-go/sql/patches/*.sql 2>/dev/null)" ]; then \
+		echo "Aucun patch dans apps/api-go/sql/patches/."; \
+		exit 0; \
+	fi
+	@if [ -n "$$DATABASE_URL" ]; then \
+		for f in apps/api-go/sql/patches/*.sql; do \
+			echo "==> $$f → \$$DATABASE_URL"; \
+			psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$$f" || exit 1; \
+		done; \
+	elif docker compose ps --status running --services 2>/dev/null | grep -qx postgres; then \
+		for f in apps/api-go/sql/patches/*.sql; do \
+			echo "==> $$f → conteneur postgres"; \
+			docker compose exec -T postgres psql -v ON_ERROR_STOP=1 \
+				-U "$${POSTGRES_USER:-rbs}" -d "$${POSTGRES_DB:-rbs_db}" \
+				< "$$f" || exit 1; \
+		done; \
 	else \
 		echo "Le conteneur postgres n'est pas démarré (docker compose up -d postgres)."; \
 		echo "Pour viser une autre base : export DATABASE_URL=postgresql://..."; \
