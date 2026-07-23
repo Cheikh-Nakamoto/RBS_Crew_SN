@@ -114,13 +114,17 @@ services:
       # AUTH_URL détermine si le cookie de session porte le flag Secure et le
       # préfixe __Host- : en http:// il en est dépourvu, y compris derrière un
       # nginx en TLS. Doit donc être l'URL PUBLIQUE en https:// en production.
-      AUTH_URL: ${AUTH_URL:?AUTH_URL is required (https:// en production, sinon cookie de session sans flag Secure)}
+      #
+      # AUTH_SECRET n'a volontairement AUCUNE valeur par défaut : un secret
+      # présent dans le dépôt permettrait de forger un cookie de session avec le
+      # rôle ADMIN. Les deux variables sont validées AU DÉMARRAGE DU SERVICE
+      # (apps/web/lib/auth.ts) et non par une interpolation `${VAR:?}` : compose
+      # interprète le fichier entier à chaque commande, y compris pour un autre
+      # service et y compris pendant un rollback — une variable manquante
+      # rendrait alors tout redéploiement ET tout retour arrière impossibles.
+      AUTH_URL: ${AUTH_URL:-}
       AUTH_TRUST_HOST: "true"
-      # Aucune valeur par défaut : un secret connu permettrait de forger un
-      # cookie de session avec le rôle ADMIN et de traverser tout le
-      # gardiennage frontend. La syntaxe `:?` fait échouer le démarrage plutôt
-      # que de lancer un service compromis.
-      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required (openssl rand -base64 64)}
+      AUTH_SECRET: ${AUTH_SECRET:-}
       # Utilisées côté serveur par next-auth uniquement — pas de préfixe NEXT_PUBLIC_.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}

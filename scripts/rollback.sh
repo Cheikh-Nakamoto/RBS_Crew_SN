@@ -14,6 +14,18 @@ SERVICE="${1:-${SERVICE:-api-go}}"
 IMAGE_BASE="ghcr.io/cheikh-nakamoto/rbs-crew-${SERVICE}"
 echo "Service: $SERVICE"
 
+# Jenkins passe le fichier d'environnement à compose via --env-file ; ce script
+# doit faire de même. Sans lui, compose n'a AUCUNE des variables du déploiement :
+# il avertit sur chacune (« variable is not set »), et toute variable sans valeur
+# par défaut fait échouer l'interprétation du fichier — donc le rollback
+# lui-même, au pire moment possible.
+COMPOSE=(docker compose)
+if [ -n "${ENV_FILE:-}" ] && [ -f "${ENV_FILE}" ]; then
+    COMPOSE+=(--env-file "${ENV_FILE}")
+else
+    echo "AVERTISSEMENT : ENV_FILE absent ou introuvable — compose démarrera sans les variables du déploiement."
+fi
+
 # docker compose pointe sur :latest. Sans ce re-tag, « redémarrer » relance
 # exactement l'image défaillante : le rollback était inopérant.
 if docker image inspect "${IMAGE_BASE}:previous" >/dev/null 2>&1; then
@@ -26,22 +38,22 @@ else
 fi
 
 # Arrêter et supprimer le conteneur actuel
-if docker compose ps | grep -q "${SERVICE}"; then
+if "${COMPOSE[@]}" ps | grep -q "${SERVICE}"; then
     echo "Arrêt du conteneur $SERVICE..."
-    docker compose stop "$SERVICE" || true
-    docker compose rm -f "$SERVICE" || true
+    "${COMPOSE[@]}" stop "$SERVICE" || true
+    "${COMPOSE[@]}" rm -f "$SERVICE" || true
 else
     echo "Le conteneur $SERVICE n'est pas en cours d'exécution"
 fi
 
 # Redémarrer le service sur l'image qui vient d'être re-taguée
 echo "Redémarrage avec l'image précédente..."
-docker compose up -d "$SERVICE"
+"${COMPOSE[@]}" up -d "$SERVICE"
 
 MAX_ATTEMPTS=5
 ATTEMPT=0
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-    if docker compose ps "$SERVICE" | grep -q "Up"; then
+    if "${COMPOSE[@]}" ps "$SERVICE" | grep -q "Up"; then
         echo "Rollback réussi - $SERVICE est opérationnel"
         exit 0
     fi
