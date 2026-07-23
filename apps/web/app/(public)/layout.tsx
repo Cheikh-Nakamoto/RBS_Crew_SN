@@ -1,12 +1,12 @@
 import { Providers } from '@/components/providers';
 import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
-import { GraffitiCursor } from '@/components/ui/graffiti-cursor';
+import { GraffitiCursorLazy } from '@/components/ui/graffiti-cursor-lazy';
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <Providers>
-      <GraffitiCursor />
+      <GraffitiCursorLazy />
       <Navbar />
       <main className="flex-1">{children}</main>
       <Footer />

@@ -8,9 +8,21 @@ import {
   FormControl,
   FormMessage,
 } from '@/components/ui/form';
+import dynamic from 'next/dynamic';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { RichTextEditor } from './rich-text-editor';
+
+// L'éditeur Tiptap est lourd et purement client : on le code-splitte pour qu'il
+// ne pèse pas sur le bundle initial des formulaires admin.
+const RichTextEditor = dynamic(
+  () => import('./rich-text-editor').then((m) => m.RichTextEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-40 w-full animate-pulse rounded-md border border-white/10 bg-white/5" />
+    ),
+  },
+);
 
 interface LocaleTabPanelProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

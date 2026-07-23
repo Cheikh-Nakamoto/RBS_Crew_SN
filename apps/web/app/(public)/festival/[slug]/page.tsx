@@ -3,6 +3,7 @@ import type { ApiResponse } from '@rbs/types';
 import { ErrorState } from '@/components/ui/error-state';
 import { MapPin, Calendar, ArrowLeft, ExternalLink, Play, Building2, Users } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { FestivalGallery } from '@/components/composite/festival-gallery';
 
 interface FestivalArtist {
@@ -84,7 +85,14 @@ export default async function FestivalEditionPage({ params }: { params: Promise<
         {bgImage ? (
           <>
             <div className="absolute inset-0 z-0">
-              <img src={bgImage} alt={t?.themeName} className="w-full h-full object-cover object-center" />
+              <Image
+                src={bgImage}
+                alt={t?.themeName ?? ''}
+                fill
+                preload
+                sizes="100vw"
+                className="object-cover object-center"
+              />
             </div>
             {/* Gradient Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent z-10" />
@@ -253,7 +261,13 @@ export default async function FestivalEditionPage({ params }: { params: Promise<
                 >
                   <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white/10 group-hover:border-[oklch(0.72_0.19_48)] transition-colors">
                     {artist.artistAvatarUrl ? (
-                      <img src={artist.artistAvatarUrl} alt={artist.artistName} className="w-full h-full object-cover" />
+                      <Image
+                        src={artist.artistAvatarUrl}
+                        alt={artist.artistName}
+                        fill
+                        sizes="64px"
+                        className="object-cover"
+                      />
                     ) : (
                       <div className="w-full h-full bg-white/10 flex items-center justify-center">
                         <span className="text-white/40 text-xl font-display">{artist.artistName?.[0]}</span>

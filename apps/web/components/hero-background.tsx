@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
 interface HeroBackgroundProps {
   images: string[];
@@ -21,19 +22,14 @@ export function HeroBackground({ images, interval = 5000 }: HeroBackgroundProps)
     return () => clearInterval(timer);
   }, [images.length, interval]);
   return (
-    <>
-      <img
-        src="/hero_RBS.png"
-        alt="hero background"
-        aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{
-          opacity: 1,
-          transition: "opacity 1.2s ease-in-out",
-          filter: "grayscale(100%)",
-          zIndex: 0
-        }}
-      />
-    </>
+    <Image
+      src="/hero_RBS.png"
+      alt=""
+      aria-hidden
+      fill
+      preload
+      sizes="100vw"
+      className="object-cover grayscale z-0"
+    />
   );
 }

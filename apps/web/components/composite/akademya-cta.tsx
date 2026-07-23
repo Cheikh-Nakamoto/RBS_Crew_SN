@@ -133,27 +133,35 @@ export function AkademyaCTA({
 
                   {/* Scotch tapes at the corners */}
                   {/* Top-Left */}
-                  <img
+                  <Image
                     src="/top_left__bottom_right_scotch.png"
                     alt=""
+                    width={126}
+                    height={70}
                     className="absolute top-0 left-0 -translate-x-1/3 -translate-y-1/3 w-[28%] h-auto pointer-events-none z-30 select-none"
                   />
                   {/* Top-Right */}
-                  <img
+                  <Image
                     src="/top_right_bottom_left.png"
                     alt=""
+                    width={91}
+                    height={66}
                     className="absolute top-0 right-0 translate-x-1/3 -translate-y-1/3 w-[20%] h-auto pointer-events-none z-30 select-none"
                   />
                   {/* Bottom-Left */}
-                  <img
+                  <Image
                     src="/top_right_bottom_left.png"
                     alt=""
+                    width={91}
+                    height={66}
                     className="absolute bottom-0 left-0 -translate-x-1/3 translate-y-1/3 w-[20%] h-auto pointer-events-none z-30 select-none"
                   />
                   {/* Bottom-Right */}
-                  <img
+                  <Image
                     src="/top_left__bottom_right_scotch.png"
                     alt=""
+                    width={126}
+                    height={70}
                     className="absolute bottom-0 right-0 translate-x-1/3 translate-y-1/3 w-[28%] h-auto pointer-events-none z-30 select-none"
                   />
                 </div>
@@ -177,9 +185,11 @@ export function AkademyaCTA({
                 </div>
 
                 {/* RBS Akademya Logo */}
-                <img
+                <Image
                   src="/logo_rbs_akademya.png"
                   alt="RBS Akademya Logo"
+                  width={297}
+                  height={321}
                   className="absolute top-0 right-[5%] -translate-y-1/2 w-[70%] h-auto pointer-events-none z-20 select-none"
                 />
               </div>

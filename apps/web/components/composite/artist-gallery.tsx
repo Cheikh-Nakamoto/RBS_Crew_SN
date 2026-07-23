@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import Lightbox from 'yet-another-react-lightbox';
-import 'yet-another-react-lightbox/styles.css';
+import dynamic from 'next/dynamic';
 import { ImageGallery, type ImageData } from '../ui/carousel-circular-image-gallery';
+
+const Lightbox = dynamic(() => import('./lightbox-lazy'), { ssr: false });
 
 interface ArtistGalleryProps {
   artworks: Array<{ position: number; imageUrl: string }>;
@@ -12,6 +13,14 @@ interface ArtistGalleryProps {
 
 export function ArtistGallery({ artworks }: ArtistGalleryProps) {
   const [index, setIndex] = useState(-1);
+  // Monté seulement après la première ouverture (le chunk lightbox se charge au
+  // montage, pas au clic), puis gardé monté pour préserver l'animation de fermeture.
+  const [hasOpened, setHasOpened] = useState(false);
+
+  const openLightbox = (i: number) => {
+    setHasOpened(true);
+    setIndex(i);
+  };
 
   if (!artworks || artworks.length === 0) return null;
 
@@ -34,7 +43,7 @@ export function ArtistGallery({ artworks }: ArtistGalleryProps) {
           {artworks.map((artwork, idx) => (
             <div
               key={artwork.imageUrl}
-              onClick={() => setIndex(idx)}
+              onClick={() => openLightbox(idx)}
               className="cursor-pointer relative group overflow-hidden rounded-2xl bg-white/5 border border-white/5 hover:border-[oklch(0.72_0.19_48/40%)] transition-all duration-300 aspect-square shadow-lg"
               style={{ animationDelay: `${idx * 100}ms` }}
             >
@@ -55,12 +64,14 @@ export function ArtistGallery({ artworks }: ArtistGalleryProps) {
           ))}
         </div>
 
-        <Lightbox
-          open={index >= 0}
-          close={() => setIndex(-1)}
-          index={index}
-          slides={slides}
-        />
+        {hasOpened && (
+          <Lightbox
+            open={index >= 0}
+            close={() => setIndex(-1)}
+            index={index}
+            slides={slides}
+          />
+        )}
       </div>
     </>
   );

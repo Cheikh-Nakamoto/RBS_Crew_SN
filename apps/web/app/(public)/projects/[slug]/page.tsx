@@ -3,6 +3,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { FestivalGallery } from '@/components/composite/festival-gallery';
 import { ArrowLeft, Calendar, User } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -86,10 +87,13 @@ export default async function ProjectDetailPage({ params }: Props) {
         {project.featuredImageUrl ? (
           <>
             <div className="absolute inset-0 z-0">
-              <img
+              <Image
                 src={project.featuredImageUrl}
-                alt={t?.title}
-                className="w-full h-full object-cover object-center"
+                alt={t?.title ?? ''}
+                fill
+                preload
+                sizes="100vw"
+                className="object-cover object-center"
               />
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent z-10" />

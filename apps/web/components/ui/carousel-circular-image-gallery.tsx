@@ -2,17 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import gsap from "gsap"
+import { MotionPathPlugin } from "gsap/MotionPathPlugin"
 
-// GSAP est chargé par script externe : on ne dispose pas de ses types ici, mais
-// `unknown` suffit — le composant ne fait que transmettre ces objets.
-type GsapGlobal = Record<string, (...args: never[]) => unknown>;
-
-declare global {
-  interface Window {
-    gsap: GsapGlobal;
-    MotionPathPlugin: unknown;
-  }
-}
+// Fichier `'use client'` : l'enregistrement du plugin au scope module est
+// SSR-safe (GSAP no-op côté serveur) et réutilise le paquet npm déjà bundlé
+// au lieu d'injecter une seconde copie GSAP via CDN.
+gsap.registerPlugin(MotionPathPlugin)
 
 export interface ImageData {
   title: string
@@ -50,36 +46,7 @@ const defaultImages: ImageData[] = [
 export function ImageGallery({ images = defaultImages }: { images?: ImageData[] }) {
   const [opened, setOpened] = useState(0)
   const [inPlace, setInPlace] = useState(0)
-  const [gsapReady, setGsapReady] = useState(false)
   const autoplayTimer = useRef<number | null>(null)
-
-  useEffect(() => {
-    // This effect loads the GSAP library and its plugin from a CDN.
-    const loadScripts = () => {
-      if (typeof window !== "undefined" && window.gsap && window.MotionPathPlugin) {
-        window.gsap.registerPlugin(window.MotionPathPlugin)
-        setGsapReady(true)
-        return
-      }
-
-      const gsapScript = document.createElement("script")
-      gsapScript.src = "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"
-      gsapScript.onload = () => {
-        const motionPathScript = document.createElement("script")
-        motionPathScript.src = "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/MotionPathPlugin.min.js"
-        motionPathScript.onload = () => {
-          if (typeof window !== "undefined" && window.gsap && window.MotionPathPlugin) {
-            window.gsap.registerPlugin(window.MotionPathPlugin)
-            setGsapReady(true)
-          }
-        }
-        document.body.appendChild(motionPathScript)
-      }
-      document.body.appendChild(gsapScript)
-    }
-
-    loadScripts()
-  }, [])
 
   const onClick = (index: number) => {
     if (!disabled) setOpened(index)
@@ -110,8 +77,6 @@ export function ImageGallery({ images = defaultImages }: { images?: ImageData[] 
 
   // Autoplay and timer reset logic
   useEffect(() => {
-    if (!gsapReady) return
-
     if (autoplayTimer.current) {
       clearInterval(autoplayTimer.current)
     }
@@ -123,29 +88,28 @@ export function ImageGallery({ images = defaultImages }: { images?: ImageData[] 
         clearInterval(autoplayTimer.current)
       }
     }
-  }, [opened, gsapReady, next])
+  }, [opened, next])
 
   return (
     <div className="flex items-center justify-center font-sans w-full min-h-[420px] sm:min-h-[500px] md:min-h-[600px] h-full py-8 sm:py-12 relative group">
       <div className="relative h-[80vmin] w-[80vmin] max-h-[600px] max-w-[600px] overflow-hidden rounded-[20px] shadow-[0_2.8px_2.2px_rgba(0,0,0,0.02),0_6.7px_5.3px_rgba(0,0,0,0.028),0_12.5px_10px_rgba(0,0,0,0.035),0_22.3px_17.9px_rgba(0,0,0,0.042),0_41.8px_33.4px_rgba(0,0,0,0.05),0_100px_80px_rgba(0,0,0,0.07)]">
-        {gsapReady &&
-          images.map((image, i) => (
-            <div
-              key={image.url}
-              className="absolute left-0 top-0 h-full w-full"
-              style={{ zIndex: inPlace === i ? i : images.length + 1 }}
-            >
-              <GalleryImage
-                total={images.length}
-                id={i}
-                url={image.url}
-                title={image.title}
-                open={opened === i}
-                inPlace={inPlace === i}
-                onInPlace={onInPlace}
-              />
-            </div>
-          ))}
+        {images.map((image, i) => (
+          <div
+            key={image.url}
+            className="absolute left-0 top-0 h-full w-full"
+            style={{ zIndex: inPlace === i ? i : images.length + 1 }}
+          >
+            <GalleryImage
+              total={images.length}
+              id={i}
+              url={image.url}
+              title={image.title}
+              open={opened === i}
+              inPlace={inPlace === i}
+              onInPlace={onInPlace}
+            />
+          </div>
+        ))}
         <div className="absolute left-0 top-0 z-[100] h-full w-full pointer-events-none">
           <Tabs images={images} onSelect={onClick} />
         </div>
@@ -215,10 +179,6 @@ function GalleryImage({ url, title, open, inPlace, id, onInPlace, total }: Galle
 
   // --- Animation Logic ---
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const gsap = window.gsap
-    if (!gsap) return // Guard against GSAP not being loaded yet
-
     setLoaded(false)
     if (clip.current) {
       const flipDuration = firstLoad ? 0 : duration
