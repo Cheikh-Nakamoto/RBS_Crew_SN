@@ -145,6 +145,26 @@ CREATE TABLE "Address" (
     CONSTRAINT "Address_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
+-- Notifications in-app par utilisateur. Alimentée en fire-and-forget aux points
+-- d'événement (statut de commande, réponse à un devis, demande d'artiste
+-- traitée, e-mail vérifié). `type` reste un texte libre volontairement — les
+-- libellés sont rendus au moment de l'écriture, pas d'enum à faire évoluer.
+CREATE TABLE "Notification" (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    type text NOT NULL,
+    title text NOT NULL,
+    body text NOT NULL,
+    "linkUrl" text,
+    "readAt" timestamp(3) without time zone,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+
+    CONSTRAINT "Notification_pkey" PRIMARY KEY (id),
+    CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE INDEX "Notification_userId_createdAt_idx" ON "Notification" ("userId", "createdAt" DESC);
+
 CREATE TABLE "Artist" (
     id text NOT NULL,
     slug text NOT NULL,

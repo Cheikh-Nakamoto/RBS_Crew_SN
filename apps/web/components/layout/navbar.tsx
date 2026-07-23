@@ -7,6 +7,7 @@ import { useState, useEffect, useId } from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useCart } from '@/lib/cart-store';
+import { NotificationBell } from '@/components/layout/notification-bell';
 import {
   Menu,
   X,
@@ -227,6 +228,9 @@ export function Navbar() {
                   )}
                 </AnimatePresence>
               </button>
+
+              {/* Notifications — visible dès qu'une session existe */}
+              {session && <NotificationBell />}
 
               {/* Auth — desktop */}
               {session ? (

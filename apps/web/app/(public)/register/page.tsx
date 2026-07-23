@@ -67,9 +67,12 @@ export default function RegisterPage() {
         setStatus('success');
         setTimeout(() => router.push('/login'), 1500);
       } else {
+        // On atterrit sur le profil plutôt que l'accueil : c'est là qu'est
+        // affichée la bannière de vérification d'e-mail, avec le bouton pour
+        // renvoyer le lien si besoin.
         setStatus('success');
         setTimeout(() => {
-          router.push('/');
+          router.push('/profile');
           router.refresh();
         }, 800);
       }
@@ -137,9 +140,12 @@ export default function RegisterPage() {
           )}
 
           {status === 'success' && (
-            <div className="flex items-center gap-3 rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-3">
-              <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
-              <p className="text-sm text-green-300">Inscription réussie ! Redirection…</p>
+            <div className="flex items-start gap-3 rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-3">
+              <Check className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-green-300">
+                Inscription réussie ! Un e-mail de vérification vous a été envoyé — pensez à
+                confirmer votre adresse. Redirection…
+              </p>
             </div>
           )}
 

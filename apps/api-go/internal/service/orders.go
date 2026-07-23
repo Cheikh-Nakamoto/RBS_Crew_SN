@@ -25,6 +25,7 @@ type OrdersService struct {
 	ordersRepo   *repository.OrdersRepository
 	productsRepo *repository.ProductsRepository
 	shippingSvc  *ShippingService // optional — nil = no shipping rate calc
+	notifier     *NotificationsService
 }
 
 func NewOrdersService(ordersRepo *repository.OrdersRepository, productsRepo *repository.ProductsRepository, shippingSvc ...*ShippingService) *OrdersService {
@@ -33,6 +34,34 @@ func NewOrdersService(ordersRepo *repository.OrdersRepository, productsRepo *rep
 		svc.shippingSvc = shippingSvc[0]
 	}
 	return svc
+}
+
+func (s *OrdersService) WithNotifier(n *NotificationsService) *OrdersService {
+	s.notifier = n
+	return s
+}
+
+// orderStatusLabels : libellés client des statuts de commande notifiés. Un
+// statut absent de cette table ne déclenche pas de notification.
+var orderStatusLabels = map[string]string{
+	string(db.OrderStatusPROCESSING): "Votre commande est en cours de préparation",
+	string(db.OrderStatusCOMPLETED):  "Votre commande a été livrée",
+	string(db.OrderStatusCANCELLED):  "Votre commande a été annulée",
+	string(db.OrderStatusREFUNDED):   "Votre commande a été remboursée",
+}
+
+// notifyOrderStatus émet une notification au client propriétaire de la commande
+// (rien pour une commande invité, sans userId). Fire-and-forget côté service.
+func (s *OrdersService) notifyOrderStatus(userID *string, orderNumber, status string) {
+	if s.notifier == nil || userID == nil {
+		return
+	}
+	label, ok := orderStatusLabels[status]
+	if !ok {
+		return
+	}
+	s.notifier.Notify(*userID, NotificationOrderStatus,
+		label, "Commande "+orderNumber, "/profile")
 }
 
 func (s *OrdersService) Create(ctx context.Context, dto model.CreateOrderDTO, userID *string) (*model.OrderResponse, *types.AppError) {
@@ -293,6 +322,13 @@ func (s *OrdersService) UpdateShipping(ctx context.Context, orderID, carrier, tr
 		return nil, types.InternalError("Failed to update order shipping")
 	}
 	items, _ := s.ordersRepo.GetItems(ctx, orderID)
+	// Un numéro de suivi qui vient d'être posé = commande expédiée : on prévient
+	// le client. On ne notifie pas une simple mise à jour de transporteur sans
+	// numéro (aucune action pour le client).
+	if trackingNumber != "" && s.notifier != nil && order.UserId != nil {
+		s.notifier.Notify(*order.UserId, NotificationOrderStatus,
+			"Votre commande a été expédiée", "Commande "+order.OrderNumber, "/profile")
+	}
 	res := toOrderResponseFromRow(order, toItemResponses(items))
 	return &res, nil
 }
@@ -323,6 +359,7 @@ func (s *OrdersService) UpdateStatus(ctx context.Context, id, status string) (*m
 			return nil, types.InternalError("Failed to load order")
 		}
 		items, _ := s.ordersRepo.GetItems(ctx, id)
+		s.notifyOrderStatus(order.UserId, order.OrderNumber, string(db.OrderStatusCANCELLED))
 		return toOrderResponse(order, toItemResponses(items)), nil
 	}
 
@@ -334,6 +371,7 @@ func (s *OrdersService) UpdateStatus(ctx context.Context, id, status string) (*m
 		return nil, types.InternalError("Failed to update order")
 	}
 	items, _ := s.ordersRepo.GetItems(ctx, id)
+	s.notifyOrderStatus(order.UserId, order.OrderNumber, status)
 	res := toOrderResponseFromRow(order, toItemResponses(items))
 	return &res, nil
 }

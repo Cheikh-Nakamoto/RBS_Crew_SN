@@ -71,6 +71,7 @@ type AuthService struct {
 	jwtSecret        string
 	jwtRefreshSecret string
 	googleClientID   string
+	notifier         *NotificationsService
 }
 
 func NewAuthService(repo *repository.AuthRepository, mailService *mail.MailService, redisClient *redis.Client, jwtSecret, jwtRefreshSecret, googleClientID string) *AuthService {
@@ -82,6 +83,11 @@ func NewAuthService(repo *repository.AuthRepository, mailService *mail.MailServi
 		jwtRefreshSecret: jwtRefreshSecret,
 		googleClientID:   googleClientID,
 	}
+}
+
+func (s *AuthService) WithNotifier(n *NotificationsService) *AuthService {
+	s.notifier = n
+	return s
 }
 
 // ── Register ─────────────────────────────────────────────────────────────────
@@ -474,9 +480,12 @@ func (s *AuthService) ResendVerification(ctx context.Context, userID string) *ty
 	if err := s.repo.SetEmailVerificationToken(ctx, user.ID, &token, exp); err != nil {
 		return types.InternalError("Erreur base de données")
 	}
+	// Un échec d'envoi ne doit pas remonter en 500 : le token est déjà posé en
+	// base et le client peut relancer (rate limit 3/min). On s'aligne sur Register
+	// et ForgotPassword, qui avalent délibérément l'erreur SMTP — une panne
+	// transitoire du relais mail ne doit pas casser le parcours utilisateur.
 	if err := s.mailService.SendEmailVerification(user.Email, token); err != nil {
 		slog.Error("auth: resend verification failed", "error", err, "userId", userID)
-		return types.InternalError("Impossible d'envoyer l'e-mail de vérification")
 	}
 	return nil
 }
@@ -491,6 +500,13 @@ func (s *AuthService) VerifyEmail(ctx context.Context, token string) *types.AppE
 	}
 	if err := s.repo.SetEmailVerified(ctx, user.ID); err != nil {
 		return types.InternalError("Failed to verify email")
+	}
+	// Émis dans la seule branche non-idempotente : ouvrir un lien déjà validé ne
+	// doit pas générer une nouvelle notification à chaque clic.
+	if s.notifier != nil {
+		s.notifier.Notify(user.ID, NotificationEmailVerified,
+			"Votre adresse e-mail est confirmée",
+			"Vous pouvez désormais passer commande.", "/profile")
 	}
 	return nil
 }

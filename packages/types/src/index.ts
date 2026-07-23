@@ -18,7 +18,7 @@ export type PaymentStatus =
   | 'PARTIALLY_REFUNDED'
   | 'REFUNDED';
 
-export type UserRole = 'CUSTOMER' | 'ADMIN' | 'EDITOR';
+export type UserRole = 'CUSTOMER' | 'ADMIN' | 'EDITOR' | 'ARTIST';
 
 export type ProductStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 

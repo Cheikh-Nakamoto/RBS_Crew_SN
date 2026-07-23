@@ -80,23 +80,29 @@ func run() error {
 	activityLogRepo := repository.NewActivityLogRepository(pool)
 	refundsRepo := repository.NewRefundsRepository(pool)
 	shippingRepo := repository.NewShippingRepository(pool)
+	notificationRepo := repository.NewNotificationRepository(pool)
 
 	// ── Services ─────────────────────────────────────────────────────────────
 	mailSvc := mail.NewMailService(cfg)
-	authSvc := service.NewAuthService(authRepo, mailSvc, redisClient, cfg.JWTSecret, cfg.JWTRefreshSecret, cfg.GoogleClientID)
+	notificationsSvc := service.NewNotificationsService(notificationRepo)
+	authSvc := service.NewAuthService(authRepo, mailSvc, redisClient, cfg.JWTSecret, cfg.JWTRefreshSecret, cfg.GoogleClientID).
+		WithNotifier(notificationsSvc)
 	categoriesSvc := service.NewCategoriesService(categoriesRepo)
 	tagsSvc := service.NewTagsService(tagsRepo)
 	productsSvc := service.NewProductsService(productsRepo, redisClient)
 	artistsSvc := service.NewArtistsService(artistsRepo, redisClient)
-	artistAccountsSvc := service.NewArtistAccountsService(artistsRepo, authRepo, mailSvc, artistsSvc)
+	artistAccountsSvc := service.NewArtistAccountsService(artistsRepo, authRepo, mailSvc, artistsSvc).
+		WithNotifier(notificationsSvc)
 	projectsSvc := service.NewProjectsService(projectsRepo)
 	festivalSvc := service.NewFestivalService(festivalRepo)
 	pressSvc := service.NewPressService(pressRepo)
 	pagesSvc := service.NewPagesService(pagesRepo)
 	servicesSvc := service.NewServicesService(servicesRepo)
-	quotesSvc := service.NewQuotesService(quotesRepo)
+	quotesSvc := service.NewQuotesService(quotesRepo).
+		WithNotifier(notificationsSvc, authRepo)
 	shippingSvc := service.NewShippingService(shippingRepo)
-	ordersSvc := service.NewOrdersService(ordersRepo, productsRepo, shippingSvc)
+	ordersSvc := service.NewOrdersService(ordersRepo, productsRepo, shippingSvc).
+		WithNotifier(notificationsSvc)
 	usersSvc := service.NewUsersService(usersRepo, authRepo)
 	cartSvc := service.NewCartService(redisClient)
 
@@ -134,7 +140,8 @@ func run() error {
 
 	paymentsSvc := service.NewPaymentsService(ordersRepo, redisClient, paymentProviders...).
 		WithOrdersService(ordersSvc).
-		WithCartService(cartSvc)
+		WithCartService(cartSvc).
+		WithNotifier(notificationsSvc)
 	refundsSvc := service.NewRefundsService(refundsRepo, ordersRepo, redisClient, mailSvc, paymentProviders...)
 
 	// ── Handlers ────────────────────────────────────────────────────────────
@@ -171,6 +178,7 @@ func run() error {
 		ActivityLogs:      handler.NewActivityLogsHandler(activityLogRepo),
 		Refunds:           handler.NewRefundsHandler(refundsSvc),
 		Shipping:          handler.NewShippingHandler(shippingSvc),
+		Notifications:     handler.NewNotificationsHandler(notificationsSvc),
 	}
 
 	// ── HTTP Server ──────────────────────────────────────────────────────────

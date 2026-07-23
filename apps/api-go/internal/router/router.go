@@ -45,6 +45,7 @@ type Handlers struct {
 	ArtistMe          *handler.ArtistMeHandler
 	AdminArtistInvite *handler.AdminArtistInviteHandler
 	ArtistClaims      *handler.ArtistClaimHandler
+	Notifications     *handler.NotificationsHandler
 }
 
 func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.ActivityLogRepository, authRepo *repository.AuthRepository) chi.Router {
@@ -174,6 +175,11 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 
 		// Payments
 		r.Post("/payments/create-checkout", h.Payments.CreateCheckout)
+
+		// Notifications in-app — propres au compte connecté.
+		r.Get("/notifications", h.Notifications.List)
+		r.Patch("/notifications/{id}/read", h.Notifications.MarkRead)
+		r.Post("/notifications/read-all", h.Notifications.MarkAllRead)
 
 	})
 

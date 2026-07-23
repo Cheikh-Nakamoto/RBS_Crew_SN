@@ -25,6 +25,13 @@ type MailService struct {
 }
 
 func NewMailService(cfg *config.Config) *MailService {
+	// Sans SMTP_HOST, sendHTML saute silencieusement l'envoi : aucun e-mail
+	// (vérification d'adresse, reset mot de passe, invitation artiste) ne partira.
+	// On le signale au démarrage pour que ce soit visible dans les logs plutôt que
+	// diagnostiqué à partir d'e-mails jamais reçus.
+	if cfg.SMTPHost == "" {
+		slog.Warn("mail: SMTP_HOST non configuré — aucun e-mail ne sera envoyé")
+	}
 	d := gomail.NewDialer(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass)
 	return &MailService{cfg: cfg, dialer: d}
 }

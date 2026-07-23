@@ -15,11 +15,37 @@ import (
 )
 
 type QuotesService struct {
-	repo *repository.QuotesRepository
+	repo     *repository.QuotesRepository
+	notifier *NotificationsService
+	// authRepo résout le compte utilisateur à partir de l'e-mail du devis :
+	// la table Quote n'a pas de userId (formulaire public).
+	authRepo *repository.AuthRepository
 }
 
 func NewQuotesService(repo *repository.QuotesRepository) *QuotesService {
 	return &QuotesService{repo: repo}
+}
+
+func (s *QuotesService) WithNotifier(n *NotificationsService, authRepo *repository.AuthRepository) *QuotesService {
+	s.notifier = n
+	s.authRepo = authRepo
+	return s
+}
+
+// notifyQuoteAnswered prévient le demandeur si — et seulement si — un compte
+// existe pour l'e-mail du devis. Un devis déposé par quelqu'un sans compte ne
+// déclenche rien (aucune boîte de réception in-app où l'afficher).
+func (s *QuotesService) notifyQuoteAnswered(ctx context.Context, q *db.Quote) {
+	if s.notifier == nil || s.authRepo == nil {
+		return
+	}
+	user, err := s.authRepo.GetUserByEmail(ctx, q.Email)
+	if err != nil || user == nil {
+		return
+	}
+	s.notifier.Notify(user.ID, NotificationQuoteReply,
+		"Votre demande de devis a reçu une réponse",
+		"Nous avons répondu à votre demande — consultez votre e-mail.", "/profile")
 }
 
 func (s *QuotesService) Create(ctx context.Context, dto model.CreateQuoteDTO) (*model.QuoteResponse, *types.AppError) {
@@ -106,6 +132,10 @@ func (s *QuotesService) UpdateStatus(ctx context.Context, id, status string) (*m
 			return nil, types.NotFound("Quote not found")
 		}
 		return nil, types.InternalError("Failed to update quote")
+	}
+	// Le passage à « Répondu » est le seul changement qui intéresse le client.
+	if status == "ANSWERED" {
+		s.notifyQuoteAnswered(ctx, q)
 	}
 	res := toQuoteResponse(q)
 	return &res, nil

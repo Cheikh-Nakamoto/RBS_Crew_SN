@@ -4,9 +4,11 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { ArtistClaimCard } from '@/components/artist-claim-card';
+import { EmailVerificationNotice } from '@/components/email-verification-notice';
 import { useCart } from '@/lib/cart-store';
 import { formatXOF, formatDate } from '@/lib/format';
 import { useAuthedFetch } from '@/lib/use-authed-fetch';
+import { ROLE_META_BADGE } from '@/lib/admin/status-maps';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -22,6 +24,9 @@ import {
   Save,
   X,
   Plus,
+  Settings,
+  Palette,
+  Truck,
 } from 'lucide-react';
 
 interface OrderItem {
@@ -40,6 +45,8 @@ interface Order {
   total: number;
   items: OrderItem[];
   createdAt: string;
+  shippingCarrier?: string;
+  trackingNumber?: string;
 }
 
 interface Address {
@@ -96,6 +103,22 @@ function ProfileContent() {
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [profileForm, setProfileForm] = useState({ firstName: '', lastName: '', email: '' });
+
+  const emptyAddress = {
+    label: '',
+    firstName: '',
+    lastName: '',
+    line1: '',
+    line2: '',
+    city: '',
+    postalCode: '',
+    country: 'SN',
+    isDefault: false,
+  };
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [addressForm, setAddressForm] = useState(emptyAddress);
+  const [savingAddress, setSavingAddress] = useState(false);
+  const [addressError, setAddressError] = useState('');
 
   // Redirect unauthenticated users
   useEffect(() => {
@@ -161,7 +184,6 @@ function ProfileContent() {
 
   useEffect(() => {
     if (!session) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchArtistClaim();
   }, [session, fetchArtistClaim]);
 
@@ -174,9 +196,6 @@ function ProfileContent() {
   // Fetch orders
   useEffect(() => {
     if (session && activeTab === 'orders') {
-      // Récupération de données : les setState ont lieu après le await, mais
-      // la règle ne peut pas le prouver à travers l'appel de fonction.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchOrders();
     }
   }, [session, activeTab, fetchOrders]);
@@ -184,9 +203,6 @@ function ProfileContent() {
   // Fetch addresses
   useEffect(() => {
     if (session && activeTab === 'addresses') {
-      // Récupération de données : les setState ont lieu après le await, mais
-      // la règle ne peut pas le prouver à travers l'appel de fonction.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchAddresses();
     }
   }, [session, activeTab, fetchAddresses]);
@@ -208,6 +224,44 @@ function ProfileContent() {
     }
   }
 
+  async function handleCreateAddress() {
+    setSavingAddress(true);
+    setAddressError('');
+    try {
+      const res = await authedFetch('/users/me/addresses', {
+        method: 'POST',
+        body: JSON.stringify({
+          label: addressForm.label || undefined,
+          firstName: addressForm.firstName,
+          lastName: addressForm.lastName,
+          line1: addressForm.line1,
+          line2: addressForm.line2 || undefined,
+          city: addressForm.city,
+          postalCode: addressForm.postalCode,
+          country: addressForm.country,
+          isDefault: addressForm.isDefault,
+        }),
+      });
+      if (!res.ok) throw new Error("L'enregistrement a échoué. Vérifiez les champs.");
+      setShowAddressForm(false);
+      setAddressForm(emptyAddress);
+      await fetchAddresses();
+    } catch (err) {
+      setAddressError(err instanceof Error ? err.message : 'Erreur inconnue');
+    } finally {
+      setSavingAddress(false);
+    }
+  }
+
+  async function handleDeleteAddress(id: string) {
+    try {
+      const res = await authedFetch(`/users/me/addresses/${id}`, { method: 'DELETE' });
+      if (res.ok) await fetchAddresses();
+    } catch {
+      // silently fail
+    }
+  }
+
   if (status === 'loading' || status === 'unauthenticated') {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -217,6 +271,9 @@ function ProfileContent() {
   }
 
   const user = session!.user;
+  const role = (user as { role?: string }).role ?? 'CUSTOMER';
+  const isStaff = role === 'ADMIN' || role === 'EDITOR';
+  const roleBadge = ROLE_META_BADGE[role];
   const initials = (user.name || user.email || 'U')
     .split(' ')
     .map((w) => w[0])
@@ -224,10 +281,16 @@ function ProfileContent() {
     .toUpperCase()
     .slice(0, 2);
 
+  // Un admin/éditeur gère le catalogue depuis /admin et n'achète pas via ce
+  // compte : on lui masque Commandes/Adresses pour ne garder que l'essentiel.
   const tabs = [
     { id: 'profile' as const, label: 'Profil', icon: User },
-    { id: 'orders' as const, label: 'Commandes', icon: Package },
-    { id: 'addresses' as const, label: 'Adresses', icon: MapPin },
+    ...(isStaff
+      ? []
+      : [
+          { id: 'orders' as const, label: 'Commandes', icon: Package },
+          { id: 'addresses' as const, label: 'Adresses', icon: MapPin },
+        ]),
   ];
 
   return (
@@ -273,10 +336,12 @@ function ProfileContent() {
                 <Mail className="w-3.5 h-3.5" />
                 {user.email}
               </span>
-              {(user as { role?: string }).role && (
-                <span className="flex items-center gap-1.5 text-xs text-red-400/80">
-                  <Shield className="w-3.5 h-3.5" />
-                  {(user as { role?: string }).role}
+              {roleBadge && (
+                <span
+                  className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${roleBadge.className}`}
+                >
+                  <Shield className="w-3 h-3" />
+                  {roleBadge.label}
                 </span>
               )}
             </div>
@@ -327,6 +392,8 @@ function ProfileContent() {
           {/* ── Profile Tab ── */}
           {activeTab === 'profile' && (
             <div className="max-w-lg space-y-6">
+              <EmailVerificationNotice />
+
               <div className="flex items-center justify-between">
                 <h2 className="text-xs font-bold uppercase tracking-widest text-white/40">
                   Informations personnelles
@@ -404,10 +471,49 @@ function ProfileContent() {
                 </div>
               </div>
 
-              <ArtistClaimCard
-                initialStatus={artistClaimStatus}
-                role={(user as { role?: string }).role}
-              />
+              {/* Raccourci Administration — réservé aux comptes staff. */}
+              {isStaff && (
+                <Link
+                  href="/admin"
+                  className="flex items-center justify-between gap-3 p-4 rounded-xl bg-white/4 border border-white/10 hover:border-[var(--rbs-red)]/40 transition-colors group"
+                >
+                  <span className="flex items-center gap-3">
+                    <Settings className="w-5 h-5 text-[var(--rbs-red)]" />
+                    <span>
+                      <span className="block text-sm font-semibold text-white">Administration</span>
+                      <span className="block text-xs text-white/40">
+                        Gérer le catalogue, les commandes et le contenu du site
+                      </span>
+                    </span>
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-white/30 group-hover:text-white/70 transition-colors" />
+                </Link>
+              )}
+
+              {/* Raccourci Espace artiste — pour les comptes rattachés à une fiche. */}
+              {role === 'ARTIST' && (
+                <Link
+                  href="/espace-artiste"
+                  className="flex items-center justify-between gap-3 p-4 rounded-xl bg-white/4 border border-white/10 hover:border-purple-500/40 transition-colors group"
+                >
+                  <span className="flex items-center gap-3">
+                    <Palette className="w-5 h-5 text-purple-300" />
+                    <span>
+                      <span className="block text-sm font-semibold text-white">Mon espace artiste</span>
+                      <span className="block text-xs text-white/40">
+                        Mettre à jour ma fiche : bio, photos, réseaux et portfolio
+                      </span>
+                    </span>
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-white/30 group-hover:text-white/70 transition-colors" />
+                </Link>
+              )}
+
+              {/* La demande « devenir artiste » ne concerne que les clients :
+                  le staff et les artistes déjà rattachés n'en ont pas l'usage. */}
+              {role === 'CUSTOMER' && (
+                <ArtistClaimCard initialStatus={artistClaimStatus} role={role} />
+              )}
             </div>
           )}
 
@@ -476,6 +582,18 @@ function ProfileContent() {
                         </span>
                         <span className="text-lg font-bold text-white">{formatXOF(order.total)}</span>
                       </div>
+                      {order.trackingNumber && (
+                        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/8 text-xs text-white/60">
+                          <Truck className="w-3.5 h-3.5 text-white/40" />
+                          <span>
+                            Suivi&nbsp;:{' '}
+                            {order.shippingCarrier && (
+                              <span className="text-white/80">{order.shippingCarrier} · </span>
+                            )}
+                            <span className="font-mono text-white/80">{order.trackingNumber}</span>
+                          </span>
+                        </div>
+                      )}
                     </div>
                   );
                 })
@@ -522,19 +640,123 @@ function ProfileContent() {
                             {addr.postalCode} {addr.city}, {addr.country}
                           </p>
                         </div>
-                        {addr.isDefault && (
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-full">
-                            Par défaut
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {addr.isDefault && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-full">
+                              Par défaut
+                            </span>
+                          )}
+                          <button
+                            onClick={() => handleDeleteAddress(addr.id)}
+                            aria-label="Supprimer l'adresse"
+                            className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
 
-                  <button className="w-full flex items-center justify-center gap-2 p-4 rounded-xl border border-dashed border-white/15 text-white/30 hover:text-white/60 hover:border-white/30 transition-all text-sm font-semibold">
-                    <Plus className="w-4 h-4" />
-                    Ajouter une adresse
-                  </button>
+                  {showAddressForm ? (
+                    <div className="p-5 rounded-xl bg-white/4 border border-white/10 space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          value={addressForm.firstName}
+                          onChange={(e) => setAddressForm((a) => ({ ...a, firstName: e.target.value }))}
+                          placeholder="Prénom *"
+                          className="px-4 py-3 rounded-xl bg-white/6 border border-white/10 text-white text-sm placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                        />
+                        <input
+                          value={addressForm.lastName}
+                          onChange={(e) => setAddressForm((a) => ({ ...a, lastName: e.target.value }))}
+                          placeholder="Nom *"
+                          className="px-4 py-3 rounded-xl bg-white/6 border border-white/10 text-white text-sm placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                        />
+                      </div>
+                      <input
+                        value={addressForm.label}
+                        onChange={(e) => setAddressForm((a) => ({ ...a, label: e.target.value }))}
+                        placeholder="Libellé (Maison, Bureau…)"
+                        className="w-full px-4 py-3 rounded-xl bg-white/6 border border-white/10 text-white text-sm placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                      />
+                      <input
+                        value={addressForm.line1}
+                        onChange={(e) => setAddressForm((a) => ({ ...a, line1: e.target.value }))}
+                        placeholder="Adresse *"
+                        className="w-full px-4 py-3 rounded-xl bg-white/6 border border-white/10 text-white text-sm placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                      />
+                      <input
+                        value={addressForm.line2}
+                        onChange={(e) => setAddressForm((a) => ({ ...a, line2: e.target.value }))}
+                        placeholder="Complément d'adresse"
+                        className="w-full px-4 py-3 rounded-xl bg-white/6 border border-white/10 text-white text-sm placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                      />
+                      <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
+                        <input
+                          value={addressForm.postalCode}
+                          onChange={(e) => setAddressForm((a) => ({ ...a, postalCode: e.target.value }))}
+                          placeholder="Code postal *"
+                          className="px-4 py-3 rounded-xl bg-white/6 border border-white/10 text-white text-sm placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                        />
+                        <input
+                          value={addressForm.city}
+                          onChange={(e) => setAddressForm((a) => ({ ...a, city: e.target.value }))}
+                          placeholder="Ville *"
+                          className="px-4 py-3 rounded-xl bg-white/6 border border-white/10 text-white text-sm placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                        />
+                        <input
+                          value={addressForm.country}
+                          onChange={(e) =>
+                            setAddressForm((a) => ({ ...a, country: e.target.value.toUpperCase().slice(0, 2) }))
+                          }
+                          placeholder="Pays"
+                          maxLength={2}
+                          className="w-20 px-4 py-3 rounded-xl bg-white/6 border border-white/10 text-white text-sm placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-red-600/50 uppercase"
+                        />
+                      </div>
+                      <label className="flex items-center gap-2 text-xs text-white/60 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={addressForm.isDefault}
+                          onChange={(e) => setAddressForm((a) => ({ ...a, isDefault: e.target.checked }))}
+                          className="w-4 h-4 accent-red-600"
+                        />
+                        Définir comme adresse par défaut
+                      </label>
+
+                      {addressError && <p className="text-xs text-red-300">{addressError}</p>}
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleCreateAddress}
+                          disabled={savingAddress}
+                          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 disabled:opacity-60 transition-colors"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                          {savingAddress ? 'Enregistrement…' : 'Enregistrer'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowAddressForm(false);
+                            setAddressError('');
+                          }}
+                          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/8 border border-white/15 text-white/70 text-xs font-semibold hover:bg-white/12 transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowAddressForm(true)}
+                      className="w-full flex items-center justify-center gap-2 p-4 rounded-xl border border-dashed border-white/15 text-white/30 hover:text-white/60 hover:border-white/30 transition-all text-sm font-semibold"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Ajouter une adresse
+                    </button>
+                  )}
                 </>
               )}
             </div>

@@ -31,6 +31,28 @@ type PaymentsService struct {
 	// cartSvc sert à vider le panier une fois le paiement confirmé. Même mode
 	// d'injection que ordersSvc, pour la même raison.
 	cartSvc *CartService
+	// notifier prévient le client à la confirmation/au remboursement du paiement.
+	notifier *NotificationsService
+}
+
+// WithNotifier branche l'émission de notifications sur les webhooks terminaux.
+func (s *PaymentsService) WithNotifier(n *NotificationsService) *PaymentsService {
+	s.notifier = n
+	return s
+}
+
+// notifyOrder prévient le client propriétaire d'une commande (rien pour une
+// commande invité). Fire-and-forget côté NotificationsService.
+func (s *PaymentsService) notifyOrder(ctx context.Context, orderID, title string) {
+	if s.notifier == nil {
+		return
+	}
+	order, err := s.ordersRepo.GetByID(ctx, orderID)
+	if err != nil || order.UserId == nil || *order.UserId == "" {
+		return
+	}
+	s.notifier.Notify(*order.UserId, NotificationOrderStatus,
+		title, "Commande "+order.OrderNumber, "/profile")
 }
 
 // WithOrdersService branche la compensation de stock sur les webhooks terminaux.
@@ -310,6 +332,7 @@ func (s *PaymentsService) HandleWebhook(ctx context.Context, method payment.Meth
 			updateErr = err
 		} else {
 			s.clearCartForOrder(ctx, orderID)
+			s.notifyOrder(ctx, orderID, "Paiement confirmé")
 		}
 
 	case "FAILED":
@@ -324,6 +347,8 @@ func (s *PaymentsService) HandleWebhook(ctx context.Context, method payment.Meth
 		if err := s.releaseStock(ctx, orderID, db.OrderStatusREFUNDED, db.PaymentStatusREFUNDED); err != nil {
 			slog.Error("Failed to mark order as refunded", "orderId", orderID, "error", err)
 			updateErr = err
+		} else {
+			s.notifyOrder(ctx, orderID, "Votre commande a été remboursée")
 		}
 	}
 

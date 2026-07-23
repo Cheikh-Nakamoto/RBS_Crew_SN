@@ -31,6 +31,7 @@ type ArtistAccountsService struct {
 	authRepo    *repository.AuthRepository
 	mailService *mail.MailService
 	artistsSvc  *ArtistsService
+	notifier    *NotificationsService
 }
 
 func NewArtistAccountsService(
@@ -45,6 +46,11 @@ func NewArtistAccountsService(
 		mailService: mailService,
 		artistsSvc:  artistsSvc,
 	}
+}
+
+func (s *ArtistAccountsService) WithNotifier(n *NotificationsService) *ArtistAccountsService {
+	s.notifier = n
+	return s
 }
 
 // ── Invitation (admin) ───────────────────────────────────────────────────────
@@ -422,6 +428,12 @@ func (s *ArtistAccountsService) ApproveClaim(ctx context.Context, userID, artist
 	// immédiatement si l'artiste rafraîchit sa session depuis son profil.
 	// Révoquer le déconnecterait au moment précis où on lui ouvre l'accès.
 	s.invalidateCache(ctx)
+	if s.notifier != nil {
+		s.notifier.Notify(userID, NotificationArtistClaim,
+			"Votre demande d'artiste a été approuvée",
+			"Votre compte est désormais rattaché à votre fiche. Rendez-vous dans votre espace artiste.",
+			"/espace-artiste")
+	}
 	return nil
 }
 
@@ -430,6 +442,12 @@ func (s *ArtistAccountsService) RejectClaim(ctx context.Context, userID string) 
 	if _, err := s.authRepo.SetArtistClaimStatus(ctx, userID, db.ArtistClaimStatus("REJECTED")); err != nil {
 		slog.Error("artist-claims: reject failed", "error", err, "userId", userID)
 		return types.InternalError("Impossible de refuser la demande")
+	}
+	if s.notifier != nil {
+		s.notifier.Notify(userID, NotificationArtistClaim,
+			"Votre demande d'artiste n'a pas été retenue",
+			"Contactez l'équipe RBS si vous pensez qu'il s'agit d'une erreur.",
+			"/profile")
 	}
 	return nil
 }

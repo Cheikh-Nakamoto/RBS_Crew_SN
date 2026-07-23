@@ -493,6 +493,17 @@ type FestivalTranslation struct {
 	Content           *string `json:"content"`
 }
 
+type Notification struct {
+	ID        string           `json:"id"`
+	UserId    string           `json:"userId"`
+	Type      string           `json:"type"`
+	Title     string           `json:"title"`
+	Body      string           `json:"body"`
+	LinkUrl   *string          `json:"linkUrl"`
+	ReadAt    pgtype.Timestamp `json:"readAt"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
 type Order struct {
 	ID                    string           `json:"id"`
 	OrderNumber           string           `json:"orderNumber"`
