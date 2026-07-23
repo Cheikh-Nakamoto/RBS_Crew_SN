@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Palette, Check, Clock, AlertCircle } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { Palette, Check, Clock, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuthedFetch } from '@/lib/use-authed-fetch';
 
 /**
@@ -18,10 +20,36 @@ export function ArtistClaimCard({
   role?: string;
 }) {
   const { authedFetch } = useAuthedFetch();
+  const { update } = useSession();
+  const router = useRouter();
   const [status, setStatus] = useState(initialStatus ?? 'NONE');
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState('');
+
+  /**
+   * Le rôle voyage dans un JWT signé : tant que le token n'est pas réémis, une
+   * validation faite côté administration reste invisible ici. `update()` force
+   * next-auth à relire le profil depuis l'API et à réécrire le token.
+   */
+  async function refreshAccess() {
+    setRefreshing(true);
+    setRefreshError('');
+    try {
+      const refreshed = await update();
+      if (refreshed?.user?.role === 'ARTIST') {
+        router.push('/espace-artiste');
+        return;
+      }
+      setRefreshError("Ta demande n'a pas encore été validée. Réessaie plus tard.");
+    } catch {
+      setRefreshError('Vérification impossible pour le moment. Réessaie dans un instant.');
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   // Un artiste déjà validé n'a plus rien à demander : il a son espace.
   if (role === 'ARTIST') return null;
@@ -45,14 +73,35 @@ export function ArtistClaimCard({
 
   if (status === 'PENDING') {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/4 p-6 space-y-2">
+      <div className="rounded-2xl border border-white/10 bg-white/4 p-6 space-y-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
           <Clock className="w-4 h-4 text-amber-400" /> Demande d&apos;artiste en cours
         </h2>
         <p className="text-sm text-white/45">
           Un administrateur va vérifier ta demande et rattacher ton compte à ta fiche.
-          Tu recevras alors l&apos;accès à ton espace artiste.
+          Une fois validée, ton espace artiste s&apos;ouvre automatiquement — au plus tard
+          après quelques minutes de navigation.
         </p>
+        <p className="text-sm text-white/45">
+          Déjà validé de ton côté ? Rafraîchis ton accès sans attendre :
+        </p>
+
+        {refreshError && (
+          <p className="flex items-center gap-2 text-xs text-amber-300">
+            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+            {refreshError}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={refreshAccess}
+          disabled={refreshing}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/6 border border-white/10 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          {refreshing ? 'Vérification…' : 'Actualiser mon accès'}
+        </button>
       </div>
     );
   }

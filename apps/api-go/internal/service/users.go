@@ -17,10 +17,14 @@ import (
 
 type UsersService struct {
 	repo *repository.UsersRepository
+	// authRepo sert à révoquer les sessions d'un utilisateur rétrogradé. Sans
+	// cela, son ancien rôle survivrait dans les tokens déjà émis jusqu'à leur
+	// expiration naturelle.
+	authRepo *repository.AuthRepository
 }
 
-func NewUsersService(repo *repository.UsersRepository) *UsersService {
-	return &UsersService{repo: repo}
+func NewUsersService(repo *repository.UsersRepository, authRepo *repository.AuthRepository) *UsersService {
+	return &UsersService{repo: repo, authRepo: authRepo}
 }
 
 // ── GetMe ─────────────────────────────────────────────────────────────────────
@@ -227,6 +231,13 @@ func (s *UsersService) GetByID(ctx context.Context, id string) (*model.UserProfi
 }
 
 func (s *UsersService) UpdateRole(ctx context.Context, id, role string) (*model.UserProfileResponse, *types.AppError) {
+	// Rôle actuel lu AVANT la mise à jour : c'est la seule façon de savoir si le
+	// changement retire des droits.
+	previous := ""
+	if before, err := s.repo.GetByID(ctx, id); err == nil {
+		previous = string(before.Role)
+	}
+
 	r := db.UserRole(role)
 	params := db.UpdateUserParams{ID: id, Role: &r}
 	row, err := s.repo.Update(ctx, params)
@@ -236,6 +247,16 @@ func (s *UsersService) UpdateRole(ctx context.Context, id, role string) (*model.
 		}
 		return nil, types.InternalError("Failed to update role")
 	}
+
+	// Rétrogradation : les tokens déjà émis portent encore l'ancien rôle et se
+	// renouvellent tout seuls. Seule la suppression des sessions coupe court.
+	if previous != "" && types.RoleLosesPrivileges(previous, role) {
+		if dErr := s.authRepo.DeleteUserSessions(ctx, id); dErr != nil {
+			slog.Error("users: failed to revoke sessions after demotion", "error", dErr, "userId", id)
+			return nil, types.InternalError("Rôle modifié mais sessions non révoquées — réessayez")
+		}
+	}
+
 	return &model.UserProfileResponse{
 		ID:              row.ID,
 		Email:           row.Email,

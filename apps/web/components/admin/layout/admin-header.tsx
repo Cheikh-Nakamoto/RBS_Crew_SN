@@ -1,8 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { Menu, LogOut, User, ChevronRight } from 'lucide-react';
+import { Menu, LogOut, User, ChevronRight, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -127,6 +128,12 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
           <DropdownMenuItem render={<a href="/profile" />} className="flex items-center gap-2 cursor-pointer text-white/80 hover:text-white focus:text-white">
             <User className="h-4 w-4" />
             Profil
+          </DropdownMenuItem>
+          {/* Doublon du lien de la sidebar : sur mobile celle-ci est repliée
+              dans un tiroir, ce menu reste la seule sortie accessible en un clic. */}
+          <DropdownMenuItem render={<Link href="/" />} className="flex items-center gap-2 cursor-pointer text-white/80 hover:text-white focus:text-white">
+            <Home className="h-4 w-4" />
+            Retour au site
           </DropdownMenuItem>
           <DropdownMenuSeparator className="bg-white/10" />
           <DropdownMenuItem

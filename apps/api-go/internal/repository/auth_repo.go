@@ -53,6 +53,16 @@ func (r *AuthRepository) GetActiveSessionsByUser(ctx context.Context, userID str
 	return r.q.GetActiveSessionsByUser(ctx, userID)
 }
 
+// GetSessionByTokenHash retrouve une session active par l'empreinte de son
+// refresh token, en un seul aller-retour indexé.
+func (r *AuthRepository) GetSessionByTokenHash(ctx context.Context, tokenHash string) (*db.UserSession, error) {
+	session, err := r.q.GetSessionByTokenHash(ctx, tokenHash)
+	if err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
+
 func (r *AuthRepository) DeleteUserSessions(ctx context.Context, userID string) error {
 	return r.q.DeleteUserSessions(ctx, userID)
 }

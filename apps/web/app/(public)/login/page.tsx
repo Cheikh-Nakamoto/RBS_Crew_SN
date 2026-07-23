@@ -4,6 +4,21 @@ import { getSession, signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { LogIn, Eye, EyeOff, AlertCircle, Clock } from 'lucide-react';
+import { safeCallbackUrl } from '@/lib/utils';
+
+/**
+ * Messages affichés selon la raison de l'arrivée sur cette page. Distinguer les
+ * cas évite d'envoyer l'utilisateur chercher au mauvais endroit : une session
+ * expirée, une durée de vie maximale atteinte et un échec Google n'appellent pas
+ * la même réaction.
+ */
+const NOTICES: Record<string, string> = {
+  session_expired: 'Votre session a expiré. Veuillez vous reconnecter.',
+  session_max_age:
+    'Pour votre sécurité, une reconnexion est demandée périodiquement. Merci de vous identifier à nouveau.',
+  oauth_failed:
+    "La connexion via Google n'a pas abouti. Réessayez, ou utilisez votre e-mail et mot de passe.",
+};
 
 export default function LoginPage() {
   return (
@@ -21,9 +36,8 @@ function LoginForm() {
   const [errorMsg, setErrorMsg] = useState('');
 
   // Récupérer et valider le callbackUrl (uniquement URLs relatives du même site)
-  const rawCallback = searchParams.get('callbackUrl') ?? '/';
-  const callbackUrl = rawCallback.startsWith('/') ? rawCallback : '/';
-  const sessionExpired = searchParams.get('reason') === 'session_expired';
+  const callbackUrl = safeCallbackUrl(searchParams.get('callbackUrl'));
+  const notice = NOTICES[searchParams.get('reason') ?? ''];
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -97,10 +111,10 @@ function LoginForm() {
         <div className="glass rounded-2xl border border-white/10 p-8 space-y-6">
           <h1 className="font-display text-2xl text-white">Bienvenue</h1>
 
-          {sessionExpired && (
+          {notice && (
             <div className="flex items-center gap-3 rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3">
               <Clock className="w-4 h-4 text-amber-400 flex-shrink-0" />
-              <p className="text-sm text-amber-300">Votre session a expiré. Veuillez vous reconnecter.</p>
+              <p className="text-sm text-amber-300">{notice}</p>
             </div>
           )}
 

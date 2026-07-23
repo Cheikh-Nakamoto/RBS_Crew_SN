@@ -415,6 +415,12 @@ func (s *ArtistAccountsService) ApproveClaim(ctx context.Context, userID, artist
 		return types.InternalError("Impossible de clôturer la demande")
 	}
 
+	// Volontairement PAS de révocation de sessions ici : contrairement à une
+	// rétrogradation (cf. UsersService.UpdateRole), accorder un droit n'a rien
+	// d'urgent du point de vue de la sécurité. Le rôle est relu en base à chaque
+	// rotation du refresh token, donc l'accès s'ouvre seul en moins de 15 min, et
+	// immédiatement si l'artiste rafraîchit sa session depuis son profil.
+	// Révoquer le déconnecterait au moment précis où on lui ouvre l'accès.
 	s.invalidateCache(ctx)
 	return nil
 }

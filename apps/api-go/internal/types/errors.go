@@ -16,6 +16,14 @@ func ForbiddenWithCode(msg, code string) *AppError {
 	return &AppError{StatusCode: 403, Message: msg, Error: "Forbidden", Code: code}
 }
 
+// UnauthorizedWithCode : refus 401 accompagné d'un code exploitable par le
+// client, pour distinguer par exemple une session simplement expirée d'une
+// session ayant atteint sa durée de vie maximale — les deux n'appellent pas le
+// même message à l'écran.
+func UnauthorizedWithCode(msg, code string) *AppError {
+	return &AppError{StatusCode: 401, Message: msg, Error: "Unauthorized", Code: code}
+}
+
 func (e *AppError) Err() error {
 	return fmt.Errorf("%s: %s", e.Error, e.Message)
 }

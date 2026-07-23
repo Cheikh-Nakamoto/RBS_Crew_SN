@@ -1,8 +1,8 @@
 'use client';
 
 import { useSession, signOut } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { ArtistClaimCard } from '@/components/artist-claim-card';
 import { useCart } from '@/lib/cart-store';
 import { formatXOF, formatDate } from '@/lib/format';
@@ -65,10 +65,30 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 export default function ProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-white/20 border-t-red-600 rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <ProfileContent />
+    </Suspense>
+  );
+}
+
+function ProfileContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { count } = useCart();
   const { authedFetch } = useAuthedFetch();
+
+  // Le middleware redirige ici quand le rôle ne donne pas accès à la page
+  // demandée. Sans ce message, la redirection serait muette et donnerait
+  // l'impression qu'un accès accordé n'a servi à rien.
+  const rolePending = searchParams.get('reason') === 'role_pending';
 
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'addresses'>('profile');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -213,6 +233,17 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-[#111111] pt-24 pb-16 px-4 sm:px-6">
       <div className="max-w-5xl mx-auto">
+        {rolePending && (
+          <div className="flex items-start gap-3 rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3 mb-8">
+            <Shield className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-300">
+              Cette page demande des droits que ta session ne porte pas encore. Si un
+              administrateur vient de te les accorder, utilise « Actualiser mon accès »
+              ci-dessous — sinon ils arriveront d&apos;eux-mêmes d&apos;ici quelques minutes.
+            </p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-10">
           {/* Avatar */}

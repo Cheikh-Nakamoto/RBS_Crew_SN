@@ -28,12 +28,50 @@ type PaymentsService struct {
 	// ordersSvc porte la libération transactionnelle du stock. Injecté après
 	// construction (WithOrdersService) pour ne pas casser les appelants existants.
 	ordersSvc *OrdersService
+	// cartSvc sert à vider le panier une fois le paiement confirmé. Même mode
+	// d'injection que ordersSvc, pour la même raison.
+	cartSvc *CartService
 }
 
 // WithOrdersService branche la compensation de stock sur les webhooks terminaux.
 func (s *PaymentsService) WithOrdersService(o *OrdersService) *PaymentsService {
 	s.ordersSvc = o
 	return s
+}
+
+// WithCartService branche le vidage du panier sur la confirmation de paiement.
+func (s *PaymentsService) WithCartService(c *CartService) *PaymentsService {
+	s.cartSvc = c
+	return s
+}
+
+// clearCartForOrder vide le panier du client une fois sa commande payée.
+//
+// C'est le serveur qui doit le faire, et à ce moment précis : le client peut
+// fermer son onglet pendant la redirection vers le prestataire de paiement et
+// ne jamais revenir sur la page de confirmation. Sans cela il retrouve, au
+// prochain passage, le panier qu'il vient de régler — et peut le repasser en
+// commande sans s'en apercevoir.
+//
+// Un échec n'invalide pas le paiement : on journalise et on continue.
+func (s *PaymentsService) clearCartForOrder(ctx context.Context, orderID string) {
+	if s.cartSvc == nil {
+		return
+	}
+	order, err := s.ordersRepo.GetByID(ctx, orderID)
+	if err != nil {
+		slog.Warn("cart: could not load order to clear cart", "orderId", orderID, "error", err)
+		return
+	}
+	// Commande passée en invité : aucun panier utilisateur à vider. Le panier
+	// anonyme, lui, expire seul (TTL Redis).
+	if order.UserId == nil || *order.UserId == "" {
+		return
+	}
+	owner := types.CartOwner{Kind: types.OwnerUser, ID: *order.UserId}
+	if appErr := s.cartSvc.Clear(ctx, owner); appErr != nil {
+		slog.Warn("cart: failed to clear after payment", "orderId", orderID, "userId", *order.UserId, "error", appErr.Message)
+	}
 }
 
 // releaseStock rend le stock d'une commande qui n'aboutira pas. La garde SQL
@@ -270,6 +308,8 @@ func (s *PaymentsService) HandleWebhook(ctx context.Context, method payment.Meth
 		if _, err := s.ordersRepo.UpdateOrderPaymentStatus(ctx, orderID, db.PaymentStatusPAID, &processing, nil); err != nil {
 			slog.Error("Failed to mark order as paid", "orderId", orderID, "error", err)
 			updateErr = err
+		} else {
+			s.clearCartForOrder(ctx, orderID)
 		}
 
 	case "FAILED":

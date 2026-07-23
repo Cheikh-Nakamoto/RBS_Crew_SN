@@ -19,6 +19,14 @@ RETURNING *;
 SELECT * FROM "UserSession"
 WHERE "userId" = $1 AND "expiresAt" > NOW();
 
+-- name: GetSessionByTokenHash :one
+-- Lookup direct de la session par empreinte du refresh token. Remplace un
+-- parcours de toutes les sessions actives avec une comparaison bcrypt sur
+-- chacune : le refresh token est un JWT à haute entropie, pas un mot de passe,
+-- un SHA-256 indexé suffit et rend le coût constant.
+SELECT * FROM "UserSession"
+WHERE "tokenHash" = $1 AND "expiresAt" > NOW();
+
 -- name: DeleteUserSessions :exec
 DELETE FROM "UserSession" WHERE "userId" = $1;
 

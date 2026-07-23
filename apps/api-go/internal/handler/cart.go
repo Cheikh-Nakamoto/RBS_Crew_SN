@@ -42,7 +42,9 @@ func (h *CartHandler) owner(w http.ResponseWriter, r *http.Request) (types.CartO
 			if _, appErr := h.svc.MergeGuestIntoUser(r.Context(), guestID, o.ID); appErr != nil {
 				slog.Warn("cart: guest merge failed", "error", appErr.Message, "userId", o.ID)
 			}
-			http.SetCookie(w, middleware.ClearGuestCartCookie(h.secureCookies))
+			for _, c := range middleware.ClearGuestCartCookies(h.secureCookies) {
+				http.SetCookie(w, c)
+			}
 		}
 	}
 	return o, true

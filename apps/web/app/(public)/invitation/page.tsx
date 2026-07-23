@@ -51,12 +51,19 @@ function InvitationForm() {
 
       // Le compte est activé : on ouvre la session next-auth avec le mot de
       // passe qui vient d'être défini, puis on emmène l'artiste chez lui.
+      // Le résultat DOIT être vérifié : sans cela, un échec de connexion
+      // afficherait un succès puis renverrait vers /login sans explication.
       const activated = (await res.json()) as { email: string };
-      await signIn('credentials', {
+      const signInResult = await signIn('credentials', {
         email: activated.email,
         password,
         redirect: false,
       });
+      if (signInResult?.error) {
+        throw new Error(
+          'Ton compte est bien activé, mais la connexion automatique a échoué. Connecte-toi avec ton e-mail et ton nouveau mot de passe.'
+        );
+      }
 
       setStatus('success');
       setTimeout(() => {

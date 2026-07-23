@@ -261,16 +261,15 @@ func (h *AuthHandler) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
 		types.WriteError(w, validationError())
 		return
 	}
-	tokens, email, appErr := h.svc.AcceptInvitation(r.Context(), body.Token, body.Password)
+	email, appErr := h.svc.AcceptInvitation(r.Context(), body.Token, body.Password)
 	if appErr != nil {
 		types.WriteError(w, appErr)
 		return
 	}
-	types.WriteJSON(w, http.StatusOK, map[string]string{
-		"accessToken":  tokens.AccessToken,
-		"refreshToken": tokens.RefreshToken,
-		"email":        email,
-	})
+	// Aucun token renvoyé : le client se connecte ensuite normalement avec le
+	// mot de passe qu'il vient de définir. Émettre une session ici en créerait
+	// une qui ne servirait jamais mais resterait valide plusieurs jours.
+	types.WriteJSON(w, http.StatusOK, map[string]string{"email": email})
 }
 
 // POST /auth/resend-verification — renvoie le lien au compte connecté.

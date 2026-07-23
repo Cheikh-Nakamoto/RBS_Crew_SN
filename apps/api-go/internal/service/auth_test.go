@@ -18,7 +18,9 @@ func newAuthService(t *testing.T) *AuthService {
 	pool := getTestPool(t)
 	truncateAll(t, pool)
 	repo := repository.NewAuthRepository(pool)
-	return NewAuthService(repo, mailStub(), "access-secret-for-tests", "refresh-secret-for-tests", "")
+	// La rotation du refresh token s'appuie sur Redis (fenêtre de grâce et
+	// détection de réutilisation) : un vrai conteneur est nécessaire.
+	return NewAuthService(repo, mailStub(), getTestRedis(t), "access-secret-for-tests", "refresh-secret-for-tests", "")
 }
 
 func mkRegisterReq(email string) model.RegisterRequest {
@@ -153,14 +155,143 @@ func TestAuthService_Refresh_RotatesToken_InvalidatesOldSession(t *testing.T) {
 		t.Fatalf("refresh token was NOT rotated")
 	}
 
-	// Old refresh token should now fail
+	// Passée la fenêtre de grâce, l'ancien token n'est plus rejouable.
+	expireGraceWindow(t, svc, reg.RefreshToken)
 	if _, appErr := svc.Refresh(ctx, reg.RefreshToken); appErr == nil {
-		t.Fatal("expected old refresh token to be rejected after rotation, got success")
+		t.Fatal("expected old refresh token to be rejected after the grace window, got success")
+	}
+}
+
+// expireGraceWindow simule l'écoulement de la fenêtre de grâce en supprimant
+// l'entrée de rejeu associée au token, sans attendre 30 s réelles.
+func expireGraceWindow(t *testing.T, svc *AuthService, refreshToken string) {
+	t.Helper()
+	claims := &types.JWTClaims{}
+	if _, _, err := jwt.NewParser().ParseUnverified(refreshToken, claims); err != nil {
+		t.Fatalf("parse refresh token: %v", err)
+	}
+	if err := svc.redis.Delete(context.Background(), rotatedKeyPrefix+claims.ID); err != nil {
+		t.Fatalf("clear rotation cache: %v", err)
+	}
+}
+
+func countSessions(t *testing.T, userID string) int {
+	t.Helper()
+	var n int
+	if err := getTestPool(t).QueryRow(context.Background(),
+		`SELECT COUNT(*) FROM "UserSession" WHERE "userId"=$1`, userID).Scan(&n); err != nil {
+		t.Fatalf("count sessions: %v", err)
+	}
+	return n
+}
+
+// Un seul rendu Next.js déclenche plusieurs appels concurrents avec le MÊME
+// refresh token. Ils doivent tous recevoir le même couple, et ne créer qu'une
+// session : sinon chaque affichage de page laisserait derrière lui autant de
+// refresh tokens valides que de requêtes parallèles.
+func TestAuthService_Refresh_WithinGraceWindow_ReplaysSamePair(t *testing.T) {
+	svc := newAuthService(t)
+	ctx := context.Background()
+
+	reg, appErr := svc.Register(ctx, mkRegisterReq("grace@rbs.sn"))
+	if appErr != nil {
+		t.Fatalf("register: %+v", appErr)
 	}
 
-	// New refresh token should work once
-	if _, appErr := svc.Refresh(ctx, newTokens.RefreshToken); appErr != nil {
-		t.Fatalf("second refresh: %+v", appErr)
+	first, appErr := svc.Refresh(ctx, reg.RefreshToken)
+	if appErr != nil {
+		t.Fatalf("first refresh: %+v", appErr)
+	}
+	second, appErr := svc.Refresh(ctx, reg.RefreshToken)
+	if appErr != nil {
+		t.Fatalf("replay within grace window was rejected: %+v", appErr)
+	}
+
+	if second.RefreshToken != first.RefreshToken || second.AccessToken != first.AccessToken {
+		t.Fatal("replay within the grace window returned a different token pair")
+	}
+	if n := countSessions(t, reg.User.ID); n != 1 {
+		t.Fatalf("expected exactly 1 session after a replayed rotation, got %d", n)
+	}
+}
+
+// Un token rejoué APRÈS la fenêtre de grâce signe un vol : la rotation seule ne
+// protège de rien si la réutilisation n'est pas détectée.
+func TestAuthService_Refresh_ReuseAfterGrace_RevokesEverySession(t *testing.T) {
+	svc := newAuthService(t)
+	ctx := context.Background()
+
+	reg, appErr := svc.Register(ctx, mkRegisterReq("reuse@rbs.sn"))
+	if appErr != nil {
+		t.Fatalf("register: %+v", appErr)
+	}
+
+	if _, appErr := svc.Refresh(ctx, reg.RefreshToken); appErr != nil {
+		t.Fatalf("first refresh: %+v", appErr)
+	}
+	expireGraceWindow(t, svc, reg.RefreshToken)
+
+	if _, appErr := svc.Refresh(ctx, reg.RefreshToken); appErr == nil || appErr.StatusCode != 401 {
+		t.Fatalf("want 401 on late reuse, got %+v", appErr)
+	}
+	if n := countSessions(t, reg.User.ID); n != 0 {
+		t.Fatalf("reuse detection must revoke the whole family, %d session(s) left", n)
+	}
+}
+
+// Le rôle voyage dans le token : le recopier de rotation en rotation ferait
+// survivre indéfiniment les droits d'un compte rétrogradé.
+func TestAuthService_Refresh_ReadsRoleFromDatabase(t *testing.T) {
+	svc := newAuthService(t)
+	ctx := context.Background()
+
+	reg, appErr := svc.Register(ctx, mkRegisterReq("promoted@rbs.sn"))
+	if appErr != nil {
+		t.Fatalf("register: %+v", appErr)
+	}
+
+	if _, err := getTestPool(t).Exec(ctx,
+		`UPDATE "User" SET role='ADMIN'::"UserRole" WHERE id=$1`, reg.User.ID); err != nil {
+		t.Fatalf("update role: %v", err)
+	}
+
+	tokens, appErr := svc.Refresh(ctx, reg.RefreshToken)
+	if appErr != nil {
+		t.Fatalf("refresh: %+v", appErr)
+	}
+
+	claims := &types.JWTClaims{}
+	if _, _, err := jwt.NewParser().ParseUnverified(tokens.AccessToken, claims); err != nil {
+		t.Fatalf("parse access token: %v", err)
+	}
+	if claims.Role != "ADMIN" {
+		t.Fatalf("role was copied from the old token instead of the database: got %q", claims.Role)
+	}
+}
+
+// Sans limite absolue, une session restée active se renouvelle éternellement.
+func TestAuthService_Refresh_BeyondAbsoluteLifetime_Rejected(t *testing.T) {
+	svc := newAuthService(t)
+	ctx := context.Background()
+
+	reg, appErr := svc.Register(ctx, mkRegisterReq("old@rbs.sn"))
+	if appErr != nil {
+		t.Fatalf("register: %+v", appErr)
+	}
+
+	// Session dont l'authentification initiale remonte au-delà de la limite.
+	stale, appErr := svc.issueTokens(ctx, reg.User.ID, "old@rbs.sn", "CUSTOMER",
+		time.Now().Add(-absoluteSession-time.Hour))
+	if appErr != nil {
+		t.Fatalf("issueTokens: %+v", appErr)
+	}
+
+	_, appErr = svc.Refresh(ctx, stale.RefreshToken)
+	if appErr == nil || appErr.StatusCode != 401 {
+		t.Fatalf("want 401 past the absolute lifetime, got %+v", appErr)
+	}
+	if appErr.Code != "session_max_age" {
+		t.Fatalf("want code session_max_age so the client can explain why, got %q", appErr.Code)
 	}
 }
 

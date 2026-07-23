@@ -212,6 +212,28 @@ func (q *Queries) GetActiveSessionsByUser(ctx context.Context, userid string) ([
 	return items, nil
 }
 
+const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
+SELECT id, "userId", "tokenHash", "expiresAt", "createdAt" FROM "UserSession"
+WHERE "tokenHash" = $1 AND "expiresAt" > NOW()
+`
+
+// Lookup direct de la session par empreinte du refresh token. Remplace un
+// parcours de toutes les sessions actives avec une comparaison bcrypt sur
+// chacune : le refresh token est un JWT à haute entropie, pas un mot de passe,
+// un SHA-256 indexé suffit et rend le coût constant.
+func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenhash string) (UserSession, error) {
+	row := q.db.QueryRow(ctx, getSessionByTokenHash, tokenhash)
+	var i UserSession
+	err := row.Scan(
+		&i.ID,
+		&i.UserId,
+		&i.TokenHash,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, email, "passwordHash", "firstName", "lastName", phone, role, "emailVerified", "preferredLocale", "wcId", "resetToken", "resetTokenExpiry", "emailVerificationToken", "emailVerificationTokenExpiry", "createdAt", "updatedAt", "artistClaimStatus", "artistClaimNote", "artistClaimAt" FROM "User" WHERE "email" = $1
 `

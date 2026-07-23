@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { formatXOF } from '@/lib/format';
 import { authedApi } from '@/lib/api';
+import { useCart } from '@/lib/cart-store';
 import {
   CheckCircle2,
   ShoppingBag,
@@ -16,14 +17,29 @@ import type { Order } from '@rbs/types';
 import { ErrorState } from '@/components/ui/error-state';
 
 export function SuccessContent({ orderId }: { orderId?: string | null }) {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
+  const { clearCart } = useCart();
+
+  // Dépendre du seul token, et non de l'objet session : ce dernier change
+  // d'identité à chaque re-render, ce qui rechargerait la commande en boucle.
+  const accessToken = session?.accessToken;
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Paiement abouti mais session perdue : cas distinct d'une erreur, il ne doit
+  // surtout pas s'afficher comme un échec de commande.
+  const [sessionLost, setSessionLost] = useState(false);
 
   // Chargement de la commande depuis l'API : les setState d'erreur immédiats
   // sont des cas de sortie, pas une synchronisation d'état dérivée.
+  //
+  // Le paiement passe par une redirection externe qui peut durer plusieurs
+  // minutes (saisie du code, confirmation opérateur) : l'access token a de
+  // bonnes chances d'avoir expiré au retour. On tente donc un rafraîchissement
+  // avant de conclure — et si l'on échoue, le message doit d'abord CONFIRMER le
+  // paiement. Personne ne doit croire que sa commande a échoué alors qu'elle est
+  // enregistrée.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (status === 'loading') return;
@@ -35,32 +51,79 @@ export function SuccessContent({ orderId }: { orderId?: string | null }) {
       return;
     }
 
-    const accessToken = (session as { accessToken?: string } | null)?.accessToken;
-    if (!accessToken) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setError('Vous devez être connecté pour voir votre commande.');
-      setLoading(false);
-      return;
-    }
+    let cancelled = false;
 
-    authedApi(accessToken)
-      .get(`orders/${orderId}`)
-      .json<Order>()
-      .then((data) => {
+    const load = async () => {
+      let token = accessToken;
+      if (!token) {
+        token = (await update())?.accessToken;
+      }
+      if (!token) {
+        if (!cancelled) {
+          setError(null);
+          setSessionLost(true);
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const data = await authedApi(token).get(`orders/${orderId}`).json<Order>();
+        if (cancelled) return;
         setOrder(data);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError('Impossible de charger les détails de la commande.');
-        setLoading(false);
-      });
-  }, [orderId, session, status]);
+        // Le panier serveur est vidé par le webhook de paiement ; cet appel
+        // rafraîchit l'affichage sans attendre la prochaine navigation.
+        clearCart();
+      } catch {
+        if (!cancelled) setError('Impossible de charger les détails de la commande.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId, accessToken, status, update, clearCart]);
 
   // Loading state
   if (loading || status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#111111]">
         <div className="w-8 h-8 border-2 border-white/20 border-t-red-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Paiement enregistré, mais la session a expiré pendant la redirection vers
+  // le prestataire. On confirme d'abord le paiement — l'utilisateur vient de
+  // payer, lui montrer un écran d'erreur serait alarmant et faux.
+  if (sessionLost) {
+    return (
+      <div className="min-h-screen bg-[#111111] pt-24 pb-16 px-4 sm:px-6">
+        <div className="max-w-2xl mx-auto text-center">
+          <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 className="w-10 h-10 text-green-400" />
+          </div>
+          <h1 className="font-display text-3xl sm:text-4xl text-white uppercase tracking-wider mb-4">
+            Paiement enregistré
+          </h1>
+          <p className="text-white/50 text-sm mb-2">
+            Votre commande est bien prise en compte et vous recevrez un e-mail de
+            confirmation sous peu.
+          </p>
+          <p className="text-white/40 text-sm mb-10">
+            Votre session a expiré pendant le paiement : reconnectez-vous pour consulter
+            le détail de la commande.
+          </p>
+          <Link
+            href={`/login?callbackUrl=${encodeURIComponent('/profile')}`}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm uppercase tracking-wider transition-colors"
+          >
+            Se reconnecter
+          </Link>
+        </div>
       </div>
     );
   }

@@ -17,6 +17,13 @@ const (
 	// court et sans information personnelle.
 	GuestCartCookie = "rbs_gid"
 
+	// GuestCartCookieSecure est le nom utilisé dès que le site est servi en
+	// HTTPS. Le préfixe `__Host-` interdit l'attribut Domain et impose Path=/ et
+	// Secure : un sous-domaine compromis ne peut plus poser ni écraser ce
+	// cookie. Les navigateurs rejettent un cookie `__Host-` non-Secure, d'où le
+	// nom nu conservé en développement.
+	GuestCartCookieSecure = "__Host-rbs_gid"
+
 	// guestCookieMaxAge est aligné sur le TTL Redis des paniers invités.
 	guestCookieMaxAge = 7 * 24 * 3600
 
@@ -55,10 +62,18 @@ func parseGuestCookie(key []byte, raw string) (string, bool) {
 	return id, true
 }
 
+// guestCookieName choisit le nom selon que l'on peut poser le flag Secure.
+func guestCookieName(secure bool) string {
+	if secure {
+		return GuestCartCookieSecure
+	}
+	return GuestCartCookie
+}
+
 // NewGuestCartCookie construit le cookie de session invité.
 func NewGuestCartCookie(value string, secure bool) *http.Cookie {
 	return &http.Cookie{
-		Name:     GuestCartCookie,
+		Name:     guestCookieName(secure),
 		Value:    value,
 		Path:     "/",
 		MaxAge:   guestCookieMaxAge,
@@ -72,7 +87,7 @@ func NewGuestCartCookie(value string, secure bool) *http.Cookie {
 // du panier invité dans celui d'un compte.
 func ClearGuestCartCookie(secure bool) *http.Cookie {
 	return &http.Cookie{
-		Name:     GuestCartCookie,
+		Name:     guestCookieName(secure),
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
@@ -80,6 +95,20 @@ func ClearGuestCartCookie(secure bool) *http.Cookie {
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 	}
+}
+
+// ClearGuestCartCookies efface le cookie invité sous ses deux noms possibles.
+// En HTTPS, un visiteur peut encore porter l'ancien nom non préfixé : ne pas
+// l'effacer laisserait un cookie orphelin qui redéclenche une tentative de
+// fusion à chaque requête.
+func ClearGuestCartCookies(secure bool) []*http.Cookie {
+	cookies := []*http.Cookie{ClearGuestCartCookie(secure)}
+	if secure {
+		legacy := *cookies[0]
+		legacy.Name = GuestCartCookie
+		cookies = append(cookies, &legacy)
+	}
+	return cookies
 }
 
 // CartSession résout le propriétaire du panier sans jamais rejeter la requête :
@@ -97,11 +126,19 @@ func CartSession(jwtSecret string, secure bool) func(http.Handler) http.Handler 
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
+			// Les deux noms sont acceptés en lecture : au passage du site en
+			// HTTPS, les visiteurs portent encore l'ancien cookie non préfixé et
+			// perdraient leur panier si on l'ignorait.
 			var guestID string
-			if c, err := r.Cookie(GuestCartCookie); err == nil {
+			for _, name := range []string{guestCookieName(secure), GuestCartCookie} {
+				c, err := r.Cookie(name)
+				if err != nil {
+					continue
+				}
 				if id, ok := parseGuestCookie(key, c.Value); ok {
 					guestID = id
 					ctx = context.WithValue(ctx, types.CtxGuestID, guestID)
+					break
 				}
 			}
 

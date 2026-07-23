@@ -20,6 +20,25 @@ const (
 	JWTAudience = "rbs-web"
 )
 
+// roleRank ordonne les rôles par étendue d'accès. Sert uniquement à décider si
+// un changement de rôle RETIRE des droits : une perte doit prendre effet
+// immédiatement (révocation des sessions), alors qu'un gain peut attendre la
+// prochaine rotation du token — obtenir un droit avec quelques minutes de
+// retard n'est pas une faille, le conserver après l'avoir perdu en est une.
+var roleRank = map[string]int{
+	"CUSTOMER": 0,
+	"ARTIST":   1,
+	"EDITOR":   2,
+	"ADMIN":    3,
+}
+
+// RoleLosesPrivileges indique si passer de `from` à `to` réduit les droits.
+// Un rôle inconnu est traité comme le moins privilégié, de sorte qu'un passage
+// vers un rôle non reconnu soit considéré comme une perte — le choix prudent.
+func RoleLosesPrivileges(from, to string) bool {
+	return roleRank[to] < roleRank[from]
+}
+
 // CartOwnerKind distingue un panier rattaché à un compte d'un panier anonyme.
 type CartOwnerKind string
 
@@ -48,5 +67,11 @@ func CartOwnerFrom(ctx context.Context) (CartOwner, bool) {
 type JWTClaims struct {
 	Email string `json:"email"`
 	Role  string `json:"role"`
+	// AuthTime est l'instant de la dernière authentification RÉELLE (login,
+	// OAuth, activation d'invitation). Contrairement à IssuedAt, il n'est pas
+	// remis à zéro par une rotation de refresh token : c'est lui qui permet
+	// d'imposer un délai d'expiration absolu, sans quoi une session resterait
+	// renouvelable indéfiniment. Exprimé en secondes Unix.
+	AuthTime int64 `json:"auth_time,omitempty"`
 	jwt.RegisteredClaims
 }

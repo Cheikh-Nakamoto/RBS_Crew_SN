@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getAdminApi } from './api';
@@ -18,13 +19,20 @@ import type {
 } from '@/types/admin';
 
 // ─── Helpers ─────────────────────────────────────────────────────
-async function getToken(): Promise<string> {
+/**
+ * Mémoïsé par `cache()` pour la durée d'un rendu : une page qui charge quatre
+ * ressources en parallèle (cf. le tableau de bord) appellerait sinon `auth()`
+ * quatre fois, donc quatre rotations concurrentes du refresh token pour un
+ * seul affichage.
+ */
+const getToken = cache(async (): Promise<string> => {
   const session = await auth();
-  // Pas de session OU refresh token expiré → redirect
+  // Pas de session OU session inutilisable → redirect
   if (!session?.accessToken) redirect('/login');
-  if (session.error === 'RefreshTokenError') redirect('/login?reason=session_expired');
+  if (session.error === 'SessionMaxAgeError') redirect('/login?reason=session_max_age');
+  if (session.error) redirect('/login?reason=session_expired');
   return session.accessToken;
-}
+});
 
 function buildQuery(params: Record<string, string | number | boolean | undefined>) {
   const q = new URLSearchParams();

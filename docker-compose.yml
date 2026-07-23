@@ -111,9 +111,16 @@ services:
       INTERNAL_API_URL: http://api-go:4000
       API_REWRITE_TARGET: http://api-go:4000
       NODE_ENV: ${NODE_ENV:-production}
-      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
+      # AUTH_URL détermine si le cookie de session porte le flag Secure et le
+      # préfixe __Host- : en http:// il en est dépourvu, y compris derrière un
+      # nginx en TLS. Doit donc être l'URL PUBLIQUE en https:// en production.
+      AUTH_URL: ${AUTH_URL:?AUTH_URL is required (https:// en production, sinon cookie de session sans flag Secure)}
       AUTH_TRUST_HOST: "true"
-      AUTH_SECRET: ${AUTH_SECRET:-super_secret_dev_key_only_123}
+      # Aucune valeur par défaut : un secret connu permettrait de forger un
+      # cookie de session avec le rôle ADMIN et de traverser tout le
+      # gardiennage frontend. La syntaxe `:?` fait échouer le démarrage plutôt
+      # que de lancer un service compromis.
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required (openssl rand -base64 64)}
       # Utilisées côté serveur par next-auth uniquement — pas de préfixe NEXT_PUBLIC_.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}

@@ -20,6 +20,8 @@ import {
   MapPin,
   Truck,
   UserCheck,
+  Home,
+  ArrowUpRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { NavGroup } from '@/types/admin';
@@ -150,6 +152,19 @@ export function AdminSidebar({ role, className }: AdminSidebarProps) {
           </div>
         ))}
       </nav>
+
+      {/* Retour au site public — hors <nav> : ce n'est pas une rubrique du
+          back-office mais une sortie vers le site visible par les visiteurs. */}
+      <div className="border-t border-white/10 p-3">
+        <Link
+          href="/"
+          className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/60 transition-all duration-150 hover:bg-white/5 hover:text-white"
+        >
+          <Home className="h-4 w-4 flex-shrink-0 text-white/40 group-hover:text-white/70" />
+          <span className="flex-1">Retour au site</span>
+          <ArrowUpRight className="h-3.5 w-3.5 text-white/25 group-hover:text-white/50" />
+        </Link>
+      </div>
     </aside>
   );
 }

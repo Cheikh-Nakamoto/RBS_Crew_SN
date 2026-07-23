@@ -56,7 +56,7 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 	r.Use(middleware.Recovery)
 	r.Use(middleware.SecurityHeaders)
 	r.Use(middleware.MaxBodySize)
-	r.Use(middleware.CORS(cfg.CORSOrigin))
+	r.Use(middleware.CORS(cfg.CORSOrigin, cfg.Environment == "development"))
 	r.Use(middleware.Locale)
 
 	// ── Public Routes ───────────────────────────────────────────────────────

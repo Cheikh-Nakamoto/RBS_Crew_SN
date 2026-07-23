@@ -83,7 +83,7 @@ func run() error {
 
 	// ── Services ─────────────────────────────────────────────────────────────
 	mailSvc := mail.NewMailService(cfg)
-	authSvc := service.NewAuthService(authRepo, mailSvc, cfg.JWTSecret, cfg.JWTRefreshSecret, cfg.GoogleClientID)
+	authSvc := service.NewAuthService(authRepo, mailSvc, redisClient, cfg.JWTSecret, cfg.JWTRefreshSecret, cfg.GoogleClientID)
 	categoriesSvc := service.NewCategoriesService(categoriesRepo)
 	tagsSvc := service.NewTagsService(tagsRepo)
 	productsSvc := service.NewProductsService(productsRepo, redisClient)
@@ -97,7 +97,7 @@ func run() error {
 	quotesSvc := service.NewQuotesService(quotesRepo)
 	shippingSvc := service.NewShippingService(shippingRepo)
 	ordersSvc := service.NewOrdersService(ordersRepo, productsRepo, shippingSvc)
-	usersSvc := service.NewUsersService(usersRepo)
+	usersSvc := service.NewUsersService(usersRepo, authRepo)
 	cartSvc := service.NewCartService(redisClient)
 
 	// ── Payment providers ────────────────────────────────────────────────────
@@ -133,7 +133,8 @@ func run() error {
 	}
 
 	paymentsSvc := service.NewPaymentsService(ordersRepo, redisClient, paymentProviders...).
-		WithOrdersService(ordersSvc)
+		WithOrdersService(ordersSvc).
+		WithCartService(cartSvc)
 	refundsSvc := service.NewRefundsService(refundsRepo, ordersRepo, redisClient, mailSvc, paymentProviders...)
 
 	// ── Handlers ────────────────────────────────────────────────────────────
