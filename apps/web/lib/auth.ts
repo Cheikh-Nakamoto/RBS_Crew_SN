@@ -71,6 +71,23 @@ async function fetchMe(accessToken: string): Promise<ApiMe | null> {
  */
 const inflightRefresh = new Map<string, Promise<JWT>>();
 
+/**
+ * Lit les claims du payload d'un access token émis par l'API Go, sans vérifier
+ * la signature : le token vient d'être reçu de l'API elle-même en HTTPS, on ne
+ * fait que relire ce qu'elle a signé. `atob` et non `Buffer` : ce code tourne
+ * aussi dans le middleware (runtime Edge).
+ */
+function decodeAccessTokenClaims(accessToken: string): { role?: string; sub?: string } | null {
+  try {
+    const payload = accessToken.split('.')[1];
+    if (!payload) return null;
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json) as { role?: string; sub?: string };
+  } catch {
+    return null;
+  }
+}
+
 async function requestRefresh(token: JWT): Promise<JWT> {
   try {
     const res = await fetch(`${API_URL}/auth/refresh`, {
@@ -90,11 +107,18 @@ async function requestRefresh(token: JWT): Promise<JWT> {
     }
 
     const data = (await res.json()) as ApiTokenPair;
+    // L'API relit le rôle en base à chaque rotation et l'embarque dans le
+    // nouveau token : sans cette relecture, une promotion accordée côté admin
+    // (rattachement artiste, passage EDITOR) resterait invisible dans la
+    // session jusqu'à une reconnexion — token.role serait recopié à l'infini.
+    const claims = decodeAccessTokenClaims(data.accessToken);
     return {
       ...token,
       accessToken: data.accessToken,
       refreshToken: data.refreshToken ?? token.refreshToken,
       accessTokenExpiry: Date.now() + ACCESS_TOKEN_TTL_MS,
+      role: claims?.role ?? token.role,
+      userId: claims?.sub ?? token.userId,
       error: undefined,
     };
   } catch {

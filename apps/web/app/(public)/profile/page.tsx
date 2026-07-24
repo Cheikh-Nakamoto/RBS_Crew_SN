@@ -27,6 +27,7 @@ import {
   Settings,
   Palette,
   Truck,
+  RefreshCw,
 } from 'lucide-react';
 
 interface OrderItem {
@@ -86,7 +87,7 @@ export default function ProfilePage() {
 }
 
 function ProfileContent() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { count } = useCart();
@@ -96,6 +97,35 @@ function ProfileContent() {
   // demandée. Sans ce message, la redirection serait muette et donnerait
   // l'impression qu'un accès accordé n'a servi à rien.
   const rolePending = searchParams.get('reason') === 'role_pending';
+  const [refreshingAccess, setRefreshingAccess] = useState(false);
+  const [refreshAccessError, setRefreshAccessError] = useState('');
+
+  /**
+   * Le rôle vit dans un JWT signé : `update()` force next-auth à relire le
+   * profil et à réémettre le token. On compare le rôle avant/après plutôt que
+   * de dupliquer ici les règles d'accès du middleware : si le rôle a changé,
+   * on retente la page refusée et c'est lui qui tranche.
+   */
+  async function refreshAccess() {
+    setRefreshingAccess(true);
+    setRefreshAccessError('');
+    try {
+      const previousRole = session?.user?.role;
+      const refreshed = await update();
+      const role = refreshed?.user?.role;
+      if (role && role !== previousRole) {
+        router.push(searchParams.get('from') || '/profile');
+        return;
+      }
+      setRefreshAccessError(
+        "Tes droits n'ont pas encore changé. Réessaie dans un instant."
+      );
+    } catch {
+      setRefreshAccessError('Vérification impossible pour le moment. Réessaie dans un instant.');
+    } finally {
+      setRefreshingAccess(false);
+    }
+  }
 
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'addresses'>('profile');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -302,11 +332,25 @@ function ProfileContent() {
         {rolePending && (
           <div className="flex items-start gap-3 rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3 mb-8">
             <Shield className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-amber-300">
-              Cette page demande des droits que ta session ne porte pas encore. Si un
-              administrateur vient de te les accorder, utilise « Actualiser mon accès »
-              ci-dessous — sinon ils arriveront d&apos;eux-mêmes d&apos;ici quelques minutes.
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-amber-300">
+                Cette page demande des droits que ta session ne porte pas encore. Si un
+                administrateur vient de te les accorder, actualise ton accès —
+                sinon ils arriveront d&apos;eux-mêmes d&apos;ici quelques minutes.
+              </p>
+              {refreshAccessError && (
+                <p className="text-xs text-amber-300/80">{refreshAccessError}</p>
+              )}
+              <button
+                type="button"
+                onClick={refreshAccess}
+                disabled={refreshingAccess}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/6 border border-white/10 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 min-h-[44px]"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshingAccess ? 'animate-spin' : ''}`} />
+                {refreshingAccess ? 'Vérification…' : 'Actualiser mon accès'}
+              </button>
+            </div>
           </div>
         )}
 

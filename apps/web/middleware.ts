@@ -37,7 +37,11 @@ export default auth((req) => {
    * muette laisserait croire que rien n'a été fait.
    */
   const toRolePending = () =>
-    NextResponse.redirect(new URL('/profile?reason=role_pending', nextUrl));
+    NextResponse.redirect(
+      // `from` permet au bouton « Actualiser mon accès » du profil de renvoyer
+      // vers la page refusée une fois la session resynchronisée.
+      new URL(`/profile?reason=role_pending&from=${callbackUrl}`, nextUrl)
+    );
 
   // ── Routes Admin ────────────────────────────────────────────────
   if (nextUrl.pathname.startsWith('/admin')) {

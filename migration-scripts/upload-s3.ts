@@ -148,17 +148,26 @@ async function processObjectImages(obj: any): Promise<void> {
     }
   }
 
-  // Handle single image objects with { path, cloudUrl }
+  // Handle single image objects with { path, cloudUrl, originalUrl }
   const objectFields = ['featuredImage', 'avatar'];
   for (const field of objectFields) {
-    if (obj[field] && obj[field].path && !obj[field].cloudUrl) {
-      console.log(`☁️  Upload local: ${obj[field].path}...`);
-      const cloudUrl = await uploadLocalFile(obj[field].path);
-      if (cloudUrl) {
-        obj[field].cloudUrl = cloudUrl;
-        console.log(`✅ ${cloudUrl}`);
-        await delay(100);
-      }
+    const img = obj[field];
+    if (!img || img.cloudUrl) continue;
+    let cloudUrl: string | null = null;
+    if (img.path) {
+      console.log(`☁️  Upload local: ${img.path}...`);
+      cloudUrl = await uploadLocalFile(img.path);
+    }
+    // Le fichier local a pu être purgé après l'extraction : on retombe sur
+    // l'URL source WordPress, toujours référencée dans le JSON.
+    if (!cloudUrl && img.originalUrl) {
+      console.log(`☁️  Upload distant (fallback): ${img.originalUrl}...`);
+      cloudUrl = await uploadRemoteUrl(img.originalUrl, obj.slug || '');
+    }
+    if (cloudUrl) {
+      img.cloudUrl = cloudUrl;
+      console.log(`✅ ${cloudUrl}`);
+      await delay(100);
     }
   }
 
