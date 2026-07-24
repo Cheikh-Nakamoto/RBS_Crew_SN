@@ -9,11 +9,18 @@
       "outputs": ["dist/**", ".next/**", "public/dist/**"],
       // Turborepo 2 filtre l'environnement des tâches (envMode strict par
       // défaut) : toute variable non déclarée ici est INVISIBLE pour
-      // `next build`. Or ces trois-là sont figées dans le bundle au build —
-      // sans cette liste, le rewrite /backend pointait sur localhost:4000 et
-      // les URLs de retour NabooPay sur localhost:3000, quelles que soient les
-      // valeurs passées à Docker au runtime.
-      "env": ["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_SITE_URL", "API_REWRITE_TARGET"]
+      // `next build`. Certaines sont figées dans le bundle au build (les
+      // NEXT_PUBLIC_*, le rewrite), d'autres sont lues pendant le prerender
+      // des pages serveur (INTERNAL_API_URL, pour l'URL ABSOLUE de l'API Go
+      // côté RSC). Sans INTERNAL_API_URL ici, le prerender retombait sur
+      // NEXT_PUBLIC_API_URL=/backend (chemin relatif) et ky crashait le build
+      // avec « Failed to parse URL from /backend/... ».
+      "env": [
+        "NEXT_PUBLIC_API_URL",
+        "NEXT_PUBLIC_SITE_URL",
+        "API_REWRITE_TARGET",
+        "INTERNAL_API_URL"
+      ]
     },
     "lint": {
       "dependsOn": ["^lint"]

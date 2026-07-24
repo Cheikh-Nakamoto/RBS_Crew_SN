@@ -266,6 +266,12 @@ export const authConfig: NextAuthConfig = {
     signIn: '/login',
   },
   session: { strategy: 'jwt', maxAge: SESSION_MAX_AGE },
+  // Auth.js v5 refuse par défaut toute requête dont l'hôte n'est pas vérifié et
+  // répond 400 sur /api/auth/session — sauf auto-détection Vercel. Derrière le
+  // reverse-proxy Nginx/Docker de prod, l'hôte arrive via X-Forwarded-Host et
+  // n'est pas « de confiance » sans ce flag. Sûr sur Vercel (no-op) comme en
+  // self-hosted. `AUTH_SECRET` reste requis pour signer/vérifier les JWT.
+  trustHost: true,
   useSecureCookies,
   cookies: {
     sessionToken: {
