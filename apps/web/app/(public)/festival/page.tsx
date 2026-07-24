@@ -7,6 +7,10 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { ErrorState } from '@/components/ui/error-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScrollReveal, StaggerReveal, StaggerItem } from '@/components/ui/scroll-reveal';
+import {
+  UpcomingFestivalHero,
+  type UpcomingFestival,
+} from '@/components/composite/upcoming-festival-hero';
 
 interface FestivalEditionItem {
   id: string;
@@ -24,23 +28,30 @@ interface FestivalEditionItem {
 
 export const metadata = { title: 'Festival — Last Wall Tour' };
 
-export const dynamic = 'force-dynamic';
-
 export default async function FestivalPage() {
-  // Pause artificielle pour montrer le loader
-  await new Promise(resolve => setTimeout(resolve, 800));
-
   let editions: FestivalEditionItem[] = [];
   let fetchError = false;
 
-  try {
-    const data = await api
+  const [listResult, upcomingResult] = await Promise.allSettled([
+    api
       .get('festival', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } })
-      .json<ApiResponse<FestivalEditionItem[]>>();
-    editions = data?.data ?? [];
-  } catch {
+      .json<ApiResponse<FestivalEditionItem[]>>(),
+    api
+      .get('festival/upcoming', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 300 } })
+      .json<{ data: UpcomingFestival | null }>(),
+  ]);
+
+  if (listResult.status === 'fulfilled') {
+    editions = listResult.value?.data ?? [];
+  } else {
     fetchError = true;
   }
+
+  const upcoming =
+    upcomingResult.status === 'fulfilled' ? (upcomingResult.value?.data ?? null) : null;
+
+  // L'édition à venir a déjà son en-tête dédié : on l'exclut de la rétrospective.
+  const pastEditions = upcoming ? editions.filter((e) => e.slug !== upcoming.slug) : editions;
 
   return (
     <div id="main-content" className="max-w-6xl mx-auto px-4 sm:px-6 pt-24 sm:pt-32 pb-16">
@@ -53,10 +64,18 @@ export default async function FestivalPage() {
         />
       </ScrollReveal>
 
-      {fetchError && <ErrorState />}
-      {!fetchError && editions.length === 0 && <EmptyState title="Aucune édition disponible" />}
+      {upcoming && (
+        <ScrollReveal>
+          <UpcomingFestivalHero edition={upcoming} variant="festival" className="mb-16" />
+        </ScrollReveal>
+      )}
 
-      {!fetchError && editions.length > 0 && (
+      {fetchError && <ErrorState />}
+      {!fetchError && pastEditions.length === 0 && !upcoming && (
+        <EmptyState title="Aucune édition disponible" />
+      )}
+
+      {!fetchError && pastEditions.length > 0 && (
         <div className="relative">
           {/* Vertical timeline line — brand gradient */}
           <div
@@ -69,7 +88,7 @@ export default async function FestivalPage() {
           />
 
           <StaggerReveal className="space-y-10">
-            {editions.map((edition) => {
+            {pastEditions.map((edition) => {
               const t =
                 edition.translations.find((x) => x.locale === 'fr') ?? edition.translations[0];
               const galleryThumbs = (edition.gallery ?? []).slice(0, 4);

@@ -168,15 +168,18 @@ function ProfileContent() {
     setLoading(false);
   }, [authedFetch]);
 
-  // Statut de la demande « je suis un artiste RBS », renvoyé par /users/me.
+  // `/users/me` porte à la fois le statut de la demande « je suis un artiste
+  // RBS » et l'état de vérification de l'e-mail : un seul appel pour les deux.
   const [artistClaimStatus, setArtistClaimStatus] = useState<string | undefined>();
+  const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
 
-  const fetchArtistClaim = useCallback(async () => {
+  const fetchMe = useCallback(async () => {
     try {
       const res = await authedFetch('/users/me');
       if (!res.ok) return;
-      const me = (await res.json()) as { artistClaimStatus?: string };
+      const me = (await res.json()) as { artistClaimStatus?: string; emailVerified?: boolean };
       setArtistClaimStatus(me.artistClaimStatus);
+      setEmailVerified(me.emailVerified ?? false);
     } catch {
       // non bloquant : la carte s'affiche avec son état par défaut
     }
@@ -184,8 +187,8 @@ function ProfileContent() {
 
   useEffect(() => {
     if (!session) return;
-    void fetchArtistClaim();
-  }, [session, fetchArtistClaim]);
+    void fetchMe();
+  }, [session, fetchMe]);
 
   const [lastTab, setLastTab] = useState(activeTab);
   if (lastTab !== activeTab) {
@@ -392,7 +395,7 @@ function ProfileContent() {
           {/* ── Profile Tab ── */}
           {activeTab === 'profile' && (
             <div className="max-w-lg space-y-6">
-              <EmailVerificationNotice />
+              <EmailVerificationNotice verified={emailVerified} />
 
               <div className="flex items-center justify-between">
                 <h2 className="text-xs font-bold uppercase tracking-widest text-white/40">

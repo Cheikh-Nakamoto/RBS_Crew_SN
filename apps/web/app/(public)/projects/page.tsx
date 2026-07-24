@@ -19,11 +19,8 @@ interface ProjectItem {
 
 export const metadata = { title: 'Projets' };
 
-export const dynamic = 'force-dynamic';
 
 export default async function ProjectsPage() {
-  // Pause artificielle pour montrer le loader
-  await new Promise(resolve => setTimeout(resolve, 800));
 
   let projects: ProjectItem[] = [];
   let fetchError = false;

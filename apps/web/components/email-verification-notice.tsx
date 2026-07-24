@@ -12,17 +12,25 @@ import { useAuthedFetch } from '@/lib/use-authed-fetch';
  * le moyen de se débloquer.
  *
  * Rend `null` tant que l'état n'est pas connu ou si l'adresse est vérifiée.
+ *
+ * `verified` permet à un parent qui lit déjà `/users/me` de fournir l'état et
+ * d'éviter un second appel ; sans lui, le composant le récupère lui-même.
  */
 export function EmailVerificationNotice({
   onStatusChange,
+  verified: verifiedProp,
 }: {
   onStatusChange?: (verified: boolean) => void;
+  verified?: boolean | null;
 }) {
   const { authedFetch } = useAuthedFetch();
-  const [verified, setVerified] = useState<boolean | null>(null);
+  const [fetchedVerified, setFetchedVerified] = useState<boolean | null>(null);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+
+  const controlled = verifiedProp !== undefined;
+  const verified = controlled ? verifiedProp : fetchedVerified;
 
   const load = useCallback(async () => {
     try {
@@ -30,7 +38,7 @@ export function EmailVerificationNotice({
       if (!res.ok) return;
       const me = (await res.json()) as { emailVerified?: boolean };
       const v = me.emailVerified ?? false;
-      setVerified(v);
+      setFetchedVerified(v);
       onStatusChange?.(v);
     } catch {
       // Indéterminé : on n'affiche rien, le serveur reste l'autorité.
@@ -38,8 +46,9 @@ export function EmailVerificationNotice({
   }, [authedFetch, onStatusChange]);
 
   useEffect(() => {
+    if (controlled) return;
     void load();
-  }, [load]);
+  }, [controlled, load]);
 
   async function resend() {
     setSending(true);

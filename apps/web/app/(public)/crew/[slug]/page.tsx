@@ -32,13 +32,10 @@ interface ArtistDetail {
   artworks?: Array<{ position: number; imageUrl: string }>;
 }
 
-export const dynamic = 'force-dynamic';
 
 export default async function ArtistPage({ params }: Props) {
   const { slug } = await params;
 
-  // Pause artificielle pour garantir l'affichage du magnifique loader "Sharingon"
-  await new Promise(resolve => setTimeout(resolve, 800));
 
   let artist: ArtistDetail;
   try {

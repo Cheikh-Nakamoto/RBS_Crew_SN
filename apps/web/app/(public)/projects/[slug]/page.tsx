@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { api } from '@/lib/api';
 import { ErrorState } from '@/components/ui/error-state';
 import { FestivalGallery } from '@/components/composite/festival-gallery';
@@ -26,12 +27,17 @@ interface ProjectDetail {
   }>;
 }
 
+// Mémoïsé : generateMetadata et la page demandent le même projet sur un seul rendu.
+const getProject = cache(async (slug: string): Promise<ProjectDetail> =>
+  api
+    .get(`projects/${slug}`, { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } })
+    .json<ProjectDetail>()
+);
+
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
   try {
-    const project = await api
-      .get(`projects/${slug}`, { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } })
-      .json<ProjectDetail>();
+    const project = await getProject(slug);
     const t = project.translations.find((x) => x.locale === 'fr') ?? project.translations[0];
     return { title: `${t?.title ?? slug} — Projets` };
   } catch {
@@ -39,27 +45,19 @@ export async function generateMetadata({ params }: Props) {
   }
 }
 
-export const dynamic = 'force-dynamic';
 
 export default async function ProjectDetailPage({ params }: Props) {
   const { slug } = await params;
 
-  // Pause artificielle pour garantir l'affichage esthétique du loader
-  await new Promise(resolve => setTimeout(resolve, 800));
-
   let project: ProjectDetail | null = null;
-  let fetchError = false;
 
   try {
-    project = await api
-      .get(`projects/${slug}`, { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } })
-      .json<ProjectDetail>();
+    project = await getProject(slug);
   } catch (err) {
     console.error('Fetch error:', err);
-    fetchError = true;
   }
 
-  if (fetchError || !project) {
+  if (!project) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-32 pb-16">
         <Link

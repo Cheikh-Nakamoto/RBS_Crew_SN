@@ -24,14 +24,29 @@ export type ProductStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
 // ── API Response wrapper ─────────────────────
 
+/**
+ * Miroir de `types.PaginatedMeta` côté Go — tout endpoint de liste le renvoie.
+ */
+export interface PaginatedMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+/** Enveloppe des endpoints de liste : `meta` est toujours présent. */
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: PaginatedMeta;
+}
+
+/**
+ * Enveloppe générique. Pour une liste, préférer `PaginatedResponse<T>` qui
+ * garantit la présence de `meta`.
+ */
 export interface ApiResponse<T> {
   data: T;
-  meta?: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+  meta?: PaginatedMeta;
 }
 
 export interface ApiError {

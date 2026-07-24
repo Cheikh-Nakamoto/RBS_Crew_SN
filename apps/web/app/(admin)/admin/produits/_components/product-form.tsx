@@ -26,7 +26,8 @@ import { EntityCombobox } from '@/components/admin/forms/entity-combobox';
 import { productSchema, type ProductFormValues } from '@/lib/admin/schemas';
 import { createProduct, updateProduct } from '../actions';
 
-import type { AdminProduct, AdminCategory, AdminTag } from '@/types/admin';
+import type { AdminProduct } from '@/types/admin';
+import type { AdminOption } from '@/lib/admin/queries';
 
 const DEFAULT_TRANSLATIONS = LOCALES.map(({ code }) => ({
   locale: code,
@@ -42,13 +43,10 @@ const DEFAULT_TRANSLATIONS = LOCALES.map(({ code }) => ({
 interface ProductFormProps {
   mode: 'create' | 'edit';
   initialData?: AdminProduct;
-  categories: AdminCategory[];
-  tags: AdminTag[];
-}
-
-function getTranslationName(entity: AdminCategory | AdminTag): string {
-  const fr = entity.translations.find((t) => t.locale === 'fr');
-  return fr?.title ?? entity.translations[0]?.title ?? entity.id;
+  /** Options `{id, name}` servies par `/admin/categories/options`. */
+  categories: AdminOption[];
+  /** Options `{id, name}` servies par `/admin/tags/options`. */
+  tags: AdminOption[];
 }
 
 export function ProductForm({ mode, initialData, categories, tags }: ProductFormProps) {
@@ -120,8 +118,8 @@ export function ProductForm({ mode, initialData, categories, tags }: ProductForm
     });
   };
 
-  const categoryOptions = categories.map((c) => ({ id: c.id, name: getTranslationName(c) }));
-  const tagOptions = tags.map((t) => ({ id: t.id, name: getTranslationName(t) }));
+  const categoryOptions = categories;
+  const tagOptions = tags;
 
   return (
     <Form {...form}>

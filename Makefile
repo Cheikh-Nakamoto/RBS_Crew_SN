@@ -2,6 +2,8 @@
         build build-api build-web lint test clean health help \
         db-sqlc db-docs \
         db-reset db-push db-patch seed-admin \
+        railway-db-url railway-db-init railway-db-patch railway-psql \
+        railway-migrate-import railway-seed-admin \
         migrate-extract migrate-upload migrate-import migrate-full
 
 # ── Node Env ─────────────────────────────────
@@ -159,6 +161,65 @@ db-patch: ## Appliquer les patchs idempotents (sql/patches/) sur une base exista
 seed-admin: ## Créer ou mettre à jour le compte administrateur (ADMIN_PASSWORD requis)
 	docker compose up -d --wait postgres
 	cd apps/api-go && go run ./cmd/seed-admin
+
+# ── Base Railway ─────────────────────────────
+# La base managée Railway ne joue AUCUN script d'init : contrairement au
+# conteneur local où initdb applique 01-extensions.sql puis schema.sql, elle
+# arrive vide. Ces cibles rejouent ces mêmes fichiers à distance.
+#
+# Prérequis : railway CLI + jq + psql, et un projet lié (`railway link`).
+RAILWAY            ?= railway
+RAILWAY_DB_SERVICE ?= Postgres
+
+# DATABASE_PUBLIC_URL, jamais DATABASE_URL : cette dernière pointe vers
+# postgres.railway.internal, résolvable uniquement depuis un conteneur Railway.
+# L'URL est lue à chaque appel plutôt que recopiée dans .env — Railway la
+# régénère à chaque reprovisionnement de la base.
+# La commande est une variable et non une cible : passer par `$(MAKE) -s` la
+# ferait renvoyer le texte de la recette (et non l'URL) sous `make -n`.
+RAILWAY_DB_URL = $(RAILWAY) variable list --service "$(RAILWAY_DB_SERVICE)" --json \
+	| jq -re 'if type == "array" then (map(select(.name == "DATABASE_PUBLIC_URL")) | first | .value) else .DATABASE_PUBLIC_URL end'
+
+define railway_db_url
+url="$$($(RAILWAY_DB_URL))" || { \
+	echo "URL introuvable. Vérifiez : railway whoami, railway link, RAILWAY_DB_SERVICE=$(RAILWAY_DB_SERVICE)" >&2; \
+	exit 1; \
+}
+endef
+
+railway-db-url: ## Afficher l'URL publique de la base Railway (contient le mot de passe)
+	@$(RAILWAY_DB_URL)
+
+railway-db-init: ## Extensions + schema.sql sur la base Railway (base VIDE uniquement)
+	@set -eu; \
+	$(railway_db_url); \
+	echo "==> Extensions sur le service $(RAILWAY_DB_SERVICE)"; \
+	psql "$$url" -v ON_ERROR_STOP=1 -f infra/postgres/init/01-extensions.sql; \
+	DATABASE_URL="$$url" $(MAKE) db-push
+
+railway-db-patch: ## Appliquer les patchs idempotents sur la base Railway
+	@set -eu; \
+	$(railway_db_url); \
+	DATABASE_URL="$$url" $(MAKE) db-patch
+
+railway-psql: ## Ouvrir un shell psql sur la base Railway
+	$(RAILWAY) connect $(RAILWAY_DB_SERVICE)
+
+# Les JSON de data/raw/ ne sont importables qu'une fois passés par
+# `make migrate-upload` : import-db.ts n'écrit que les images ayant un
+# `cloudUrl` (URL R2), les autres sont silencieusement ignorées.
+railway-migrate-import: ## Importer data/raw/*.json dans la base Railway
+	@set -eu; \
+	$(railway_db_url); \
+	DATABASE_URL="$$url" $(MAKE) migrate-import
+
+# Ne démarre PAS le conteneur postgres local, contrairement à `make seed-admin`.
+# godotenv (chargé par le binaire) n'écrase jamais une variable déjà exportée :
+# DATABASE_URL ci-dessous l'emporte donc sur celle du .env.
+railway-seed-admin: ## Créer/màj le compte admin sur la base Railway (ADMIN_PASSWORD requis)
+	@set -eu; \
+	$(railway_db_url); \
+	cd apps/api-go && DATABASE_URL="$$url" go run ./cmd/seed-admin
 
 # ── Migration from WordPress ─────────────────
 

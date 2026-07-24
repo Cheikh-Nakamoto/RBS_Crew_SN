@@ -19,7 +19,6 @@ interface PressItem {
 
 export const metadata = { title: 'Presse' };
 
-export const dynamic = 'force-dynamic';
 
 export default async function PressPage() {
   let mentions: PressItem[] = [];

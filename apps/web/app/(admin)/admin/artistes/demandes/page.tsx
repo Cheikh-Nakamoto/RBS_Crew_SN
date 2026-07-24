@@ -1,20 +1,20 @@
-import { fetchArtistClaims, fetchAdminArtists } from '@/lib/admin/queries';
+import { fetchArtistClaims, fetchArtistOptions } from '@/lib/admin/queries';
 import { ClaimsList } from './_components/claims-list';
 
 export const metadata = { title: 'Demandes artiste' };
 
 export default async function ArtistClaimsPage() {
-  // Les fiches servent au rattachement : on les charge toutes pour peupler le
-  // sélecteur, en signalant celles déjà prises par un autre compte.
-  const [claims, artists] = await Promise.all([
+  // Les fiches servent au rattachement : le endpoint d'options renvoie
+  // directement {id, name, taken}, sans rapatrier les entités complètes.
+  const [claims, artistOptions] = await Promise.all([
     fetchArtistClaims('PENDING'),
-    fetchAdminArtists({ limit: 200 }),
+    fetchArtistOptions(),
   ]);
 
-  const options = artists.data.map((a) => ({
+  const options = artistOptions.map((a) => ({
     id: a.id,
-    label: a.translations?.find((t) => t.locale === 'fr')?.title ?? a.slug,
-    taken: Boolean(a.accountEmail),
+    label: a.name,
+    taken: Boolean(a.taken),
   }));
 
   return (

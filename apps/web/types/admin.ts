@@ -5,17 +5,10 @@ export type OrderStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED' |
 export type PaymentStatus = 'UNPAID' | 'PAID' | 'PARTIALLY_REFUNDED' | 'REFUNDED';
 export type PaymentMethod = 'STRIPE' | 'PAYPAL' | 'WAVE' | 'ORANGE_MONEY';
 
-export interface PaginatedMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  meta: PaginatedMeta;
-}
+// L'enveloppe de pagination est définie une seule fois, dans @rbs/types, en
+// miroir de `types.PaginatedMeta` côté Go. Ré-exportée ici pour les imports
+// existants du back-office.
+export type { PaginatedMeta, PaginatedResponse } from '@rbs/types';
 
 // ─── Translation ─────────────────────────────────────────────────
 export interface AdminTranslation {

@@ -24,7 +24,8 @@ export default async function ShopPage({ searchParams }: Props) {
 
   const query = new URLSearchParams({ page, limit: '20' });
   if (search) query.set('search', search);
-  if (category) query.set('categorySlug', category);
+  // Le handler Go lit `category` (pas `categorySlug`).
+  if (category) query.set('category', category);
 
   let data: ApiResponse<Product[]> | null = null;
   let fetchError = false;
@@ -33,7 +34,7 @@ export default async function ShopPage({ searchParams }: Props) {
     data = await api
       .get(`products?${query}`, {
         headers: { 'Accept-Language': 'fr' },
-        cache: 'no-store',
+        next: { revalidate: 60 },
       })
       .json<ApiResponse<Product[]>>();
   } catch {

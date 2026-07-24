@@ -90,6 +90,33 @@ func (r *FestivalRepository) GetLatest(ctx context.Context) (*db.FestivalEdition
 	return &f, nil
 }
 
+// GetUpcoming returns the next published edition whose startDate is in the future.
+func (r *FestivalRepository) GetUpcoming(ctx context.Context) (*db.FestivalEdition, error) {
+	row := r.pool.QueryRow(ctx,
+		`SELECT id, slug, "editionNumber", year, city, country, status, "wpId",
+		        "mainImage", "heroImage", gallery, typography,
+		        "startDate", "endDate", venue, "venueAddress", "ticketUrl", "videoUrl",
+		        "createdAt", "updatedAt"
+		 FROM "FestivalEdition"
+		 WHERE status = 'PUBLISHED'::"ProductStatus"
+		   AND "startDate" >= now()
+		 ORDER BY "startDate" ASC
+		 LIMIT 1`)
+	var f db.FestivalEdition
+	err := row.Scan(
+		&f.ID, &f.Slug, &f.EditionNumber, &f.Year,
+		&f.City, &f.Country, &f.Status, &f.WpId,
+		&f.MainImage, &f.HeroImage, &f.Gallery, &f.Typography,
+		&f.StartDate, &f.EndDate,
+		&f.Venue, &f.VenueAddress, &f.TicketUrl, &f.VideoUrl,
+		&f.CreatedAt, &f.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &f, nil
+}
+
 func (r *FestivalRepository) GetByID(ctx context.Context, id string) (*db.FestivalEdition, error) {
 	f, err := r.q.GetFestivalByID(ctx, id)
 	if err != nil {

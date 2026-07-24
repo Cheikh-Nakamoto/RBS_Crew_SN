@@ -76,6 +76,22 @@ func (s *FestivalService) GetBySlug(ctx context.Context, slug string) (*model.Fe
 	return &res, nil
 }
 
+// Upcoming returns the next published edition whose startDate is in the future,
+// or nil (without error) when no edition is scheduled.
+func (s *FestivalService) Upcoming(ctx context.Context) (*model.FestivalResponse, *types.AppError) {
+	f, err := s.repo.GetUpcoming(ctx)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, types.InternalError("Database error")
+	}
+	translations, _ := s.repo.GetTranslations(ctx, f.ID)
+	artists, _ := s.repo.ListArtists(ctx, f.ID)
+	res := toFestivalResponse(f, translations, artists)
+	return &res, nil
+}
+
 // LatestGalleryResponse holds the 6 gallery images + key metadata of the latest edition.
 type LatestGalleryResponse struct {
 	EditionNumber int32    `json:"editionNumber"`

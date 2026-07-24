@@ -38,6 +38,8 @@ type Handlers struct {
 	AdminFestival     *handler.AdminFestivalHandler
 	AdminPress        *handler.AdminPressHandler
 	ActivityLogs      *handler.ActivityLogsHandler
+	AdminStats        *handler.AdminStatsHandler
+	AdminOptions      *handler.AdminOptionsHandler
 	Media             *handler.MediaHandler
 	Cart              *handler.CartHandler
 	Refunds           *handler.RefundsHandler
@@ -105,6 +107,7 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 		// Festival Editions
 		r.Get("/festival", h.Festival.List)
 		r.Get("/festival/latest/gallery", h.Festival.GetLatestGallery)
+		r.Get("/festival/upcoming", h.Festival.GetUpcoming)
 		r.Get("/festival/{slug}", h.Festival.GetBySlug)
 
 		// Press
@@ -172,6 +175,7 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 		r.With(middleware.RequireVerifiedEmail(authRepo)).Post("/orders", h.Orders.Create)
 		r.Get("/orders/my", h.Orders.FindMy)
 		r.Get("/orders/{id}", h.Orders.FindOne)
+		r.Get("/orders/{id}/status", h.Orders.FindStatus)
 
 		// Payments
 		r.Post("/payments/create-checkout", h.Payments.CreateCheckout)
@@ -227,6 +231,14 @@ func NewRouter(cfg *config.Config, h *Handlers, activityRepo *repository.Activit
 		r.Use(middleware.RequireAuth(cfg.JWTSecret))
 		r.Use(middleware.RequireRoles("ADMIN", "EDITOR"))
 		r.Use(middleware.ActivityLogger(activityRepo))
+
+		// Dashboard
+		r.Get("/admin/stats", h.AdminStats.Dashboard)
+
+		// Listes d'options {id, name} pour les <Select> des formulaires
+		r.Get("/admin/categories/options", h.AdminOptions.Categories)
+		r.Get("/admin/tags/options", h.AdminOptions.Tags)
+		r.Get("/admin/artists/options", h.AdminOptions.Artists)
 
 		// Orders admin
 		r.Get("/admin/orders", h.Orders.FindAll)

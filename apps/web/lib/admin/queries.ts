@@ -42,6 +42,44 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
   return q.toString();
 }
 
+// ─── Options de formulaire ───────────────────────────────────────
+/**
+ * Listes `{id, name}` destinées aux <Select> : les endpoints de liste complets
+ * rapatriaient des entités entières (traductions incluses) pour n'en garder que
+ * l'identifiant et le libellé.
+ */
+export interface AdminOption {
+  id: string;
+  name: string;
+  /** Fiche artiste déjà rattachée à un compte (artistes uniquement). */
+  taken?: boolean;
+}
+
+async function fetchOptions(resource: string): Promise<AdminOption[]> {
+  const token = await getToken();
+  const res = await getAdminApi(token)
+    .get(`${resource}/options`)
+    .json<{ data: AdminOption[] }>();
+  return res.data ?? [];
+}
+
+export const fetchCategoryOptions = () => fetchOptions('categories');
+export const fetchTagOptions = () => fetchOptions('tags');
+export const fetchArtistOptions = () => fetchOptions('artists');
+
+// ─── Dashboard ───────────────────────────────────────────────────
+export interface AdminDashboardStats {
+  pendingOrders: number;
+  users: number;
+  publishedProducts: number;
+  quotes: number;
+}
+
+export async function fetchAdminStats(): Promise<AdminDashboardStats> {
+  const token = await getToken();
+  return getAdminApi(token).get('stats').json();
+}
+
 // ─── Products ────────────────────────────────────────────────────
 export async function fetchAdminProducts(params: {
   page?: number;

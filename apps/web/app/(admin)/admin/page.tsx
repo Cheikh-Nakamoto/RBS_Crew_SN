@@ -4,28 +4,23 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DashboardChart } from '@/components/admin/dashboard-chart';
 import { DashboardStats } from '@/components/admin/dashboard-stats';
-import {
-  fetchAdminOrders,
-  fetchAdminUsers,
-  fetchAdminProducts,
-  fetchAdminQuotes,
-} from '@/lib/admin/queries';
+import { fetchAdminOrders, fetchAdminQuotes, fetchAdminStats } from '@/lib/admin/queries';
 
 export const metadata = { title: 'Tableau de bord' };
 
 export default async function AdminDashboardPage() {
-  const [ordersData, usersData, productsData, quotesData] = await Promise.all([
+  // Les compteurs viennent de /admin/stats (une seule requête SQL) ; les deux
+  // listes ne servent qu'à afficher les 5 entrées récentes.
+  const [stats, ordersData, quotesData] = await Promise.all([
+    fetchAdminStats().catch(() => ({
+      pendingOrders: 0,
+      users: 0,
+      publishedProducts: 0,
+      quotes: 0,
+    })),
     fetchAdminOrders({ page: 1, limit: 5, status: 'PENDING' }).catch(() => ({
       data: [],
       meta: { total: 0, page: 1, limit: 5, totalPages: 0 },
-    })),
-    fetchAdminUsers({ page: 1, limit: 1 }).catch(() => ({
-      data: [],
-      meta: { total: 0, page: 1, limit: 1, totalPages: 0 },
-    })),
-    fetchAdminProducts({ page: 1, limit: 1, status: 'PUBLISHED' }).catch(() => ({
-      data: [],
-      meta: { total: 0, page: 1, limit: 1, totalPages: 0 },
     })),
     fetchAdminQuotes({ page: 1, limit: 5 }).catch(() => ({
       data: [],
@@ -35,10 +30,10 @@ export default async function AdminDashboardPage() {
 
   // Build status breakdown for orders chart
   const orderStatusChart = [
-    { label: 'En attente', value: ordersData.meta.total },
-    { label: 'Produits', value: productsData.meta.total },
-    { label: 'Utilisateurs', value: usersData.meta.total },
-    { label: 'Devis', value: quotesData.meta.total },
+    { label: 'En attente', value: stats.pendingOrders },
+    { label: 'Produits', value: stats.publishedProducts },
+    { label: 'Utilisateurs', value: stats.users },
+    { label: 'Devis', value: stats.quotes },
   ];
 
   return (
@@ -56,10 +51,10 @@ export default async function AdminDashboardPage() {
 
       {/* ── KPI Cards ─────────────────────────────────────────── */}
       <DashboardStats
-        ordersTotal={ordersData.meta.total}
-        usersTotal={usersData.meta.total}
-        productsTotal={productsData.meta.total}
-        quotesTotal={quotesData.meta.total}
+        ordersTotal={stats.pendingOrders}
+        usersTotal={stats.users}
+        productsTotal={stats.publishedProducts}
+        quotesTotal={stats.quotes}
       />
 
       {/* ── Chart + Recent ─────────────────────────────────────── */}

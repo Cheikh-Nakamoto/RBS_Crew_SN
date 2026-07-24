@@ -74,6 +74,9 @@ export function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const isArtist = (session?.user as { role?: string } | undefined)?.role === 'ARTIST';
+  // La session n'est utile que dans le shop : hors /shop, on ne propose pas
+  // Connexion/Inscription aux visiteurs (le menu connecté reste visible partout).
+  const isShop = pathname.startsWith('/shop');
   const { count, setIsOpen: openCart } = useCart();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -256,7 +259,7 @@ export function Navbar() {
                     Déconnexion
                   </button>
                 </>
-              ) : (
+              ) : isShop ? (
                 <>
                   <Link
                     href="/login"
@@ -271,7 +274,7 @@ export function Navbar() {
                     Inscription
                   </Link>
                 </>
-              )}
+              ) : null}
 
               {/* Hamburger */}
               <button
@@ -396,6 +399,7 @@ export function Navbar() {
                 );
               })}
 
+              {(session || isShop) && (
               <div className="border-t border-white/8 mt-2 pt-2">
                 {session ? (
                   <>
@@ -462,6 +466,7 @@ export function Navbar() {
                   </>
                 )}
               </div>
+              )}
             </div>
           </motion.nav>
         )}

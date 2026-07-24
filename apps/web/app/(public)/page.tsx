@@ -1,11 +1,8 @@
 import Link from 'next/link';
-import Image from 'next/image';
-import { ArrowRight, MapPin } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { ApiResponse } from '@rbs/types';
-import { formatXOF } from '@/lib/format';
 import { HeroBackground } from '@/components/hero-background';
-import { ScrollReveal } from '@/components/ui/scroll-reveal';
 import { Button } from '@/components/ui/button';
 import { AnimatedTitle } from '@/components/ui/animated-title';
 import { InteractiveTransition } from '@/components/ui/interactive-transition';
@@ -15,6 +12,10 @@ import { ProjectCarousel, type CarouselProject } from '@/components/composite/pr
 import { AkademyaCTA } from '@/components/composite/akademya-cta';
 import { CrewHero, type CrewMember } from '@/components/composite/crew-hero';
 import { SponsorsMarquee } from '@/components/composite/sponsors-marquee';
+import {
+  UpcomingFestivalHero,
+  type UpcomingFestival,
+} from '@/components/composite/upcoming-festival-hero';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -24,23 +25,6 @@ interface ProjectItem {
   clientName?: string;
   featuredImageUrl?: string;
   translations: Array<{ locale: string; title: string; summary?: string }>;
-}
-
-interface ProductItem {
-  id: string;
-  slug: string;
-  price: number;
-  featuredImageUrl?: string;
-  translations: Array<{ locale: string; name: string; slug: string }>;
-}
-
-interface ArtistItem {
-  id: string;
-  slug: string;
-  city?: string;
-  country?: string;
-  featuredImageUrl?: string;
-  translations: Array<{ locale: string; name: string }>;
 }
 
 interface LatestFestivalGallery {
@@ -62,29 +46,17 @@ const FALLBACK_IMAGES: string[] = [
   '/9th_edition_6.png',
 ];
 
-const FALLBACK_THUMB = [
-  { title: 'Murales Dakar', image: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=600&q=80', tag: 'Graffiti' },
-  { title: 'Sérigraphie RBS', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80', tag: 'Sérigraphie' },
-  { title: 'Festival Last Wall', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&q=80', tag: 'Festival' },
-];
-
-export const dynamic = 'force-dynamic';
-
 export default async function HomePage() {
-  // Pause artificielle pour montrer le loader
-  await new Promise(resolve => setTimeout(resolve, 800));
-
-  const [projectsData, productsData, artistsData, latestFestivalData] = await Promise.allSettled([
+  const [projectsData, latestFestivalData, upcomingFestivalData] = await Promise.allSettled([
     api.get('projects?limit=10', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } }).json<ApiResponse<ProjectItem[]>>(),
-    api.get('products?limit=4&status=PUBLISHED', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 1800 } }).json<ApiResponse<ProductItem[]>>(),
-    api.get('artists?limit=10', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 3600 } }).json<ApiResponse<ArtistItem[]>>(),
     api.get('festival/latest/gallery', { next: { revalidate: 3600 } }).json<LatestFestivalGallery>(),
+    api.get('festival/upcoming', { headers: { 'Accept-Language': 'fr' }, next: { revalidate: 300 } }).json<{ data: UpcomingFestival | null }>(),
   ]);
 
   const projects = projectsData.status === 'fulfilled' ? projectsData.value.data : [];
-  const products = productsData.status === 'fulfilled' ? productsData.value.data : [];
-  const artists = artistsData.status === 'fulfilled' ? artistsData.value.data : [];
   const latestFestival = latestFestivalData.status === 'fulfilled' ? latestFestivalData.value : null;
+  const upcomingFestival =
+    upcomingFestivalData.status === 'fulfilled' ? (upcomingFestivalData.value?.data ?? null) : null;
   const fetchError = projectsData.status === 'rejected';
 
   // ── Carousel projects from API ──────────────────
@@ -138,45 +110,12 @@ export default async function HomePage() {
     },
   ];
 
-  // ── Crew members from API ──────────────────────
-  const CREW_FALLBACK: CrewMember[] = [
+  // ── Crew members ───────────────────────────────
+  const crewMembers: CrewMember[] = [
     { name: 'Diablo', role: 'Visual Artist', imageUrl: '/DIABLO.png', slug: 'diablo' },
     { name: 'Madzoo', role: 'Visual Artist', imageUrl: '/MADZO.png', slug: 'mad-zoo' },
     { name: 'Mane', role: 'Calligrapher', imageUrl: '/MANE.png', slug: 'mane' },
     { name: 'Elmemf', role: 'Graffiti Artist', imageUrl: '/ELMEMF.png', slug: 'elmemf' },
-  ];
-
-  const crewMembers: CrewMember[] = (() => {
-    // if (artists.length >= 4) {
-    //   return artists.slice(0, 4).map((a) => {
-    //     const t = a.translations.find((x) => x.locale === 'fr') ?? a.translations[0];
-    //     return {
-    //       name: t?.name ?? 'Artiste',
-    //       role: a.city ?? 'Artiste',
-    //       imageUrl: a.featuredImageUrl ?? '/9th_edition_1.png',
-    //       slug: a.slug,
-    //     };
-    //   });
-    // }
-    return CREW_FALLBACK;
-  })();
-
-  const thematicCols = [
-    {
-      tag: artists[0]?.city ?? 'Dakar',
-      title: projects[0]?.translations.find(t => t.locale === 'fr')?.title ?? 'Murales',
-      image: projects[0]?.featuredImageUrl ?? FALLBACK_THUMB[0].image,
-    },
-    {
-      tag: artists[1]?.city ?? 'Thiès',
-      title: projects[1]?.translations.find(t => t.locale === 'fr')?.title ?? 'Sérigraphie',
-      image: projects[1]?.featuredImageUrl ?? FALLBACK_THUMB[1].image,
-    },
-    {
-      tag: artists[2]?.city ?? 'Saint-Louis',
-      title: projects[2]?.translations.find(t => t.locale === 'fr')?.title ?? 'Last Wall',
-      image: projects[2]?.featuredImageUrl ?? FALLBACK_THUMB[2].image,
-    },
   ];
 
   return (
@@ -245,6 +184,11 @@ export default async function HomePage() {
       {/* Bottom marquee strip — kinetic detail with interactive hover */}
       <InteractiveTransition />
 
+      {/* ── Prochaine édition du festival ─────────────────────────────── */}
+      {upcomingFestival && (
+        <UpcomingFestivalHero edition={upcomingFestival} variant="home" />
+      )}
+
       {/* ── Last Wall Tour Festival ───────────────────────────────────────────── */}
       <EditionHero
         editionNumber={latestFestival?.editionNumber ?? 9}
@@ -254,14 +198,9 @@ export default async function HomePage() {
           latestFestival?.description ||
           "Depuis la première édition à Thiès en 2014, le RBS Crew organise chaque année ce festival, parcourant différentes villes du Sénégal. Durant cette décennie, le collectif a défendu et partagé sa vision à travers des thématiques variées, accueillant chaque année un invité différent. Ce festival a permis au RBS Crew de s'étendre au-delà de Dakar, renforçant ainsi sa notoriété et son expérience."
         }
-        galleryImages={(() => {
-          // const real = latestFestival?.gallery ?? [];
-          // Use real images first, fill remaining slots with fallbacks
-          const merged = [
-            ...FALLBACK_IMAGES.slice(0, 6),
-          ];
-          return merged;
-        })()}
+        galleryImages={
+          latestFestival?.gallery?.length ? latestFestival.gallery.slice(0, 6) : FALLBACK_IMAGES
+        }
         stats={[
           { value: '10+', label: 'Editions' },
           { value: '15+', label: 'villes' },

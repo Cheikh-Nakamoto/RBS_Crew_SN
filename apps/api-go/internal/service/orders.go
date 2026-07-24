@@ -298,6 +298,33 @@ func (s *OrdersService) FindOne(ctx context.Context, id, userID, role string) (*
 	return &res, nil
 }
 
+// OrderStatusResponse is the minimal payload polled by the payment-return page.
+type OrderStatusResponse struct {
+	ID            string `json:"id"`
+	Status        string `json:"status"`
+	PaymentStatus string `json:"paymentStatus"`
+}
+
+// FindStatus returns only an order's statuses — the checkout success page polls
+// this every 2s and has no use for the items, addresses or totals.
+func (s *OrdersService) FindStatus(ctx context.Context, id, userID, role string) (*OrderStatusResponse, *types.AppError) {
+	order, err := s.ordersRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, types.NotFound("Order not found")
+		}
+		return nil, types.InternalError("Database error")
+	}
+	if role != "ADMIN" && (order.UserId == nil || *order.UserId != userID) {
+		return nil, types.Forbidden("Access denied")
+	}
+	return &OrderStatusResponse{
+		ID:            order.ID,
+		Status:        string(order.Status),
+		PaymentStatus: string(order.PaymentStatus),
+	}, nil
+}
+
 // UpdateShipping sets tracking/carrier/shipping info on an order (admin + editor).
 func (s *OrdersService) UpdateShipping(ctx context.Context, orderID, carrier, trackingNumber string, shippingMethodID *string) (*model.OrderResponse, *types.AppError) {
 	params := db.UpdateOrderShippingParams{

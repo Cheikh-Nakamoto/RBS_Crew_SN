@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ord
   }
 
   try {
-    const res = await fetch(`${API_URL}/orders/${orderId}`, {
+    const res = await fetch(`${API_URL}/orders/${orderId}/status`, {
       headers: {
         Authorization: `Bearer ${session.accessToken}`,
       },

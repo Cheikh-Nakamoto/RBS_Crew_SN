@@ -75,6 +75,20 @@ func (h *OrdersHandler) FindOne(w http.ResponseWriter, r *http.Request) {
 	types.WriteJSON(w, http.StatusOK, result)
 }
 
+// FindStatus est la variante légère de FindOne, destinée au polling de la page
+// de retour de paiement (statuts uniquement, sans les lignes de commande).
+func (h *OrdersHandler) FindStatus(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	userID, _ := r.Context().Value(types.CtxUserID).(string)
+	role, _ := r.Context().Value(types.CtxUserRole).(string)
+	result, err := h.svc.FindStatus(r.Context(), id, userID, role)
+	if err != nil {
+		types.WriteError(w, err)
+		return
+	}
+	types.WriteJSON(w, http.StatusOK, result)
+}
+
 func (h *OrdersHandler) AdminDelete(w http.ResponseWriter, r *http.Request) {
 	if appErr := h.svc.AdminDelete(r.Context(), chi.URLParam(r, "id")); appErr != nil {
 		types.WriteError(w, appErr)

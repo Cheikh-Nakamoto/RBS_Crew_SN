@@ -21,7 +21,6 @@ interface ArtistItem {
 
 export const metadata = { title: 'Crew' };
 
-export const dynamic = 'force-dynamic';
 
 export default async function CrewPage() {
 

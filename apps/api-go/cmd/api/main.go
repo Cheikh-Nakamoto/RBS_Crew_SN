@@ -81,6 +81,8 @@ func run() error {
 	refundsRepo := repository.NewRefundsRepository(pool)
 	shippingRepo := repository.NewShippingRepository(pool)
 	notificationRepo := repository.NewNotificationRepository(pool)
+	statsRepo := repository.NewStatsRepository(pool)
+	optionsRepo := repository.NewOptionsRepository(pool)
 
 	// ── Services ─────────────────────────────────────────────────────────────
 	mailSvc := mail.NewMailService(cfg)
@@ -176,6 +178,8 @@ func run() error {
 		Media:             handler.NewMediaHandler(cfg.R2AccountID, cfg.R2AccessKey, cfg.R2SecretKey, cfg.R2Bucket, cfg.R2PublicURL),
 		Cart:              handler.NewCartHandler(cartSvc, cfg.Environment != "development"),
 		ActivityLogs:      handler.NewActivityLogsHandler(activityLogRepo),
+		AdminStats:        handler.NewAdminStatsHandler(statsRepo),
+		AdminOptions:      handler.NewAdminOptionsHandler(optionsRepo),
 		Refunds:           handler.NewRefundsHandler(refundsSvc),
 		Shipping:          handler.NewShippingHandler(shippingSvc),
 		Notifications:     handler.NewNotificationsHandler(notificationsSvc),
